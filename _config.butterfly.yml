@@ -170,7 +170,9 @@ comments:
   card_post_count: false
 
 waline:
-  serverURL: https://weiblog-comments.vercel.app
+  # 走 Netlify 转发节点（vercel.app 域名在国内被 DNS 污染，访客打不开）
+  # Netlify 只做请求转发，真正的服务端、数据、后台都还在 Vercel + Neon，没有迁移
+  serverURL: https://weiblog-comments.netlify.app
   bg:
   # 用 Waline 的阅读量统计（会多一次请求，先不开）
   pageview: false

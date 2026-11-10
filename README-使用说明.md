@@ -172,21 +172,35 @@ schtasks /Create /TN "BlogSync" /TR "cmd /c \"C:\Users\renwe\WorkBuddy\2026-11-1
 留言板和每篇文章底部都是 **Waline** 评论框。访客不用注册、不用登录，
 填个昵称（邮箱选填）就能发，发完立刻显示。
 
-- 服务端：`https://weiblog-comments.vercel.app`（部署在你自己的 Vercel 账号，免费）
+- **对外地址（访客用的）**：`https://weiblog-comments.netlify.app`
+  这是 Netlify 上的一个**转发节点**，只把请求转给真正的服务端。为什么要多这一层见下面第 2 条。
+- 真正的服务端：`https://weiblog-comments.vercel.app`（你自己的 Vercel 账号，免费，**不要填进配置**）
 - 数据库：Neon PostgreSQL 免费版（0.5 GB，够写很多年）
-- **你的管理后台**：<https://weiblog-comments.vercel.app/ui>
+- **你的管理后台**：<https://weiblog-comments.netlify.app/ui>
   用注册的邮箱 `599676700@qq.com` 登录，能审核、删除、置顶、标记垃圾评论
 - 有人留言会发邮件通知到你的 QQ 邮箱
 - 想临时关掉评论区：`_config.butterfly.yml` 里 `comments` 下的 `use: Waline` 改成 `use:`（留空）
 - 想换回 Giscus：把 `use: Waline` 改成 `use: Giscus`（配置一直留着）
 
-**三个坑，先记着**
+**为什么中间要加一层 Netlify**
 
-1. **别把 serverURL 换成带一长串字母的地址**（形如 `weiblog-comments-8tp9lgjfc-...vercel.app`）。
-   那是某一次部署的临时地址，重新部署就失效了。要填 `weiblog-comments.vercel.app` 这个固定的。
-2. **国内访问不稳**。`*.vercel.app` 在国内部分网络会被 DNS 污染，评论区可能一直转圈。
-   遇到这种情况先换手机流量试试；要彻底解决只能绑一个自己的域名。
+`*.vercel.app` 这个域名在国内被 DNS 污染（解析出来是 `face:b00c...` 这种假地址），
+国内访客的浏览器根本连不上，评论区会一直转圈。`*.netlify.app` 没有被污染，
+所以用 Netlify 做一层转发：**访客 → netlify.app → vercel.app**。
+
+注意：这层转发**不改后端**。评论数据、管理员账号、后台全都在原来的 Vercel + Neon 上，
+Netlify 那边只是转一下请求而已，没搬任何东西。
+
+**四个坑，先记着**
+
+1. **`serverURL` 填 `weiblog-comments.netlify.app`**，不要填 vercel 那个（国内打不开），
+   也不要填带一长串字母的地址（形如 `weiblog-comments-8tp9lgjfc-...`，那是临时部署地址，会失效）。
+2. **Netlify 新站默认是 Private**，访客会撞 401 登录页。必须去
+   Project configuration → General → Visitor access → Project visibility → 改成 **Public**。
+   判断方法：无痕窗口（不登录）打开那个地址，能看到页面就是对的。
 3. **改完 Vercel 环境变量必须 Redeploy**，否则不生效。
+4. **Netlify 那边只有两个文件**（`_redirects` + `index.html`），是拖拽部署的，没连 GitHub。
+   转发规则哪天要改，改完重新拖一次就行。
 
 > 旧的审核制留言数据还在 `source/_data/comments.yml`，没删。哪天 Waline 不想用了，
 > 跟我说一声，我可以把这套静态卡片切回去。
