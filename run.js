@@ -252,7 +252,7 @@ async function publishSource() {
   runGit(['config', 'core.quotepath', 'false'], dir);
 
   // 2. 把本地源码覆盖到副本上（只复制站点真正需要的文件）
-  const files = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', 'run.js', 'README-使用说明.md'];
+  const files = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'README-使用说明.md'];
   for (const f of files) {
     const s = path.join(base, f);
     if (fs.existsSync(s)) fs.copyFileSync(s, path.join(dir, f));
