@@ -206,6 +206,97 @@ async function deployGit() {
   if (tail) console.log('  ' + tail);
 }
 
+// 把「源码」推到 hexo-src 分支，由 GitHub Actions 自动编译并发布到 master。
+// 这样「本地 publish」和「网页里写文章」走的是同一条流水线，不会互相覆盖。
+async function publishSource() {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+  const srcBranch = 'hexo-src';
+  const cfg = Array.isArray(hexo.config.deploy) ? hexo.config.deploy[0] : hexo.config.deploy || {};
+  const rawUrl = cfg.repo || cfg.repository || '';
+  if (!rawUrl) throw new Error('_config.yml 里的 deploy.repo 没有配置。');
+
+  const m = rawUrl.replace(/^https:\/\/(?:[^@/]+@)?/, '').match(/^([^/]+)(\/.*)?$/);
+  const host = m ? m[1] : 'github.com';
+  const pathPart = (m && m[2]) || '/v-jinci/v-jinci.github.io.git';
+  const cleanUrl = 'https://' + host + pathPart;
+
+  const cred = readCred(host);
+  if (!cred.token) throw new Error('没有找到 GitHub 令牌。请先双击 setup-github.bat 粘贴一次。');
+  const authUrl = 'https://' + cred.user + ':' + cred.token + '@' + host + pathPart;
+
+  // 1. 准备一个干净的源码副本仓库（位于 .src_git，不进版本库）
+  const dir = path.join(base, '.src_git');
+  if (!fs.existsSync(path.join(dir, '.git'))) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    console.log('  首次同步：从线上取回源码…');
+    const c = runGit(['clone', '--depth', '1', '--branch', srcBranch, authUrl, dir], base);
+    if (c.code !== 0) {
+      const e = new Error('取回源码失败（git 退出码 ' + c.code + '）');
+      e.gitOutput = c.text.split(cred.token).join('****');
+      throw e;
+    }
+    runGit(['remote', 'set-url', 'origin', cleanUrl], dir);
+  } else {
+    const f = runGit(['fetch', '--depth', '1', authUrl, srcBranch], dir);
+    if (f.code !== 0) {
+      const e = new Error('同步线上源码失败（git 退出码 ' + f.code + '）');
+      e.gitOutput = f.text.split(cred.token).join('****');
+      throw e;
+    }
+    runGit(['reset', '--hard', 'FETCH_HEAD'], dir);
+  }
+  runGit(['config', 'user.name', cred.user], dir);
+  runGit(['config', 'user.email', cred.user + '@users.noreply.github.com'], dir);
+  runGit(['config', 'core.quotepath', 'false'], dir);
+
+  // 2. 把本地源码覆盖到副本上（只复制站点真正需要的文件）
+  const files = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', 'run.js', 'README-使用说明.md'];
+  for (const f of files) {
+    const s = path.join(base, f);
+    if (fs.existsSync(s)) fs.copyFileSync(s, path.join(dir, f));
+  }
+  for (const d of ['source', 'scaffolds', '.github']) {
+    const s = path.join(base, d);
+    if (fs.existsSync(s)) fs.cpSync(s, path.join(dir, d), { recursive: true });
+  }
+
+  // 3. 看看动了哪些文件
+  runGit(['add', '-A'], dir);
+  const st = runGit(['status', '--porcelain'], dir);
+  const changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
+  const deleted = changed.filter((l) => l.startsWith('D'));
+  if (changed.length === 0) {
+    console.log('');
+    console.log('  没有检测到任何改动 —— 不用发布。');
+    console.log('  （如果你在网页里改过文章，改动已经在线上，本地不用重复发。）');
+    return;
+  }
+  console.log('  改动的文件（' + changed.length + ' 个）：');
+  changed.slice(0, 12).forEach((l) => console.log('    ' + l.replace(/^([AMDR?]+)\s+/, '$1  ')));
+  if (changed.length > 12) console.log('    …还有 ' + (changed.length - 12) + ' 个');
+  if (deleted.length) {
+    console.log('  注意：有 ' + deleted.length + ' 个文件在线上存在、本地已删除，本次不会删除它们。');
+  }
+
+  // 4. 提交并推送源码
+  const msg = 'publish from local: ' + new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const c = runGit(['commit', '-m', msg], dir);
+  if (c.code !== 0) {
+    console.log('  提交失败：' + (c.text.split('\n')[0] || '未知'));
+    return;
+  }
+  console.log('  推送到 ' + srcBranch + ' 分支…');
+  const p = runGit(['push', authUrl, 'HEAD:' + srcBranch], dir);
+  if (p.code !== 0) {
+    const e = new Error('推送失败（git 退出码 ' + p.code + '）');
+    e.gitOutput = p.text.split(cred.token).join('****');
+    throw e;
+  }
+  console.log('  已推送。');
+}
+
 const cmd = (process.argv[2] || 'help').toLowerCase();
 const hexo = new Hexo(process.cwd(), { silent: false });
 // Hexo 插件（渲染器、后台等）依赖这个全局变量
@@ -264,13 +355,28 @@ async function main() {
     console.log('  已清理');
   } else if (cmd === 'publish') {
     console.log('');
-    console.log('  正在生成并发布到 GitHub，请稍等 1-3 分钟…');
+    console.log('  正在发布：本地源码 → hexo-src 分支 → GitHub 自动编译 → 线上');
+    console.log('  大约 1-2 分钟，中途请不要关窗口。');
     console.log('');
-    console.log('  [1/3] 清理旧文件…');
+    console.log('  [1/3] 先本地编译一次，确认没问题…');
     await hexo.call('clean', {});
-    console.log('  [2/3] 生成网站…');
     await hexo.call('generate', {});
-    console.log('  [3/3] 推送到 GitHub…');
+    console.log('       编译通过。');
+    console.log('  [2/3] 同步线上源码并提交本地改动…');
+    ensureGit();
+    await publishSource();
+    console.log('  [3/3] 触发云端构建…');
+    console.log('');
+    console.log('  完成！GitHub 正在编译，约 1-2 分钟后刷新 https://v-jinci.github.io 就能看到。');
+    console.log('  想看进度：https://github.com/v-jinci/v-jinci.github.io/actions');
+  } else if (cmd === 'publish-master') {
+    // 备用通道：跳过 Actions，直接把成品推到 master（Actions 出故障时用）
+    console.log('');
+    console.log('  [备用] 直接推送到 master（不经 GitHub Actions）…');
+    console.log('  [1/2] 生成网站…');
+    await hexo.call('clean', {});
+    await hexo.call('generate', {});
+    console.log('  [2/2] 推送到 GitHub…');
     ensureGit();
     await deployGit();
     console.log('');
