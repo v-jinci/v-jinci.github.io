@@ -111,7 +111,7 @@ function readCred(host) {
 /**
  * 执行 git 并**完整捕获**输出。不接管控制台，出错时才能看到真正原因。
  */
-function runGit(args, cwd, extraEnv) {
+function runGit(args, cwd, extraEnv, opts) {
   const cp = require('child_process');
   const env = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0' }, extraEnv || {});
   // 这些是 git 的保留变量。若被外部设成别的路径，git 会去错误的地方找仓库
@@ -123,16 +123,20 @@ function runGit(args, cwd, extraEnv) {
   delete env.GIT_OBJECT_DIRECTORY;
   delete env.GIT_ALTERNATE_OBJECT_DIRECTORIES;
   delete env.GIT_CEILING_DIRECTORIES;
-  const r = cp.spawnSync('git', ['-c', 'safe.directory=*'].concat(args), {
+  const spawnOpts = {
     cwd: cwd,
     env: env,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024
-  });
-  if (r.error) throw new Error('执行 git 失败：' + r.error.message);
+  };
+  if (opts && opts.timeout) spawnOpts.timeout = opts.timeout;
+  const r = cp.spawnSync('git', ['-c', 'safe.directory=*'].concat(args), spawnOpts);
+  // 超时被杀掉时 error 是 ETIMEDOUT，交给调用方判断
+  if (r.error && r.error.code !== 'ETIMEDOUT') throw new Error('执行 git 失败：' + r.error.message);
   const out = r.stdout || '';
   const err = r.stderr || '';
-  return { code: r.status, out: out, err: err, text: (out + err).trim() };
+  const code = r.error && r.error.code === 'ETIMEDOUT' ? 'TIMEOUT' : r.status;
+  return { code: code, out: out, err: err, text: (out + err).trim() };
 }
 
 /**
@@ -208,56 +212,229 @@ async function deployGit() {
 
 // 把「源码」推到 hexo-src 分支，由 GitHub Actions 自动编译并发布到 master。
 // 这样「本地 publish」和「网页里写文章」走的是同一条流水线，不会互相覆盖。
-async function publishSource() {
-  const fs = require('fs');
-  const path = require('path');
-  const base = hexo.base_dir;
-  const srcBranch = 'hexo-src';
+
+const SRC_BRANCH = 'hexo-src';
+// 这些是站点真正需要的源码，publish 时整份覆盖到副本上
+const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'README-使用说明.md'];
+const MANAGED_DIRS = ['source', 'scaffolds', '.github'];
+
+/** 解析仓库地址 + 读令牌，返回 { host, pathPart, cleanUrl, cred, authUrl } */
+function repoInfo() {
   const cfg = Array.isArray(hexo.config.deploy) ? hexo.config.deploy[0] : hexo.config.deploy || {};
   const rawUrl = cfg.repo || cfg.repository || '';
   if (!rawUrl) throw new Error('_config.yml 里的 deploy.repo 没有配置。');
-
   const m = rawUrl.replace(/^https:\/\/(?:[^@/]+@)?/, '').match(/^([^/]+)(\/.*)?$/);
   const host = m ? m[1] : 'github.com';
   const pathPart = (m && m[2]) || '/v-jinci/v-jinci.github.io.git';
-  const cleanUrl = 'https://' + host + pathPart;
-
   const cred = readCred(host);
   if (!cred.token) throw new Error('没有找到 GitHub 令牌。请先双击 setup-github.bat 粘贴一次。');
-  const authUrl = 'https://' + cred.user + ':' + cred.token + '@' + host + pathPart;
+  return {
+    host: host,
+    pathPart: pathPart,
+    cleanUrl: 'https://' + host + pathPart,
+    cred: cred,
+    authUrl: 'https://' + cred.user + ':' + cred.token + '@' + host + pathPart
+  };
+}
 
-  // 1. 准备一个干净的源码副本仓库（位于 .src_git，不进版本库）
+/**
+ * 把线上 hexo-src 取回本地副本 .src_git，并重置到最新提交。
+ * 返回 { dir, info }
+ */
+function fetchRemoteSource(opts) {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+  const info = repoInfo();
   const dir = path.join(base, '.src_git');
+  const timeout = opts && opts.timeout ? { timeout: opts.timeout } : undefined;
+
   if (!fs.existsSync(path.join(dir, '.git'))) {
     fs.rmSync(dir, { recursive: true, force: true });
-    console.log('  首次同步：从线上取回源码…');
-    const c = runGit(['clone', '--depth', '1', '--branch', srcBranch, authUrl, dir], base);
+    if (!(opts && opts.quiet)) console.log('  首次同步：从线上取回源码…');
+    const c = runGit(['clone', '--depth', '1', '--branch', SRC_BRANCH, info.authUrl, dir], base, null, timeout);
     if (c.code !== 0) {
       const e = new Error('取回源码失败（git 退出码 ' + c.code + '）');
-      e.gitOutput = c.text.split(cred.token).join('****');
+      e.gitOutput = c.text.split(info.cred.token).join('****');
       throw e;
     }
-    runGit(['remote', 'set-url', 'origin', cleanUrl], dir);
+    runGit(['remote', 'set-url', 'origin', info.cleanUrl], dir);
   } else {
-    const f = runGit(['fetch', '--depth', '1', authUrl, srcBranch], dir);
+    const f = runGit(['fetch', '--depth', '1', info.authUrl, SRC_BRANCH], dir, null, timeout);
     if (f.code !== 0) {
-      const e = new Error('同步线上源码失败（git 退出码 ' + f.code + '）');
-      e.gitOutput = f.text.split(cred.token).join('****');
+      const e = new Error(f.code === 'TIMEOUT' ? '同步线上源码超时（网络太慢或连不上）' : '同步线上源码失败（git 退出码 ' + f.code + '）');
+      e.gitOutput = f.text.split(info.cred.token).join('****');
       throw e;
     }
     runGit(['reset', '--hard', 'FETCH_HEAD'], dir);
   }
-  runGit(['config', 'user.name', cred.user], dir);
-  runGit(['config', 'user.email', cred.user + '@users.noreply.github.com'], dir);
+  runGit(['config', 'user.name', info.cred.user], dir);
+  runGit(['config', 'user.email', info.cred.user + '@users.noreply.github.com'], dir);
   runGit(['config', 'core.quotepath', 'false'], dir);
+  return { dir: dir, info: info };
+}
 
-  // 2. 把本地源码覆盖到副本上（只复制站点真正需要的文件）
-  const files = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'README-使用说明.md'];
-  for (const f of files) {
+/** 递归列出目录下所有文件，返回相对 base 的路径（用 / 分隔） */
+function listFiles(root, prefix) {
+  const fs = require('fs');
+  const path = require('path');
+  const out = [];
+  const walk = (abs, rel) => {
+    if (!fs.existsSync(abs)) return;
+    for (const ent of fs.readdirSync(abs, { withFileTypes: true })) {
+      if (ent.name === '.git') continue;
+      const a = path.join(abs, ent.name);
+      const r = rel ? rel + '/' + ent.name : ent.name;
+      if (ent.isDirectory()) walk(a, r);
+      else if (ent.isFile()) out.push(r);
+    }
+  };
+  walk(root, prefix || '');
+  return out;
+}
+
+function sha1(buf) {
+  return require('crypto').createHash('sha1').update(buf).digest('hex');
+}
+
+/**
+ * 内容指纹：文本文件忽略 CRLF/LF 差异，二进制按原样。
+ * 不加这一层，本地（CRLF）和线上（LF）会被误判成「每个文件都改过」。
+ */
+function contentKey(buf) {
+  if (buf.includes(0)) return 'b:' + sha1(buf);
+  const text = buf.toString('utf8').replace(/\r\n/g, '\n');
+  return 't:' + sha1(Buffer.from(text, 'utf8'));
+}
+
+function statePath() {
+  return require('path').join(hexo.base_dir, '.sync-state.json');
+}
+
+function loadSyncState() {
+  const fs = require('fs');
+  try {
+    const d = JSON.parse(fs.readFileSync(statePath(), 'utf8'));
+    return d && typeof d.files === 'object' ? d.files : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveSyncState(files) {
+  const fs = require('fs');
+  fs.writeFileSync(statePath(), JSON.stringify({ updated: new Date().toISOString(), files: files }, null, 2));
+}
+
+/**
+ * 把线上新增/更新的文章拉到本地。
+ * 只在「本地这份没动过」时才覆盖；两边都改过就保留本地并提示。
+ */
+function syncSource(opts) {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+  const quiet = !!(opts && opts.quiet);
+
+  const remote = fetchRemoteSource(opts);
+  const remoteRoot = path.join(remote.dir, 'source');
+  const remoteFiles = listFiles(remoteRoot, 'source');
+  const state = loadSyncState();
+  const firstRun = Object.keys(state).length === 0;
+  const nextState = {};
+  const added = [];
+  const updated = [];
+  const localOnly = [];
+  const conflicts = [];
+
+  for (const rel of remoteFiles) {
+    const rAbs = path.join(remote.dir, rel);
+    const lAbs = path.join(base, rel);
+    const rBuf = fs.readFileSync(rAbs);
+    const rSha = contentKey(rBuf);
+    nextState[rel] = rSha;
+
+    if (!fs.existsSync(lAbs)) {
+      fs.mkdirSync(path.dirname(lAbs), { recursive: true });
+      fs.writeFileSync(lAbs, rBuf);
+      added.push(rel);
+      continue;
+    }
+    const lSha = contentKey(fs.readFileSync(lAbs));
+    if (lSha === rSha) continue;
+
+    const baseSha = state[rel];
+    if (baseSha && lSha === baseSha) {
+      // 本地没动过、线上变了 → 放心覆盖
+      fs.writeFileSync(lAbs, rBuf);
+      updated.push(rel);
+    } else if (baseSha && rSha === baseSha) {
+      // 只有本地改了、线上没动 → 什么都不做（publish 时才推上去）
+      localOnly.push(rel);
+    } else {
+      // 两边都改了（或首次同步就对不上）→ 保留本地，提示用户
+      conflicts.push(rel);
+    }
+  }
+
+  saveSyncState(nextState);
+
+  if (quiet) return { added: added, updated: updated, localOnly: localOnly, conflicts: conflicts };
+  if (!added.length && !updated.length && !localOnly.length && !conflicts.length) {
+    console.log('  本地已经是最新的，没有需要拉取的内容。');
+  } else {
+    if (added.length) {
+      console.log('  新增 ' + added.length + ' 个文件（线上有、本地原来没有）：');
+      added.forEach((f) => console.log('    + ' + f));
+    }
+    if (updated.length) {
+      console.log('  更新 ' + updated.length + ' 个文件：');
+      updated.forEach((f) => console.log('    ~ ' + f));
+    }
+    if (localOnly.length) {
+      console.log('  本地有 ' + localOnly.length + ' 个改动还没发布（publish 时会推上去）：');
+      localOnly.slice(0, 8).forEach((f) => console.log('    * ' + f));
+    }
+    if (conflicts.length) {
+      console.log('');
+      console.log('  有 ' + conflicts.length + ' 个文件本地与线上不一致' + (firstRun ? '（首次同步，没有比对基准）' : '，两边都改过') + '，已保留【本地】版本：');
+      conflicts.forEach((f) => console.log('    ! ' + f));
+      console.log('  想要线上那版：把该文件改名备份后重跑本命令；');
+      console.log('  想让线上用本地这版：直接 publish 就会覆盖过去。');
+    }
+  }
+  return { added: added, updated: updated, localOnly: localOnly, conflicts: conflicts };
+}
+
+async function publishSource() {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+
+  // 先拉一次：确保手机/网页上写的文章先在本地落地，再一起推回去
+  try {
+    const s = syncSource({ quiet: true });
+    if (s.added.length || s.updated.length) {
+      console.log('  先同步了线上 ' + (s.added.length + s.updated.length) + ' 个文件到本地。');
+    }
+    if (s.conflicts.length) {
+      console.log('  注意：' + s.conflicts.length + ' 个文件本地与线上都改过，本次以本地为准。');
+    }
+  } catch (e) {
+    console.log('  （拉取失败，跳过同步直接发布：' + (e && e.message ? e.message : e) + '）');
+  }
+
+  const remote = fetchRemoteSource({});
+  const dir = remote.dir;
+  const cred = remote.info.cred;
+  const authUrl = remote.info.authUrl;
+
+  // 把本地源码覆盖到副本上（只复制站点真正需要的文件）
+  for (const f of MANAGED_FILES) {
     const s = path.join(base, f);
     if (fs.existsSync(s)) fs.copyFileSync(s, path.join(dir, f));
   }
-  for (const d of ['source', 'scaffolds', '.github']) {
+  for (const d of MANAGED_DIRS) {
     const s = path.join(base, d);
     if (fs.existsSync(s)) fs.cpSync(s, path.join(dir, d), { recursive: true });
   }
@@ -287,8 +464,8 @@ async function publishSource() {
     console.log('  提交失败：' + (c.text.split('\n')[0] || '未知'));
     return;
   }
-  console.log('  推送到 ' + srcBranch + ' 分支…');
-  const p = runGit(['push', authUrl, 'HEAD:' + srcBranch], dir);
+  console.log('  推送到 ' + SRC_BRANCH + ' 分支…');
+  const p = runGit(['push', authUrl, 'HEAD:' + SRC_BRANCH], dir);
   if (p.code !== 0) {
     const e = new Error('推送失败（git 退出码 ' + p.code + '）');
     e.gitOutput = p.text.split(cred.token).join('****');
@@ -331,6 +508,25 @@ async function main() {
     }
 
     try {
+      ensureGit();
+      console.log('  正在检查云端有没有新文章…');
+      const s = syncSource({ quiet: true, timeout: 20000 });
+      if (s.added.length || s.updated.length) {
+        console.log('  已从云端同步 ' + (s.added.length + s.updated.length) + ' 个文件到本地。');
+      } else {
+        console.log('  本地已是最新。');
+      }
+      if (s.conflicts.length) {
+        console.log('  注意：' + s.conflicts.length + ' 个文件本地与线上都改过，已保留本地版本。');
+      }
+    } catch (e) {
+      // 没网、令牌过期、超时……都不该挡住本地写文章
+      console.log('  跳过自动同步（' + (e && e.message ? e.message : e) + '）');
+      console.log('  不影响本地使用，想手动同步双击 sync.bat。');
+    }
+    console.log('');
+
+    try {
       await hexo.call('server', { port: 4000, draft: true, open: false });
     } catch (e) {
       if (e && (e.code === 'EADDRINUSE' || /EADDRINUSE|has been used/.test(String(e.message)))) {
@@ -353,6 +549,19 @@ async function main() {
   } else if (cmd === 'clean') {
     await hexo.call('clean', {});
     console.log('  已清理');
+  } else if (cmd === 'sync') {
+    console.log('');
+    console.log('  正在从云端拉取最新文章…');
+    ensureGit();
+    const r = syncSource({});
+    console.log('');
+    if (r.added.length || r.updated.length) {
+      console.log('  完成！已同步到本地 source/ 目录，可以直接编辑了。');
+    } else if (r.conflicts.length) {
+      console.log('  没有自动覆盖任何文件（见上面的提示）。');
+    } else {
+      console.log('  完成！');
+    }
   } else if (cmd === 'publish') {
     console.log('');
     console.log('  正在发布：本地源码 → hexo-src 分支 → GitHub 自动编译 → 线上');
