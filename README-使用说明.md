@@ -60,14 +60,45 @@ https://v-jinci.github.io
 
 ---
 
-## 三、图片怎么放
+## 三、在任何设备上写（Pages CMS 表单后台）
+
+不想开电脑、想在手机浏览器里写的时候用这个。保存后 GitHub 自动编译，1-2 分钟上线，电脑可以一直关着。
+
+### 一次性开通（三步，约 2 分钟）
+
+1. 电脑打开 https://pagescms.org → 点 **Sign in with GitHub**，用 `v-jinci` 账号授权。
+2. 点 **Add repository**，选 `v-jinci/v-jinci.github.io`。
+   若列表里没有它，在 GitHub 的授权页点 **Grant / Select repositories** 把这个仓库加进去。
+3. **分支一定选 `hexo-src`**，不要选 `master`。
+   `master` 是编译后的成品页面，在那儿改等于白改，下一次构建就被覆盖。
+
+进去之后左侧应看到两组：**文章**、**独立页面**（关于 / 友链 / 留言板 / 编年史）。
+
+### 怎么用
+
+- 点 **文章 → New**：标题、发布日期、摘要、标签、分类都是表单，正文是富文本编辑器，可以直接往里面拖图片。
+- 改完点 **Save**，等 1-2 分钟刷新线上就有了。
+- 构建进度：https://github.com/v-jinci/v-jinci.github.io/actions
+
+### 四个注意
+
+1. **新建文章的文件名 = 标题**，所以标题别带 `/` `:` `*` 这类字符。
+2. 图片会上传到 `source/img/`，正文里自动写成 `/img/xxx.png`，本地 Hexo 同样能用。
+3. 表单里没列出的 front-matter（`top_img`、`type` 等）**不会丢** —— `.pages.yml` 里开了 `settings.content.merge: true`，这是关键，别删。
+4. 如果保存时它提示要创建 **Pull Request**（部分版本这样），去 GitHub 点一下 **Merge** 即可，同样会触发构建。
+
+> 手机适合短篇和随手记；长文还是本地后台（`start-admin.bat`）或 Typora 更舒服。
+
+---
+
+## 四、图片怎么放
 
 已经开了「文章资源文件夹」。新建文章时，Hexo 会同时建一个**同名文件夹**，
 把图片拖进去，正文里写 `![说明](图片名.jpg)` 即可，不用管路径。
 
 ---
 
-## 四、想改站点信息，只改这两个文件
+## 五、想改站点信息，只改这两个文件
 
 | 文件 | 改什么 |
 | --- | --- |
@@ -78,7 +109,7 @@ https://v-jinci.github.io
 
 ---
 
-## 五、第一次发布要准备 GitHub 令牌
+## 六、第一次发布要准备 GitHub 令牌
 
 发布配置已经写好了：
 
@@ -99,7 +130,7 @@ GitHub 早就不允许用登录密码推送了，需要一次性弄个令牌：
 
 ---
 
-## 六、目录结构（知道这几个就够）
+## 七、目录结构（知道这几个就够）
 
 ```
 _config.yml            站点主配置
@@ -112,13 +143,14 @@ source/messageBoard/   留言板
 source/history/        编年史
 scaffolds/post.md      新建文章时的模板（可自己改默认抬头）
 .github/workflows/     自动编译规则（改坏了线上就不会更新，别乱动）
+.pages.yml             网页版表单后台（Pages CMS）的字段配置
 .src_git/              发布时用的临时副本（可随时删，会自动重建）
 public/                生成出来的网页（自动生成，别手动改）
 ```
 
 ---
 
-## 七、遇到问题
+## 八、遇到问题
 
 - **提示 `'node' 不是内部或外部命令`**：本机没装 Node.js。`_run.bat` 会自动去找可用的 node.exe（
   系统安装的 → `C:\Program Files\nodejs` → WorkBuddy 自带的那份），正常情况下双击 bat 不会报错。
