@@ -154,18 +154,36 @@ footer:
 # 页面顶部图（留空则用主题默认渐变，干净清爽）
 
 # ==========================================================
-#  评论区（Giscus）
-#  评论直接存在这个仓库的 GitHub Discussions 里：免费、无服务器、永不欠费。
+#  评论区（Waline）
+#  访客填个昵称就能留言，不用注册任何账号。
+#  评论存在 Vercel + Neon 数据库里，服务端：https://weiblog-comments.vercel.app
+#  管理后台：https://weiblog-comments.vercel.app/ui
 #  想临时关掉评论：把下面 use 那行改成空值（use:）
+#  想换回 Giscus：把 use 改成 Giscus（下面的 giscus 配置一直留着）
 # ==========================================================
 comments:
-  use: Giscus
+  use: Waline
   text: true
   # 滚动到评论区才加载，打开页面更快
   lazyload: true
   count: false
   card_post_count: false
 
+waline:
+  serverURL: https://weiblog-comments.vercel.app
+  bg:
+  # 用 Waline 的阅读量统计（会多一次请求，先不开）
+  pageview: false
+  option:
+    lang: zh-CN
+    # 昵称必填；邮箱和网址选填，填了才会收到回复提醒
+    requiredMeta: [nick]
+    meta: [nick, mail, link]
+    pageSize: 10
+    commentSorting: latest
+    login: enable
+
+# 旧的 Giscus（现在没启用，留着备用）
 giscus:
   repo: v-jinci/v-jinci.github.io
   repo_id: R_kgDOLV2ueQ

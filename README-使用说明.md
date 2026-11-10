@@ -167,24 +167,29 @@ schtasks /Create /TN "BlogSync" /TR "cmd /c \"C:\Users\renwe\WorkBuddy\2026-11-1
 
 当前用的是自带的 `banner.svg`（山景暮色）、`avatar.svg`（"玮"字头像）、`favicon.svg`。
 
-### 留言板（审核制：不花钱，也不需要服务器）
+### 留言板（Waline：访客填个昵称就能发）
 
-留言存在 `source/_data/comments.yml` 里，构建时直接变成页面上的卡片——纯静态，
-没有后端、没有第三方脚本、访客也不用注册任何账号。
+留言板和每篇文章底部都是 **Waline** 评论框。访客不用注册、不用登录，
+填个昵称（邮箱选填）就能发，发完立刻显示。
 
-**收一条留言的流程（约 1 分钟）**
+- 服务端：`https://weiblog-comments.vercel.app`（部署在你自己的 Vercel 账号，免费）
+- 数据库：Neon PostgreSQL 免费版（0.5 GB，够写很多年）
+- **你的管理后台**：<https://weiblog-comments.vercel.app/ui>
+  用注册的邮箱 `599676700@qq.com` 登录，能审核、删除、置顶、标记垃圾评论
+- 有人留言会发邮件通知到你的 QQ 邮箱
+- 想临时关掉评论区：`_config.butterfly.yml` 里 `comments` 下的 `use: Waline` 改成 `use:`（留空）
+- 想换回 Giscus：把 `use: Waline` 改成 `use: Giscus`（配置一直留着）
 
-1. 访客发邮件到 `renweiwei127@163.com`（留言板上写着这个入口）
-2. 双击 `start-admin.bat` → 打开 <http://localhost:4000/site>
-3. 拉到最下面「留言管理」→ 点「+ 添加一条留言」→ 填昵称、内容（时间默认当前）
-4. 「公开」勾着 = 会显示；取消勾选 = 先存着不公开（广告或不想公开的都这么处理）
-5. 点「保存并发布到线上」，1-2 分钟后网站就更新了
+**三个坑，先记着**
 
-**能改的**：昵称、时间、内容、站长回复（显示成引用的样子）、公开/隐藏、删除。
-内容里的换行会保留，`https://…` 会自动变成可点的链接。
+1. **别把 serverURL 换成带一长串字母的地址**（形如 `weiblog-comments-8tp9lgjfc-...vercel.app`）。
+   那是某一次部署的临时地址，重新部署就失效了。要填 `weiblog-comments.vercel.app` 这个固定的。
+2. **国内访问不稳**。`*.vercel.app` 在国内部分网络会被 DNS 污染，评论区可能一直转圈。
+   遇到这种情况先换手机流量试试；要彻底解决只能绑一个自己的域名。
+3. **改完 Vercel 环境变量必须 Redeploy**，否则不生效。
 
-**关于文章底部评论**：那边仍然挂着 Giscus（需要登录 GitHub 才能发）。
-觉得两套并存麻烦的话跟我说，我把它关掉，全站统一成「发邮件 → 我审核」。
+> 旧的审核制留言数据还在 `source/_data/comments.yml`，没删。哪天 Waline 不想用了，
+> 跟我说一声，我可以把这套静态卡片切回去。
 
 ---
 
