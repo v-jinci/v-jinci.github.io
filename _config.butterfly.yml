@@ -24,13 +24,16 @@ social:
   fas fa-envelope: mailto:renweiwei127@163.com || Email
 
 avatar:
-  img: /img/Teemo-Time.jpg
+  img: /img/avatar.svg
   effect: false
 
-favicon:
+favicon: /img/favicon.svg
 
 disable_top_img: false
-index_img:
+
+# 顶部大图（首页 + 内页统一用这张；想换图把文件放进 source/img 再改这里的文件名）
+default_top_img: /img/banner.svg
+index_img: /img/banner.svg
 
 # 首页大标题下面的轮播文案
 subtitle:
@@ -142,7 +145,7 @@ footer:
   nav:
   owner:
     enable: true
-    since: 2022
+    since: 2021
   copyright:
     enable: true
     version: false

@@ -12,7 +12,7 @@ top_img:
 ```yaml
 name: 玮's Blog
 link: https://v-jinci.github.io
-avatar: https://v-jinci.github.io/img/Teemo-Time.jpg
+avatar: https://v-jinci.github.io/img/avatar.svg
 descr: V wants to be an explorer
 ```
 
