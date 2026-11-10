@@ -1,0 +1,51 @@
+name: Build and deploy
+
+# 说明：
+#   hexo-src 分支放「源码」（_posts / _config.yml / package.json 等），
+#   master 分支放「编译后的成品」，GitHub Pages 从 master 发布。
+#   往 hexo-src 提交 -> 自动编译 -> 强制推送到 master。
+
+on:
+  push:
+    branches:
+      - hexo-src
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-and-deploy
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出源码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 编译站点
+        run: node run.js build
+
+      - name: 推送到 master（GitHub Pages 从这里发布）
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          touch public/.nojekyll
+          cd public
+          git init -b master
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy from hexo-src ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" master
