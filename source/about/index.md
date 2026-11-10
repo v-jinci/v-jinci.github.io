@@ -1,0 +1,25 @@
+---
+title: 关于
+date: 2026-11-10 19:00:00
+type: about
+top_img:
+---
+
+## 我是谁
+
+你好，我是**玮**。一个还在学着把事情想清楚、把日子过明白的普通人。
+
+喜欢折腾工具，喜欢把复杂的东西拆开看看里面到底怎么回事，也喜欢在深夜写点没什么用但很真诚的东西。
+
+## 这个博客
+
+- 建于 2021 年，中间荒废过很久，2026 年重新整理了一遍
+- 用 [Hexo](https://hexo.io/) + [Butterfly](https://butterfly.js.org/) 搭建，托管在 GitHub Pages
+- 这里不追热点，只记录我自己真正在意的事
+
+## 联系我
+
+- GitHub：[@v-jinci](https://github.com/v-jinci)
+- 邮箱：renweiwei127@163.com
+
+想聊点什么，随时来[留言板](/messageBoard/)。

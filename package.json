@@ -1,0 +1,36 @@
+{
+  "name": "hexo-site",
+  "version": "1.0.0",
+  "private": true,
+  "hexo": {
+    "version": "7.3.0"
+  },
+  "description": "玮的个人博客 - Hexo + Butterfly",
+  "scripts": {
+    "dev": "node run.js server",
+    "server": "node run.js server",
+    "build": "node run.js build",
+    "clean": "node run.js clean",
+    "deploy": "node run.js publish"
+  },
+  "dependencies": {
+    "hexo": "^7.3.0",
+    "hexo-admin": "^2.3.0",
+    "hexo-cli": "^4.3.2",
+    "hexo-deployer-git": "^4.0.0",
+    "hexo-generator-archive": "^2.0.0",
+    "hexo-generator-category": "^2.0.0",
+    "hexo-generator-index": "^4.0.0",
+    "hexo-generator-search": "^2.4.3",
+    "hexo-generator-tag": "^2.0.0",
+    "hexo-renderer-marked": "^7.0.1",
+    "hexo-renderer-pug": "^3.0.0",
+    "hexo-renderer-stylus": "^3.0.1",
+    "hexo-server": "^3.0.0",
+    "hexo-theme-butterfly": "^5.7.2"
+  },
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

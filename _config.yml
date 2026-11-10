@@ -1,0 +1,108 @@
+# ==========================================================
+#  站点主配置  —— 一般只需要改「基础信息」这一小块
+# ==========================================================
+
+# ---------- 基础信息 ----------
+title: 玮's Blog
+subtitle: 'V wants to be an explorer'
+description: '记录思考、学习与生活的个人博客'
+keywords: 玮,博客,日志,生活记录,读书笔记
+author: 玮
+language: zh-CN
+timezone: 'Asia/Shanghai'
+
+# ---------- 网址 ----------
+# 部署到 GitHub Pages 后就是下面这个地址，换域名时改这里
+url: https://v-jinci.github.io
+root: /
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+
+# ---------- 目录 ----------
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+  - 'downloads/**'
+
+# ---------- 写作 ----------
+new_post_name: :year-:month-:day-:title.md
+default_layout: post
+titlecase: false
+external_link:
+  enable: true
+  field: site
+  exclude: ''
+filename_case: 0
+render_drafts: false
+# 开启后每篇文章会自带一个同名文件夹，图片直接拖进去引用，非常适合写日志
+post_asset_folder: true
+relative_link: false
+future: true
+
+# ---------- 代码块 ----------
+highlight:
+  enable: true
+  line_number: true
+  auto_detect: false
+  tab_replace: ''
+  wrap: true
+  hljs: false
+prismjs:
+  enable: false
+  preprocess: true
+  line_number: true
+  tab_replace: ''
+
+# ---------- 分类 / 标签 ----------
+default_category: 未分类
+category_map:
+tag_map:
+
+# ---------- 日期 ----------
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+updated_option: 'mtime'
+
+# ---------- 分页 ----------
+per_page: 10
+pagination_dir: page
+index_generator:
+  path: ''
+  per_page: 10
+  order_by: -date
+
+# ---------- 本地搜索 ----------
+search:
+  path: search.xml
+  field: post
+  format: html
+  limit: 10000
+
+# ---------- 主题 ----------
+theme: butterfly
+
+# ---------- 一键发布到 GitHub ----------
+# 第一次发布时会要求输入 GitHub 用户名 + Personal Access Token
+deploy:
+  type: git
+  repo: https://github.com/v-jinci/v-jinci.github.io.git
+  branch: master
+  message: 'site update'
+
+meta_generator: true
+
+# ---------- 本地写作后台 ----------
+# 启动后台后访问 http://localhost:4000/admin 即可写文章
+admin:
+  username: admin
+  password_hash: '$2a$10$eR7NXbaolUaj5MftCKKOc.Ky6qdeoxY3arVQfBqB6NaJJE.94qqRy'
+  secret: 'd4ffa50d46c06d79ece8f04260d76c63a566ee850b4b1ce2'
+  deployCommand: 'call _run.bat publish'

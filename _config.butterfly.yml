@@ -1,0 +1,150 @@
+# ==========================================================
+#  Butterfly 主题配置（只覆盖需要改的部分）
+#  想调整颜色/字体/布局，改这里即可
+# ==========================================================
+
+nav:
+  logo:
+  display_title: true
+  display_post_title: true
+  fixed: false
+
+# 顶部导航：改文字就能改名字，后面 || 是图标
+menu:
+  首页: / || fas fa-home
+  归档: /archives/ || fas fa-archive
+  标签: /tags/ || fas fa-tags
+  友链: /link/ || fas fa-link
+  留言板: /messageBoard/ || far fa-comment-dots
+  关于: /about/ || fas fa-user
+
+social:
+  fab fa-github: https://github.com/v-jinci || Github
+  fas fa-envelope: mailto:renweiwei127@163.com || Email
+
+avatar:
+  img: /img/Teemo-Time.jpg
+  effect: false
+
+favicon:
+
+disable_top_img: false
+index_img:
+
+# 首页大标题下面的轮播文案
+subtitle:
+  enable: true
+  effect: true
+  typed_option:
+  source: false
+  sub:
+    - 'V wants to be an explorer'
+    - '记录思考，慢慢成长'
+    - '把日子写下来，就不会白过'
+
+# 首页文章摘要：3 = 自动截取正文
+index_post_content:
+  method: 3
+  length: 260
+
+# 目录
+toc:
+  post: true
+  page: false
+  number: true
+  expand: false
+  style_simple: false
+  scroll_percent: true
+
+# 版权声明
+post_copyright:
+  enable: true
+  decode: false
+  author_href:
+  license: CC BY-NC-SA 4.0
+  license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+# 右下角工具按钮
+darkmode:
+  enable: true
+  button: true
+  autoChangeMode: 1
+
+readmode: true
+rightside_scroll_percent: true
+
+# 本地搜索（不用联网、不用配置任何服务）
+search:
+  use: local_search
+  placeholder: 搜索文章…
+  local_search:
+    preload: true
+    top_n_per_article: 1
+    unescape: false
+    CDN:
+
+# 关闭第三方统计（需要时再开）
+busuanzi:
+  enable: false
+
+# 侧边栏卡片
+aside:
+  enable: true
+  hide: false
+  button: true
+  mobile: true
+  position: right
+  display:
+    archive: true
+    tag: true
+    category: true
+  card_author:
+    enable: true
+    description: 记录思考，慢慢成长。
+    button:
+      enable: true
+      icon: fab fa-github
+      text: Follow Me
+      link: https://github.com/v-jinci
+  card_announcement:
+    enable: true
+    content: 欢迎来到我的小站，随便逛逛～
+  card_recent_post:
+    enable: true
+    limit: 5
+    sort: date
+    sort_order:
+  card_categories:
+    enable: true
+    limit: 8
+    sort: length
+    sort_order:
+  card_tags:
+    enable: true
+    limit: 20
+    color: false
+    orderby: random
+    order: 1
+  card_archives:
+    enable: true
+    type: monthly
+    format: MMMM YYYY
+    order: -1
+  card_webinfo:
+    enable: true
+    post_count: true
+    last_push_date: true
+    sort_order:
+    runtime_date:
+
+footer:
+  nav:
+  owner:
+    enable: true
+    since: 2022
+  copyright:
+    enable: true
+    version: false
+  custom_text:
+
+# 页面顶部图（留空则用主题默认渐变，干净清爽）
