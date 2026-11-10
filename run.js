@@ -216,7 +216,7 @@ async function deployGit() {
 const SRC_BRANCH = 'hexo-src';
 // 这些是站点真正需要的源码，publish 时整份覆盖到副本上
 const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'site-editor.js', 'README-使用说明.md'];
-const MANAGED_DIRS = ['source', 'scaffolds', '.github'];
+const MANAGED_DIRS = ['source', 'scaffolds', '.github', 'scripts'];
 
 /** 解析仓库地址 + 读令牌，返回 { host, pathPart, cleanUrl, cred, authUrl } */
 function repoInfo() {

@@ -122,6 +122,44 @@ function writeIfChanged(file, raw, next, touched, label) {
   touched.push(label);
 }
 
+/* ------------------------------ 留言数据 ------------------------------ */
+
+const COMMENTS_FILE = ['source', '_data', 'comments.yml'];
+
+function loadComments(base) {
+  const list = readYaml(path.join(base, ...COMMENTS_FILE), []);
+  return Array.isArray(list) ? list : [];
+}
+
+/** 手写序列化，格式固定、中文不转义、diff 干净 */
+function dumpComments(list) {
+  const out = ['# 留言数据：在 http://localhost:4000/site 的「留言管理」里改，一般不用手写', '# hidden: true 是不显示，删掉这一行就是显示'];
+  (Array.isArray(list) ? list : []).forEach((c) => {
+    if (!c || !String(c.name || '').trim() || !String(c.content || '').trim()) return;
+    out.push('- name: ' + JSON.stringify(String(c.name).trim()));
+    out.push('  date: ' + JSON.stringify(String(c.date || '').trim()));
+    out.push('  content: ' + JSON.stringify(String(c.content)));
+    if (String(c.reply || '').trim()) out.push('  reply: ' + JSON.stringify(String(c.reply).trim()));
+    if (c.hidden) out.push('  hidden: true');
+  });
+  return out.join('\n') + '\n';
+}
+
+function writeComments(base, list, touched) {
+  const file = path.join(base, ...COMMENTS_FILE);
+  const next = dumpComments(list);
+  let raw = '';
+  try {
+    raw = fs.readFileSync(file, 'utf8');
+  } catch (e) {
+    raw = '';
+  }
+  if (raw === next) return;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, next, 'utf8');
+  touched.push('留言');
+}
+
 /* ------------------------------ 图片上传 ------------------------------ */
 
 const MIME_EXT = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/jpg': '.jpg', 'image/webp': '.webp', 'image/gif': '.gif', 'image/svg+xml': '.svg' };
@@ -164,7 +202,7 @@ function loadCurrent(base) {
   theme.aside.card_announcement = Object.assign({}, (def.aside || {}).card_announcement || {}, (mine.aside || {}).card_announcement || {});
   theme.footer.owner = Object.assign({}, (def.footer || {}).owner || {}, (mine.footer || {}).owner || {});
   theme.subtitle.sub = (mine.subtitle && mine.subtitle.sub) || (def.subtitle && def.subtitle.sub) || [];
-  return { site, theme };
+  return { site, theme, comments: loadComments(base) };
 }
 
 /* ------------------------------ 请求处理 ------------------------------ */
@@ -260,6 +298,9 @@ async function handle(hexo, req, res, options) {
       }
       writeIfChanged(themeFile, thRaw, thNext, touched, '外观设置');
 
+      // 留言：整份覆盖写入 source/_data/comments.yml
+      if (Array.isArray(data.comments)) writeComments(base, data.comments, touched);
+
       // 让预览立刻更新：重新载入配置并重新生成
       try {
         if (typeof hexo.load === 'function') await hexo.load();
@@ -339,6 +380,13 @@ function renderPage(cur, mountUrl) {
   .status{font-size:13px;color:#4b5563}
   .ok{color:#0f8a4a}.err{color:#c62828}
   .badge{display:inline-block;font-size:11px;color:#6b7280;background:#eef1fa;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+  .cm-item{border:1px solid #eef1fa;border-radius:11px;padding:14px;margin-bottom:12px;background:#fbfcff}
+  .cm-item .row{margin-bottom:0}
+  .cm-item .field{margin-top:10px}
+  .cm-item .field:first-child{margin-top:0}
+  .cm-empty{font-size:13px;color:#9aa3b2;padding:10px 0 14px}
+  .cm-tag{font-size:11px;border-radius:5px;padding:1px 6px;background:#e8f5ee;color:#0f8a4a;margin-left:6px}
+  .cm-tag.off{background:#f2f3f6;color:#8b93a1}
 </style>
 </head>
 <body>
@@ -399,6 +447,13 @@ function renderPage(cur, mountUrl) {
       </div>
     </div>
 
+    <div class="card">
+      <h2>留言管理<span class="badge">审核后显示</span></h2>
+      <div class="hint" style="margin-bottom:14px">别人发邮件给你 → 点「添加一条留言」，填昵称和内容 → 保存 → 发布，留言就出现在留言板上。不想公开的取消「公开」勾选，内容还留在文件里。</div>
+      <div id="cmList"></div>
+      <button type="button" class="ghost" id="cmAdd">+ 添加一条留言</button>
+    </div>
+
     <div class="actions">
       <button type="submit" class="primary" id="saveBtn">保存</button>
       <button type="button" class="ghost" id="publishBtn">保存并发布到线上</button>
@@ -407,6 +462,7 @@ function renderPage(cur, mountUrl) {
   </form>
 </div>
 
+<script type="application/json" id="cmData">${JSON.stringify(cur.comments || []).replace(/</g, '\\u003c')}</script>
 <script>
 const $ = (s) => document.querySelector(s);
 const statusEl = $('#status');
@@ -435,6 +491,71 @@ function hookFile(input, key, thumbId) {
 hookFile('avatarFile', 'avatar', 'avatarThumb');
 hookFile('bannerFile', 'banner', 'bannerThumb');
 
+/* ---- 留言管理 ---- */
+const cmData = JSON.parse(document.getElementById('cmData').textContent || '[]');
+const cmList = $('#cmList');
+function esc2(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function nowText() {
+  const d = new Date();
+  const p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function addItem(c) {
+  c = c || {};
+  const el = document.createElement('div');
+  el.className = 'cm-item';
+  el.innerHTML =
+    '<div class="row">' +
+      '<div class="field" style="flex:0 0 150px"><label>昵称</label><input type="text" data-k="name" value="' + esc2(c.name || '') + '"></div>' +
+      '<div class="field" style="flex:0 0 165px"><label>时间</label><input type="text" data-k="date" value="' + esc2(c.date || nowText()) + '"></div>' +
+      '<div class="field" style="flex:0 0 92px"><label>状态</label><div style="display:flex;align-items:center;gap:6px;height:38px"><input type="checkbox" data-k="visible" style="width:16px;height:16px"' + (c.hidden ? '' : ' checked') + '><span style="font-size:13px;color:#4b5563">公开</span></div></div>' +
+      '<div class="field" style="flex:1 1 70px;display:flex;align-items:flex-end"><button type="button" class="ghost cm-del" style="padding:9px 14px;font-size:13px;color:#c62828;background:#fdecec">删除</button></div>' +
+    '</div>' +
+    '<div class="field"><label>留言内容</label><textarea data-k="content" rows="2">' + esc2(c.content || '') + '</textarea></div>' +
+    '<div class="field"><label>站长回复（可空）</label><input type="text" data-k="reply" value="' + esc2(c.reply || '') + '"></div>';
+  el.querySelector('.cm-del').addEventListener('click', function () {
+    if (!confirm('删掉这条留言？点保存后才真正消失。')) return;
+    el.remove();
+    setStatus('已删除 1 条（还没保存）', '');
+  });
+  cmList.appendChild(el);
+  return el;
+}
+function renderComments() {
+  cmList.innerHTML = '';
+  if (!cmData.length) {
+    const d = document.createElement('div');
+    d.className = 'cm-empty';
+    d.textContent = '还没有留言。';
+    cmList.appendChild(d);
+    return;
+  }
+  cmData.forEach(addItem);
+}
+renderComments();
+$('#cmAdd').addEventListener('click', function () {
+  const empty = cmList.querySelector('.cm-empty');
+  if (empty) empty.remove();
+  const el = addItem({});
+  el.scrollIntoView({ block: 'center' });
+  el.querySelector('[data-k=name]').focus();
+});
+function collectComments() {
+  return Array.prototype.map.call(cmList.querySelectorAll('.cm-item'), function (el) {
+    return {
+      name: el.querySelector('[data-k=name]').value.trim(),
+      date: el.querySelector('[data-k=date]').value.trim(),
+      content: el.querySelector('[data-k=content]').value.trim(),
+      reply: el.querySelector('[data-k=reply]').value.trim(),
+      hidden: !el.querySelector('[data-k=visible]').checked,
+    };
+  });
+}
+
 function collect() {
   const fd = new FormData($('#f'));
   const out = {};
@@ -442,6 +563,7 @@ function collect() {
   out.subLines = String(out.subLines || '').split('\\n').map((s) => s.trim()).filter(Boolean);
   if (picked.avatar) out.avatarFile = picked.avatar;
   if (picked.banner) out.bannerFile = picked.banner;
+  out.comments = collectComments();
   return out;
 }
 
