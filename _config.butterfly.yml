@@ -152,3 +152,30 @@ footer:
   custom_text:
 
 # 页面顶部图（留空则用主题默认渐变，干净清爽）
+
+# ==========================================================
+#  评论区（Giscus）
+#  评论直接存在这个仓库的 GitHub Discussions 里：免费、无服务器、永不欠费。
+#  想临时关掉评论：把下面 use 那行改成空值（use:）
+# ==========================================================
+comments:
+  use: Giscus
+  text: true
+  # 滚动到评论区才加载，打开页面更快
+  lazyload: true
+  count: false
+  card_post_count: false
+
+giscus:
+  repo: v-jinci/v-jinci.github.io
+  repo_id: R_kgDOLV2ueQ
+  category_id: DIC_kwDOLV2uec4DK0JX
+  light_theme: light
+  dark_theme: dark
+  js: https://giscus.app/client.js
+  option:
+    data-lang: zh-CN
+    data-strict: '1'
+    data-input-position: top
+    data-loading: lazy
+    data-reactions-enabled: '1'
