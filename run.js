@@ -215,7 +215,7 @@ async function deployGit() {
 
 const SRC_BRANCH = 'hexo-src';
 // 这些是站点真正需要的源码，publish 时整份覆盖到副本上
-const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'README-使用说明.md'];
+const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'site-editor.js', 'README-使用说明.md'];
 const MANAGED_DIRS = ['source', 'scaffolds', '.github'];
 
 /** 解析仓库地址 + 读令牌，返回 { host, pathPart, cleanUrl, cred, authUrl } */
@@ -486,8 +486,24 @@ async function main() {
     console.log('');
     console.log('  本地地址： http://localhost:4000');
     console.log('  写作后台： http://localhost:4000/admin   (账号 admin / 密码 weiblog2026)');
+    console.log('  站点信息： http://localhost:4000/site    (改标题、头像、首页大图，不用碰代码)');
     console.log('  停止服务： 在这个窗口按 Ctrl + C');
     console.log('');
+
+    // 挂一个本地表单页 /site：改标题、头像、首页大图不用手工改 yml
+    try {
+      require('./site-editor').register(hexo, {
+        publish: async () => {
+          await hexo.call('clean', {});
+          await hexo.call('generate', {});
+          ensureGit();
+          await publishSource();
+          return 'pushed';
+        },
+      });
+    } catch (e) {
+      console.log('  （站点信息页没加载成功：' + (e && e.message ? e.message : e) + '）');
+    }
 
     // 先探测端口：已占用就直接说清楚，不要让 hexo 抛一堆 FATAL
     const busy = await new Promise((res) => {
