@@ -1,0 +1,122 @@
+# Pages CMS 配置（表单式后台）
+# 文档：https://pagescms.org/docs/configuration/
+#
+# 用法：打开 pagescms.org → 用 GitHub 登录 → 添加仓库 v-jinci/v-jinci.github.io
+#       → 分支一定选 hexo-src（不是 master！master 是编译后的成品）
+#
+# 注意：settings.content.merge 必须是 true，
+#       否则保存时会把这个 schema 之外的 front-matter（top_img / type 等）删掉。
+
+media:
+  input: source/img
+  output: /img
+
+settings:
+  content:
+    merge: true
+  commit:
+    identity: user
+    templates:
+      create: "post(create): {filename}"
+      update: "post(update): {filename}"
+      delete: "post(delete): {filename}"
+      rename: "post(rename): {oldFilename} -> {newFilename}"
+
+content:
+  # ---------------- 文章 ----------------
+  - name: posts
+    label: 文章
+    type: collection
+    path: source/_posts
+    format: yaml-frontmatter
+    filename: "{primary}.md"
+    view:
+      primary: title
+      sort: date
+      order: desc
+    fields:
+      - name: title
+        label: 标题
+        type: string
+        required: true
+      - name: date
+        label: 发布日期
+        type: date
+        options:
+          time: true
+          format: "yyyy-MM-dd HH:mm:ss"
+      - name: description
+        label: 摘要（列表页显示的一句话）
+        type: text
+      - name: tags
+        label: 标签
+        type: string
+        list: true
+      - name: categories
+        label: 分类
+        type: string
+        list: true
+      - name: body
+        label: 正文
+        type: rich-text
+
+  # ---------------- 独立页面 ----------------
+  - name: pages
+    label: 独立页面
+    type: group
+    items:
+      - name: about
+        label: 关于
+        type: file
+        path: source/about/index.md
+        format: yaml-frontmatter
+        fields:
+          - name: title
+            label: 标题
+            type: string
+            required: true
+          - name: body
+            label: 正文
+            type: rich-text
+
+      - name: link
+        label: 友链
+        type: file
+        path: source/link/index.md
+        format: yaml-frontmatter
+        fields:
+          - name: title
+            label: 标题
+            type: string
+            required: true
+          - name: body
+            label: 正文
+            type: rich-text
+
+      - name: messageBoard
+        label: 留言板
+        type: file
+        path: source/messageBoard/index.md
+        format: yaml-frontmatter
+        fields:
+          - name: title
+            label: 标题
+            type: string
+            required: true
+          - name: body
+            label: 正文（留言板本身是空的，评论组件会渲染在下面）
+            type: rich-text
+
+      - name: history
+        label: 编年史
+        type: file
+        path: source/history/index.md
+        format: yaml-frontmatter
+        fields:
+          - name: title
+            label: 标题
+            type: string
+            required: true
+          - name: body
+            label: 正文
+            type: rich-text
