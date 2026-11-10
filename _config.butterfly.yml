@@ -24,7 +24,7 @@ social:
   fas fa-envelope: mailto:renweiwei127@163.com || Email
 
 avatar:
-  img: /img/avatar.svg
+  img: /img/Avatar.png
   effect: false
 
 favicon: /img/favicon.svg
@@ -32,8 +32,8 @@ favicon: /img/favicon.svg
 disable_top_img: false
 
 # 顶部大图（首页 + 内页统一用这张；想换图把文件放进 source/img 再改这里的文件名）
-default_top_img: /img/banner.svg
-index_img: /img/banner.svg
+default_top_img: /img/V_bg.jpg
+index_img: /img/V_bg.jpg
 
 # 首页大标题下面的轮播文案
 subtitle:
@@ -42,9 +42,8 @@ subtitle:
   typed_option:
   source: false
   sub:
-    - 'V wants to be an explorer'
-    - '记录思考，慢慢成长'
-    - '把日子写下来，就不会白过'
+    - 有可能的就一定会发生
+    - 吾不识青天高，黄地厚。唯见月寒日暖，来煎人寿。
 
 # 首页文章摘要：3 = 自动截取正文
 index_post_content:

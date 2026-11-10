@@ -3,10 +3,10 @@
 # ==========================================================
 
 # ---------- 基础信息 ----------
-title: 玮's Blog
-subtitle: 'V wants to be an explorer'
-description: '记录思考、学习与生活的个人博客'
-keywords: 玮,博客,日志,生活记录,读书笔记
+title: "玮's Blog"
+subtitle: 'V '
+description: 记录思考、学习与生活的个人博客
+keywords: '玮,博客,日志,生活记录,读书笔记'
 author: 玮
 language: zh-CN
 timezone: 'Asia/Shanghai'
