@@ -11,20 +11,37 @@
 | `setup-github.bat` | **只需一次**：粘贴 GitHub 令牌，之后发布全自动 |
 | `start-admin.bat` | 启动 **写作后台**，自动打开 `http://localhost:4000/admin` |
 | `preview.bat` | 只看不改：本地预览网站效果 |
-| `publish.bat` | 生成并发布到 GitHub Pages（线上生效） |
+| `publish.bat` | 发布：把源码推到 `hexo-src` 分支 → GitHub 自动编译 → 线上生效 |
 
 后台账号：`admin`
 后台密码：`weiblog2026`
 
 > 想改密码跟我说一声，我重新生成一段加密串写进 `_config.yml`。
 
+### 发布是怎么走的
+
+```
+改文章（本地后台 / 记事本 / 手机上）
+   ↓
+hexo-src 分支（源码：_posts、_config.yml）
+   ↓  GitHub Actions 自动编译（约 1 分钟，免费）
+master 分支（编译后的网页）
+   ↓
+https://v-jinci.github.io
+```
+
+好处：**本地发布和网页编辑走的是同一条流水线，不会互相覆盖**。`publish.bat` 每次会先取回线上最新的源码，再叠加上你的改动，所以你在别处写过的文章不会丢。
+
+- 看构建进度：https://github.com/v-jinci/v-jinci.github.io/actions
+- `publish.bat` 若提示「没有检测到任何改动」，说明本地和线上一致，不用发。
+
 ---
 
 ## 二、写一篇日志（三步）
 
 1. 双击 `start-admin.bat`，浏览器会打开后台。
-2. 点 **Posts → 右上角 New Post**，填标题、写正文。左边写 Markdown，右边实时预览。
-3. 写完点右上角 **Publish**，弹窗里的标题/路径保持默认就行 —— 它会自动生成并推送到线上。
+2. 点 **Posts → 右上角 New Post**，**先填一个真标题**（留空的话会自动叫「日期2026年11月10日」这种名字），再写正文。左边写 Markdown，右边实时预览。
+3. 写完点右上角 **Publish**，等 1-2 分钟线上就有了。
 
 不想走后台也行：把 `.md` 文件丢进 `source/_posts/`，一样会被识别。
 
@@ -74,7 +91,7 @@ GitHub 早就不允许用登录密码推送了，需要一次性弄个令牌：
 
 1. 打开 GitHub → 右上头像 → **Settings** → 左侧最下 **Developer settings**
    → **Personal access tokens** → **Tokens (classic)** → **Generate new token**
-2. 勾选 `repo` 这一项，生成后**复制那串字符**（只显示一次）
+2. 勾选 `repo` 和 `workflow` 两项（`workflow` 是自动编译必需的），生成后**复制那串字符**（只显示一次）
 3. 双击 `setup-github.bat`，粘贴一次令牌。它会当场向 GitHub 验证，通过才算成功。
 4. 之后双击 `publish.bat` 就是全自动的，不会再问账号密码。
 
@@ -94,6 +111,8 @@ source/link/           友链页
 source/messageBoard/   留言板
 source/history/        编年史
 scaffolds/post.md      新建文章时的模板（可自己改默认抬头）
+.github/workflows/     自动编译规则（改坏了线上就不会更新，别乱动）
+.src_git/              发布时用的临时副本（可随时删，会自动重建）
 public/                生成出来的网页（自动生成，别手动改）
 ```
 
