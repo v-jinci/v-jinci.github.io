@@ -167,6 +167,25 @@ schtasks /Create /TN "BlogSync" /TR "cmd /c \"C:\Users\renwe\WorkBuddy\2026-11-1
 
 当前用的是自带的 `banner.svg`（山景暮色）、`avatar.svg`（"玮"字头像）、`favicon.svg`。
 
+### 留言板（审核制：不花钱，也不需要服务器）
+
+留言存在 `source/_data/comments.yml` 里，构建时直接变成页面上的卡片——纯静态，
+没有后端、没有第三方脚本、访客也不用注册任何账号。
+
+**收一条留言的流程（约 1 分钟）**
+
+1. 访客发邮件到 `renweiwei127@163.com`（留言板上写着这个入口）
+2. 双击 `start-admin.bat` → 打开 <http://localhost:4000/site>
+3. 拉到最下面「留言管理」→ 点「+ 添加一条留言」→ 填昵称、内容（时间默认当前）
+4. 「公开」勾着 = 会显示；取消勾选 = 先存着不公开（广告或不想公开的都这么处理）
+5. 点「保存并发布到线上」，1-2 分钟后网站就更新了
+
+**能改的**：昵称、时间、内容、站长回复（显示成引用的样子）、公开/隐藏、删除。
+内容里的换行会保留，`https://…` 会自动变成可点的链接。
+
+**关于文章底部评论**：那边仍然挂着 Giscus（需要登录 GitHub 才能发）。
+觉得两套并存麻烦的话跟我说，我把它关掉，全站统一成「发邮件 → 我审核」。
+
 ---
 
 ## 七、第一次发布要准备 GitHub 令牌
@@ -200,6 +219,8 @@ source/_posts/         所有文章，一篇一个 md
 source/about/          关于页
 source/link/           友链页
 source/messageBoard/   留言板
+source/_data/comments.yml  留言数据（在 /site 的「留言管理」里改，别手写也行）
+scripts/               构建时用的小脚本（留言板渲染就在这里）
 source/history/        编年史
 scaffolds/post.md      新建文章时的模板（可自己改默认抬头）
 .github/workflows/     自动编译规则（改坏了线上就不会更新，别乱动）
