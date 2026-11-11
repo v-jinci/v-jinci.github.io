@@ -636,6 +636,26 @@ async function handle(hexo, req, res, options) {
         if (r != null) thNext = r;
       });
 
+      // ---- 细节开关：图片放大 / 运行天数 / 首页卡片样式 / 404 页面 ----
+      const boolStr = (v) => (v === undefined ? undefined : (v ? 'true' : 'false'));
+      const strOr = (v) => (v === undefined ? undefined : String(v).trim());
+      [
+        [['wb_look', 'img_zoom'], boolStr(data.imgZoom)],
+        [['wb_look', 'uptime_enable'], boolStr(data.uptimeEnable)],
+        [['wb_look', 'uptime_since'], strOr(data.uptimeSince)],
+        [['wb_look', 'uptime_text'], strOr(data.uptimeText)],
+        [['index_layout'], numOr(data.indexStyle)],
+        [['wb_look', 'notfound_enable'], boolStr(data.notfoundEnable)],
+        [['wb_look', 'notfound_title'], strOr(data.nfTitle)],
+        [['wb_look', 'notfound_subtitle'], strOr(data.nfSub)],
+        [['wb_look', 'notfound_text'], strOr(data.nfText)],
+        [['wb_look', 'notfound_btn'], strOr(data.nfBtn)],
+      ].forEach(([p, v]) => {
+        if (v === undefined) return;
+        const r = ensureScalar(thNext, p, v);
+        if (r != null) thNext = r;
+      });
+
       // 社交链接整块重写
       if (data.github !== undefined || data.mail !== undefined) {
         const pairs = [];
@@ -770,6 +790,11 @@ function renderPage(cur) {
   const favicon = theme.favicon || '';
   const navBg = (theme.wb_look || {}).nav_bg || '';
   const wb = theme.wb_look || {};
+  const wbOn = function (v, dflt) {
+    if (v === undefined || v === null || v === '') return dflt === false ? '' : ' checked';
+    const s = String(v).trim().toLowerCase();
+    return s === 'false' || s === '0' || s === 'off' ? '' : ' checked';
+  };
   const heroImages = Array.isArray(wb.hero_images) ? wb.hero_images : [];
   const heroVideo = typeof wb.hero_video === 'string' ? wb.hero_video : '';
   const typed = (theme.subtitle && theme.subtitle.typed_option) || {};
@@ -872,6 +897,7 @@ function renderPage(cur) {
     <button data-tab="pw">页面密码</button>
     <button data-tab="cm">评论区</button>
     <button data-tab="msg">留言管理</button>
+    <button data-tab="misc">细节开关</button>
   </div>
 
   <form id="f">
@@ -1156,6 +1182,73 @@ function renderPage(cur) {
     </div>
 
     <!-- ===== 7 留言 ===== -->
+    <!-- ===== 9 细节开关 ===== -->
+    <div class="panel" id="p-misc">
+      <div class="card">
+        <h2>小细节<span class="badge">可随时开关</span></h2>
+        <div class="desc">都是不影响正文的小功能，勾 / 取消勾选后点「保存」即可。</div>
+        <div class="row">
+          <div class="field" style="flex:1 1 240px">
+            <label><input type="checkbox" id="imgZoom"${wbOn(wb.img_zoom, true)}> 正文图片点击放大</label>
+            <div class="hint">点文章里的图全屏看原图，按 Esc 或再点一下关闭。</div>
+          </div>
+          <div class="field" style="flex:1 1 240px">
+            <label><input type="checkbox" id="uptimeEnable"${wbOn(wb.uptime_enable, true)}> 页脚显示「已运行 XXX 天」</label>
+            <div class="hint">按今天的日期自动算，不用每年改。</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="max-width:210px"><label>建站日期</label>
+            <input type="date" id="uptimeSince" value="${esc(wb.uptime_since || '2021-01-01')}">
+            <div class="hint">从这天开始数天数</div>
+          </div>
+          <div class="field" style="flex:1 1 260px"><label>显示文字</label>
+            <input type="text" id="uptimeText" value="${esc(wb.uptime_text || '本站已运行 {days} 天')}">
+            <div class="hint">{days} 换成天数，{since} 换成上面的日期。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>首页文章排版</h2>
+        <div class="desc">改的是首页那个文章列表的排列方式（主题原生排版，手机上都会自动适配）。</div>
+        <div class="field" style="max-width:380px"><label>排列方式</label>
+          <select id="indexStyle">
+            <option value="3"${String(theme.index_layout) === '3' ? ' selected' : ''}>交错小卡片（现在这样）</option>
+            <option value="1"${String(theme.index_layout) === '1' ? ' selected' : ''}>图文大卡片 · 图在左</option>
+            <option value="2"${String(theme.index_layout) === '2' ? ' selected' : ''}>图文大卡片 · 图在右</option>
+            <option value="6"${String(theme.index_layout) === '6' ? ' selected' : ''}>瀑布流 A</option>
+            <option value="7"${String(theme.index_layout) === '7' ? ' selected' : ''}>瀑布流 B（更紧凑）</option>
+          </select>
+          <div class="hint">选"图文大卡片"时，文章要自己设置了封面图才会显示图（Pages CMS 表单里有"封面图"一格）；没设封面的文章会显示成纯文字卡。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>自定义 404 页面<span class="badge">输错网址时</span></h2>
+        <div class="desc">别人访问不存在的地址时看到的页面。留空就用默认文字。</div>
+        <div class="row">
+          <div class="field" style="max-width:160px"><label>大数字</label>
+            <input type="text" id="nfTitle" value="${esc(wb.notfound_title || '404')}">
+          </div>
+          <div class="field" style="flex:1 1 240px"><label>小标题</label>
+            <input type="text" id="nfSub" value="${esc(wb.notfound_subtitle || '这一页走丢了')}">
+          </div>
+        </div>
+        <div class="field"><label>说明文字</label>
+          <textarea id="nfText" rows="2">${esc(wb.notfound_text || '地址可能拼错、文章可能挪了位置，也可能它从来就没存在过。')}</textarea>
+        </div>
+        <div class="row">
+          <div class="field" style="max-width:220px"><label>按钮文字</label>
+            <input type="text" id="nfBtn" value="${esc(wb.notfound_btn || '回到首页')}">
+          </div>
+          <div class="field" style="flex:0 0 auto;margin-top:26px">
+            <label><input type="checkbox" id="nfEnable"${wbOn(wb.notfound_enable, true)}> 启用自定义 404</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="panel" id="p-msg">
       <div class="card">
         <h2>留言管理<span class="badge">审核后显示</span></h2>
@@ -1184,8 +1277,25 @@ function renderPage(cur) {
 var $ = function (s) { return document.querySelector(s); };
 var statusEl = $('#status');
 function setStatus(text, kind) { statusEl.textContent = text; statusEl.className = 'status ' + (kind || ''); }
-var boot = JSON.parse(document.getElementById('bootData').textContent || '{}');
-var picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
+var boot = JSON.parse(document.getElementById('bootData').textContent || '{}');var picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
+
+/* 细节开关：把 checkbox / 输入框的值并进原来的表单数据 */
+function collectAll() {
+  var d = collect();
+  var cb = function (id, k) { var el = document.getElementById(id); if (el) d[k] = !!el.checked; };
+  var tx = function (id, k) { var el = document.getElementById(id); if (el) d[k] = el.value; };
+  cb('imgZoom', 'imgZoom');
+  cb('uptimeEnable', 'uptimeEnable');
+  cb('notfoundEnable', 'notfoundEnable');
+  tx('uptimeSince', 'uptimeSince');
+  tx('uptimeText', 'uptimeText');
+  tx('indexStyle', 'indexStyle');
+  tx('nfTitle', 'nfTitle');
+  tx('nfSub', 'nfSub');
+  tx('nfText', 'nfText');
+  tx('nfBtn', 'nfBtn');
+  return d;
+}
 
 /* ---- 标签切换 ---- */
 $('#tabs').addEventListener('click', function (e) {
@@ -1612,7 +1722,7 @@ $('#f').addEventListener('submit', async function (e) {
   btn.disabled = true;
   setStatus('正在保存…');
   try {
-    var j = await post('/site/save', collect());
+    var j = await post('/site/save', collectAll());
     picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     setStatus('已保存：' + (j.touched || []).join('、') + '。本地预览已刷新；线上要点「保存并发布」。', 'ok');
   } catch (err) {
@@ -1626,7 +1736,7 @@ $('#publishBtn').addEventListener('click', async function () {
   btn.disabled = true;
   setStatus('先保存，再推送…（约 30 秒，别关窗口）');
   try {
-    await post('/site/save', collect());
+    await post('/site/save', collectAll());
     picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     await post('/site/publish', {});
     setStatus('已推送！GitHub 正在编译，1-2 分钟后刷新 https://v-jinci.github.io 就能看到。', 'ok');

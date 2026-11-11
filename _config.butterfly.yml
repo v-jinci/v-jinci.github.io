@@ -182,8 +182,28 @@ wb_look:
   sub_spacing: 0
   sub_color: ''
   sub_weight: 0
+  # ---- 细节开关（/site 后台「细节开关」里改，不用手改） ----
+  # 正文图片点一下全屏放大
+  img_zoom: true
+  # 页脚「本站已运行 XXX 天」小徽章
+  uptime_enable: true
+  uptime_since: 2021-01-01
+  uptime_text: '本站已运行 {days} 天'
+  # 首页排版见下面顶层的 index_layout（/site 后台「细节开关」里切换）
+  # 自定义 404 页面（生成 public/404.html，GitHub Pages 会自动使用）
+  notfound_enable: true
+  notfound_title: 404
+  notfound_subtitle: 这一页走丢了
+  notfound_text: 地址可能拼错、文章可能挪了位置，也可能它从来就没存在过。
+  notfound_btn: 回到首页
 
 # 页面顶部图（留空则用主题默认渐变，干净清爽）
+
+# 首页文章排版（/site 后台「细节开关」里切换）
+#   1 = 图文大卡片·图在左   2 = 图文大卡片·图在右   3 = 交错小卡片（默认）
+#   6 / 7 = 瀑布流（按高度错落排布）
+#   想要"图文"效果，文章自己得先设置封面图（Pages CMS 表单里有"封面图"一格）
+index_layout: 3
 
 # ==========================================================
 #  评论区（Waline）
