@@ -21,7 +21,7 @@ menu:
   关于: /about/ || fas fa-user
 
 social:
-  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github
+  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github
   fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
@@ -178,12 +178,12 @@ wb_look:
     - /img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg
     - /img/457f3ea1d92b768fd9c5fdd125c884eb58cb405c.jpg
     - /img/2024-01-07-_17-50-56.23_CachedImage_1920.jpg
-  hero_video: /media/mp4.mp4
+  hero_video: ''
   hero_interval: 3
   hero_scope: home
   hero_overlay: 20
   # 头像是否旋转（/site 后台「显示开关」里改）
-  avatar_spin: false
+  avatar_spin: true
   # 首页大标题下面那行字的样式（0 / 空 = 跟随主题）
   sub_size: 0
   sub_spacing: 0
@@ -194,7 +194,7 @@ wb_look:
   img_zoom: true
   # 页脚「本站已运行 XXX 天」小徽章
   uptime_enable: true
-  uptime_since: ''
+  uptime_since: 2021-01-01
   uptime_text: '本站已运行 {days} 天'
   # 首页排版见下面顶层的 index_layout（/site 后台「细节开关」里切换）
   # 自定义 404 页面（生成 public/404.html，GitHub Pages 会自动使用）
