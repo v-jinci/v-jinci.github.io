@@ -118,8 +118,38 @@ const JS =
   'try{document.execCommand("copy");cp.textContent="已复制";setTimeout(function(){cp.textContent="复制";},1200);}catch(e){}ta.remove();}});' +
   '})();</script>';
 
+/* 侧边栏作者卡上的社交图标（跟着「联系方式」一起变） */
+function sidebarIcons(list) {
+  return list
+    .map((c) => {
+      const label = String(c.label || '').trim();
+      const icon = String(c.icon || 'fas fa-link').trim();
+      const href = String(c.href || '').trim();
+      const value = String(c.value || '').trim();
+      if (href) {
+        return '<a class="social-icon" href="' + esc(href) + '" target="_blank" title="' + esc(label) +
+          '" rel="noopener"><i class="' + esc(icon) + '"></i></a>';
+      }
+      const tip = value ? label + '：' + value + '（点一下复制）' : label;
+      return '<a class="social-icon wb-sb-copy" href="javascript:;" title="' + esc(tip) +
+        '" data-copy="' + esc(value) + '"><i class="' + esc(icon) + '"></i></a>';
+    })
+    .join('');
+}
+
+const SBJS =
+  '<script>(function(){document.addEventListener("click",function(e){' +
+  'var a=e.target.closest&&e.target.closest(".wb-sb-copy");if(!a)return;e.preventDefault();' +
+  'var t=a.getAttribute("data-copy")||"";if(!t)return;' +
+  'var mark=function(){var o=a.style.color;a.style.color="#10b981";a.setAttribute("title","已复制："+t);' +
+  'setTimeout(function(){a.style.color=o;},1200);};' +
+  'if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(mark).catch(function(){});}' +
+  'else{var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();' +
+  'try{document.execCommand("copy");mark();}catch(err){}ta.remove();}' +
+  '});})();</script>';
+
 hexo.extend.filter.register('after_render:html', (str) => {
-  if (str.indexOf(PLACEHOLDER) === -1) return str;
+  const hasPh = str.indexOf(PLACEHOLDER) !== -1;
 
   const data = (hexo.locals.get('data') || {}).site || {};
   const list = (Array.isArray(data.contacts) ? data.contacts : []).filter((c) => {
@@ -128,6 +158,28 @@ hexo.extend.filter.register('after_render:html', (str) => {
     if (!label) return false;
     return String(c.value || '').trim() || String(c.href || '').trim() || String(c.qr || '').trim();
   });
+
+  // 侧边栏作者卡：每个页面都加，和 /about/ 的联系方式同一份数据
+  // 主题 social 里已经有的（GitHub / 邮箱）跳过，避免重复
+  const socialCfg = (hexo.theme.config && hexo.theme.config.social) || {};
+  const already = Object.keys(socialCfg)
+    .map((k) => String(socialCfg[k] || '').split('||')[0].trim())
+    .filter(Boolean);
+  const sideList = list.filter((c) => {
+    const h = String(c.href || '').trim();
+    return !h || already.indexOf(h) === -1;
+  });
+
+  if (sideList.length && str.indexOf('card-info-social-icons">') !== -1) {
+    str = str.replace('card-info-social-icons">', function () {
+      return 'card-info-social-icons">' + sidebarIcons(sideList);
+    });
+    if (str.indexOf('</body>') !== -1) {
+      str = str.replace('</body>', function () { return SBJS + '</body>'; });
+    }
+  }
+
+  if (!hasPh) return str;
 
   let html;
   if (!list.length) {

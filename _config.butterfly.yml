@@ -28,7 +28,7 @@ avatar:
   img: /img/Avatar.png
   effect: false
 
-favicon: /img/favicon.svg
+favicon: /img/favicon.ico
 
 disable_top_img: false
 
@@ -265,6 +265,8 @@ giscus:
 # ==========================================================
 inject:
   head:
+    - <link rel="icon" href="/img/favicon.ico?v=3">
+    - <link rel="apple-touch-icon" href="/img/favicon.ico?v=3">
     - <style>.wl-addr{display:none!important}</style>
     - |
       <style>
