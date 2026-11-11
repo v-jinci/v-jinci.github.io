@@ -296,6 +296,8 @@ function backupSource(tag) {
   const path = require('path');
   const root = backupRoot();
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+  // 目录名只用 ASCII：这台机器上的 Node 22 在「目标路径含中文」时 cpSync 会直接崩溃
+  // （Segmentation fault），所以 tag 必须是英文。
   const dir = path.join(root, (tag ? tag + '-' : '') + stamp);
   try {
     fs.mkdirSync(dir, { recursive: true });
@@ -805,15 +807,20 @@ async function main() {
         console.log('    ' + (i + 1) + ') ' + pathMod.basename(dir) + '   （' + n + ' 个文件）');
       });
       console.log('');
-      const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
-      const ans = await new Promise((res) => {
-        rl.question('  要还原第几份？直接回车 = 第 1 份（最新）：', (a) => res((a || '').trim()));
-        rl.on('close', () => res(''));
-      });
-      rl.close();
+      // 三种进入方式：带编号参数（node run.js restore 2）、交互选、非交互默认最新
+      let ans = String(process.argv[3] || '').trim();
+      if (!ans && process.stdin.isTTY) {
+        const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+        ans = await new Promise((res) => {
+          rl.question('  要还原第几份？直接回车 = 第 1 份（最新）：', (a) => {
+            res(String(a || '').trim());
+            rl.close();
+          });
+        });
+      }
       const idx = Math.max(1, Math.min(list.length, parseInt(ans || '1', 10) || 1)) - 1;
       const pick = list[idx];
-      const keep = backupSource('restore前');
+      const keep = backupSource('before-restore');
       let n = 0;
       for (const d of ['source', 'scripts']) {
         const src = pathMod.join(pick, d);
