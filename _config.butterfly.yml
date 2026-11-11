@@ -26,7 +26,7 @@ social:
 
 avatar:
   img: /img/Avatar.png
-  effect: true
+  effect: false
 
 favicon: /img/favicon.svg
 
@@ -173,7 +173,10 @@ wb_look:
   nav_bg: /img/nav-cover.svg
   # 主页头部背景：多张图会自动轮播；hero_video 设了就用视频（图片当封面）
   hero_images:
-  hero_video: ''
+    - /img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg
+    - /img/457f3ea1d92b768fd9c5fdd125c884eb58cb405c.jpg
+    - /img/2024-01-07-_17-50-56.23_CachedImage_1920.jpg
+  hero_video: /media/mp4.mp4
   hero_interval: 6
   hero_scope: home
   hero_overlay: 20
