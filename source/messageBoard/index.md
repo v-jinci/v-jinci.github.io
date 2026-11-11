@@ -2,13 +2,12 @@
 title: 留言板
 date: 2026-11-10 19:00:00
 type: messageBoard
-top_img:
 comments: true
 ---
-
 随便说点什么吧，看到了都会回。
 
 > **填个昵称就能留言**，不用注册、不用登录。
 > 想让系统给你发回复提醒的话，把邮箱也填上（邮箱不会公开）。
 >
-> 不想公开的悄悄话，直接发邮件给我 —— [renweiwei127@163.com](mailto:renweiwei127@163.com)
+> 不想公开的悄悄话，直接发邮件给我 —— [599676700@qq.com](mailto:599676700@qq.com)
+
