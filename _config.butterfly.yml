@@ -26,9 +26,11 @@ social:
 
 avatar:
   img: /img/Avatar.png
-  effect: true
+  # 旋转开关已移到 wb_look.avatar_spin（/site 后台可改），这里保持 false
+  effect: false
 
-favicon: /img/favicon.ico
+# 图标用独立文件名：主题自带同名的 favicon.ico（蝴蝶图标）会把它覆盖掉
+favicon: /img/site-icon.ico
 
 disable_top_img: false
 
@@ -180,6 +182,8 @@ wb_look:
   hero_interval: 3
   hero_scope: home
   hero_overlay: 20
+  # 头像是否旋转（/site 后台「显示开关」里改）
+  avatar_spin: false
   # 首页大标题下面那行字的样式（0 / 空 = 跟随主题）
   sub_size: 0
   sub_spacing: 0
@@ -265,8 +269,6 @@ giscus:
 # ==========================================================
 inject:
   head:
-    - <link rel="icon" href="/img/favicon.ico?v=3">
-    - <link rel="apple-touch-icon" href="/img/favicon.ico?v=3">
     - <style>.wl-addr{display:none!important}</style>
     - |
       <style>

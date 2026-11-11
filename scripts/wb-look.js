@@ -35,10 +35,28 @@ hexo.extend.filter.register('after_render:html', (str, data) => {
     if (color) out.push('#page-header #site-subtitle .typed-cursor{color:' + color + '}');
   }
 
-  if (!out.length) return str;
+  // 头像旋转：主题的 avatar.effect 要在 styl 编译期决定，改了经常不生效；
+  // 这里改成运行时 CSS，开关即时可控（关掉就是彻底不动）。
+  out.push(
+    cfg.avatar_spin === false
+      ? '.avatar-img{animation:none!important}'
+      : '.avatar-img{animation:avatar_turn_around 2s linear infinite}'
+  );
+
+  // 图标：强制带上版本号，避免浏览器 / CDN 一直用旧 favicon
+  const fav = String((hexo.theme.config && hexo.theme.config.favicon) || '').trim();
+  let iconTags = '';
+  if (fav) {
+    const v = '?v=' + Date.now();
+    iconTags =
+      '<link rel="icon" href="' + fav + v + '">' +
+      '<link rel="shortcut icon" href="' + fav + v + '">' +
+      '<link rel="apple-touch-icon" href="' + fav + v + '">';
+  }
+
   const style = '<style>' + out.join('') + '</style>';
   if (str.indexOf('</head>') === -1) return str;
   return str.replace('</head>', function () {
-    return style + '</head>';
+    return style + iconTags + '</head>';
   });
 });

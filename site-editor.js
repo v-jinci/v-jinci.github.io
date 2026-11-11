@@ -537,7 +537,12 @@ async function handle(hexo, req, res, options) {
       };
       const avatarPath = pick('avatarFile', 'avatarPath', '头像');
       const bannerPath = pick('bannerFile', 'bannerPath', '大图');
-      const faviconPath = pick('faviconFile', 'faviconPath', '图标');
+      // 图标固定存成 site-icon.*：主题自带一个同名 favicon.ico（蝴蝶），
+      // 同一个文件名会被主题的静态文件覆盖，导致「上传了还是旧图标」。
+      const faviconPath = (data.faviconFile && data.faviconFile.dataUrl)
+        ? (saveDataUrl(base, data.faviconFile.dataUrl, 'site-icon') ||
+           (function () { throw new Error('图标格式不支持（ico / png / jpg / svg）'); })())
+        : data.faviconPath;
       const navBgPath = pick('navBgFile', 'navBgPath', '上下篇背景');
       const footerBgPath = pick('footerBgFile', 'footerBgPath', '页脚背景');
 
@@ -566,7 +571,7 @@ async function handle(hexo, req, res, options) {
         [['index_img'], bannerPath],
         [['default_top_img'], bannerPath],
         [['avatar', 'img'], avatarPath],
-        [['avatar', 'effect'], data.avatarEffect === undefined ? undefined : bool(data.avatarEffect)],
+        [['avatar', 'effect'], 'false'],
         [['favicon'], faviconPath],
         [['footer', 'owner', 'since'], data.since],
         [['footer', 'custom_text'], data.footerText],
@@ -650,6 +655,9 @@ async function handle(hexo, req, res, options) {
         [['wb_look', 'notfound_subtitle'], strOr(data.nfSub)],
         [['wb_look', 'notfound_text'], strOr(data.nfText)],
         [['wb_look', 'notfound_btn'], strOr(data.nfBtn)],
+        // 头像旋转：不依赖主题 styl 编译（主题的 avatar.effect 改动后常常不生效），
+        // 统一写进 wb_look.avatar_spin，由 scripts/wb-look.js 注入/关闭动画。
+        [['wb_look', 'avatar_spin'], boolStr(data.avatarEffect)],
       ].forEach(([p, v]) => {
         if (v === undefined) return;
         const r = ensureScalar(thNext, p, v);
@@ -1092,7 +1100,7 @@ function renderPage(cur) {
           <div class="thumb ico" id="faviconThumb" style="background-image:url('${esc(favicon)}')"></div>
           <div style="flex:1 1 260px">
             <input type="file" id="faviconFile" accept=".ico,.png,.svg,.jpg,.jpeg,.webp">
-            <div class="hint">支持 .ico / .png / .svg，建议正方形、32×32 以上。改完浏览器可能要强刷（Ctrl+F5）或等一会儿才变。</div>
+            <div class="hint">支持 .ico / .png / .svg，建议正方形、32×32 以上。会自动存成 /img/site-icon.*（不和主题内置图标撞名）。改完浏览器可能要强刷（Ctrl+F5）才变。</div>
             <div class="field" style="margin-top:8px;margin-bottom:0"><label>或者直接填路径</label><input type="text" id="faviconPath" value="${esc(favicon)}"></div>
           </div>
         </div>
@@ -1106,7 +1114,7 @@ function renderPage(cur) {
           <label class="chk"><input type="checkbox" id="tocEnable"${(theme.toc || {}).post ? ' checked' : ''}><span>文章右侧显示目录</span></label>
           <label class="chk"><input type="checkbox" id="darkmode"${(theme.darkmode || {}).enable ? ' checked' : ''}><span>右下角深色模式按钮</span></label>
           <label class="chk"><input type="checkbox" id="readmode"${theme.readmode ? ' checked' : ''}><span>阅读模式按钮</span></label>
-          <label class="chk"><input type="checkbox" id="avatarEffect"${(theme.avatar || {}).effect ? ' checked' : ''}><span>头像旋转特效</span></label>
+          <label class="chk"><input type="checkbox" id="avatarEffect"${wb.avatar_spin === false ? '' : ' checked'}><span>头像旋转特效</span></label>
         </div>
         <div class="row" style="margin-top:14px">
           <div class="field" style="max-width:220px"><label>首页文章摘要字数</label><input type="number" id="postLength" value="${esc((theme.index_post_content || {}).length || 260)}"></div>

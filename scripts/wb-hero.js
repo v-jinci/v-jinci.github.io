@@ -38,15 +38,17 @@ hexo.extend.filter.register('after_render:html', (str) => {
 
   const poster = images[0] ? ' poster="' + esc(images[0]) + '"' : '';
   let layers = '';
-  if (video) {
-    layers =
-      '<video class="wb-hero-video" autoplay muted loop playsinline preload="metadata"' + poster + '>' +
-      '<source src="' + esc(video) + '"></video>';
-  }
+  // 先放图片层，再放视频层：视频在上面，图片在下面当兜底。
+  // （原来视频在最底层，被第一张图完全盖住 —— 所以「只有一个、不切换、没视频」。）
   if (images.length) {
     layers += images
       .map((src, i) => '<div class="wb-slide' + (i === 0 ? ' on' : '') + '" style="background-image:url(' + esc(src) + ')"></div>')
       .join('');
+  }
+  if (video) {
+    layers +=
+      '<video class="wb-hero-video" autoplay muted loop playsinline preload="auto"' + poster + '>' +
+      '<source src="' + esc(video) + '"></video>';
   }
 
   const hero = '<div class="wb-hero" aria-hidden="true">' + layers + '</div>';
@@ -65,16 +67,25 @@ hexo.extend.filter.register('after_render:html', (str) => {
     '#page-header .wb-slide{position:absolute;inset:0;background-size:cover;background-position:center;' +
     'background-repeat:no-repeat;opacity:0;transition:opacity 1.4s ease;will-change:opacity}' +
     '#page-header .wb-slide.on{opacity:1}' +
-    '#page-header .wb-hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}' +
+    '#page-header .wb-hero-video{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;' +
+    'opacity:0;transition:opacity .8s ease;background:transparent}' +
+    '#page-header .wb-hero-video.on{opacity:1}' +
     '#page-header>#site-info,#page-header>#post-info,#page-header>#page-site-info,#page-header>#scroll-down{z-index:2}' +
     '@media (prefers-reduced-motion:reduce){#page-header .wb-slide{transition:none}}' +
     '</style>';
 
   let js = '';
-  if (!video && images.length > 1) {
+  if (images.length > 1 || video) {
     js =
       '<script>(function(){' +
       'var box=document.querySelector("#page-header .wb-hero");if(!box)return;' +
+      // 视频：能播就淡入盖住图片；播不了（编码不支持 / 文件没传上去）就自动退回图片轮播。
+      'var v=box.querySelector(".wb-hero-video");' +
+      'if(v){' +
+      'v.addEventListener("playing",function(){v.classList.add("on")});' +
+      'v.addEventListener("error",function(){v.classList.remove("on");v.style.display="none"});' +
+      'var ps=v.play&&v.play();if(ps&&ps.catch)ps.catch(function(){});' +
+      '}' +
       'var s=box.querySelectorAll(".wb-slide");if(s.length<2)return;' +
       'if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches)return;' +
       'var i=0,t=setInterval(function(){s[i].classList.remove("on");i=(i+1)%s.length;s[i].classList.add("on");},' +
