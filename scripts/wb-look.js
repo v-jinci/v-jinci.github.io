@@ -17,8 +17,32 @@ hexo.extend.filter.register('after_render:html', (str, data) => {
   const cfg = (hexo.theme.config && hexo.theme.config.wb_look) || {};
   const out = [];
 
+  // 图片地址后面挂一个「文件修改时间」版本号。
+  // 不带它的话，同名图片替换后浏览器 / CDN 还在用旧图，
+  // 看起来就像「换了又自动恢复成原来的」。
+  function cacheKey(p) {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const abs = path.join(hexo.base_dir, 'source', String(p).replace(/^\/+/, ''));
+      const st = fs.statSync(abs);
+      return '?v=' + Math.floor(st.mtimeMs).toString(36);
+    } catch (e) {
+      return '';
+    }
+  }
+
   const navBg = String(cfg.nav_bg || '').trim();
-  if (navBg) out.push(':root{--wb-nav-bg:url(\'' + navBg.replace(/'/g, "\\'") + '\')}');
+  if (navBg) out.push(':root{--wb-nav-bg:url(\'' + navBg.replace(/'/g, "\\'") + cacheKey(navBg) + '\')}');
+
+  // 页脚背景：主题是把 url 写在 #footer 的 inline style 上，
+  // 这里用带版本号的地址覆盖掉，避免旧图缓存。
+  const footerImg = String(hexo.theme.config.footer_img || '').trim();
+  out.push(
+    '#footer{background-image:' +
+      (footerImg ? 'url("' + footerImg + cacheKey(footerImg) + '")' : 'none') +
+      '!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}'
+  );
 
   const size = Number(cfg.sub_size) || 0;
   const spacing = Number(cfg.sub_spacing) || 0;

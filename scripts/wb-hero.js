@@ -19,6 +19,19 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// 给图片 / 视频地址挂上「文件修改时间」版本号：
+// 同名文件替换后，浏览器不会继续拿缓存里的旧图（否则看起来像没换成功）。
+function cacheKey(p) {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const abs = path.join(hexo.base_dir, 'source', String(p).replace(/^\/+/, ''));
+    return '?v=' + Math.floor(fs.statSync(abs).mtimeMs).toString(36);
+  } catch (e) {
+    return '';
+  }
+}
+
 hexo.extend.filter.register('after_render:html', (str) => {
   const cfg = (hexo.theme.config && hexo.theme.config.wb_look) || {};
   const images = (Array.isArray(cfg.hero_images) ? cfg.hero_images : [])
@@ -36,19 +49,19 @@ hexo.extend.filter.register('after_render:html', (str) => {
   // 「仅首页」时，判断依据就是主题给首页头图加的 full_page 类
   if (scope === 'home' && m[0].indexOf('full_page') === -1) return str;
 
-  const poster = images[0] ? ' poster="' + esc(images[0]) + '"' : '';
+  const poster = images[0] ? ' poster="' + esc(images[0] + cacheKey(images[0])) + '"' : '';
   let layers = '';
   // 先放图片层，再放视频层：视频在上面，图片在下面当兜底。
   // （原来视频在最底层，被第一张图完全盖住 —— 所以「只有一个、不切换、没视频」。）
   if (images.length) {
     layers += images
-      .map((src, i) => '<div class="wb-slide' + (i === 0 ? ' on' : '') + '" style="background-image:url(' + esc(src) + ')"></div>')
+      .map((src, i) => '<div class="wb-slide' + (i === 0 ? ' on' : '') + '" style="background-image:url(' + esc(src + cacheKey(src)) + ')"></div>')
       .join('');
   }
   if (video) {
     layers +=
       '<video class="wb-hero-video" autoplay muted loop playsinline preload="auto"' + poster + '>' +
-      '<source src="' + esc(video) + '"></video>';
+      '<source src="' + esc(video + cacheKey(video)) + '"></video>';
   }
 
   const hero = '<div class="wb-hero" aria-hidden="true">' + layers + '</div>';

@@ -374,10 +374,14 @@ function saveDataUrl(base, dataUrl, suggestName) {
     .replace(/^[.-]+|[-]+$/g, '')
     .slice(0, 40);
   if (!name) name = 'pic-' + Date.now();
-  const fileName = name + ext;
+  // 文件名带上内容指纹：换图就换地址，浏览器/图床不会继续用旧缓存；
+  // 同一张图重复上传只会得到同一个名字，不会越堆越多。
+  const buf = Buffer.from(m[2], 'base64');
+  const fp = require('crypto').createHash('sha1').update(buf).digest('hex').slice(0, 8);
+  const fileName = name + '-' + fp + ext;
   const dir = path.join(base, 'source', 'img');
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, fileName), Buffer.from(m[2], 'base64'));
+  fs.writeFileSync(path.join(dir, fileName), buf);
   return '/img/' + fileName;
 }
 
