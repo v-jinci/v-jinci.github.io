@@ -21,7 +21,7 @@ menu:
   关于: /about/ || fas fa-user
 
 social:
-  fab fa-github: https://github.com/v-jinci || Github || Github
+  fab fa-github: https://github.com/v-jinci || Github || Github || Github
   fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
