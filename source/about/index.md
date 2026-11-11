@@ -2,9 +2,7 @@
 title: 关于
 date: 2026-11-10 19:00:00
 type: about
-top_img:
 ---
-
 ## 我是谁
 
 你好，我是**玮**。一个还在学着把事情想清楚、把日子过明白的普通人。
@@ -20,6 +18,6 @@ top_img:
 ## 联系我
 
 - GitHub：[@v-jinci](https://github.com/v-jinci)
-- 邮箱：renweiwei127@163.com
+- 邮箱：[599676700@qq.com](mailto:599676700@qq.com)
 
 想聊点什么，随时来[留言板](/messageBoard/)。
