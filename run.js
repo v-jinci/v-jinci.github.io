@@ -237,7 +237,7 @@ async function deployGit() {
 
 const SRC_BRANCH = 'hexo-src';
 // 这些是站点真正需要的源码，publish 时整份覆盖到副本上
-const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'site-editor.js', 'README-使用说明.md'];
+const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'gh.js', 'site-editor.js', 'README-使用说明.md'];
 const MANAGED_DIRS = ['source', 'scaffolds', '.github', 'scripts'];
 
 /** 解析仓库地址 + 读令牌，返回 { host, pathPart, cleanUrl, cred, authUrl } */
@@ -257,6 +257,81 @@ function repoInfo() {
     cred: cred,
     authUrl: 'https://' + cred.user + ':' + cred.token + '@' + host + pathPart
   };
+}
+
+/**
+ * 走 api.github.com 的客户端（github.com 连不上时用这条通道）。
+ * 地址里的 /v-jinci/v-jinci.github.io.git 取出 owner/repo。
+ */
+function ghClient() {
+  const info = repoInfo();
+  const m = info.pathPart.replace(/\.git$/, '').match(/^\/([^/]+)\/([^/]+)$/);
+  if (!m) throw new Error('仓库地址看不懂：' + info.pathPart);
+  return require('./gh')({ user: info.cred.user, token: info.cred.token, slug: m[1] + '/' + m[2] });
+}
+
+/** 本地所有需要上线的文件（相对路径列表） */
+function localManagedFiles() {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+  const out = [];
+  for (const f of MANAGED_FILES) {
+    if (fs.existsSync(path.join(base, f))) out.push(f);
+  }
+  for (const d of MANAGED_DIRS) {
+    const abs = path.join(base, d);
+    if (fs.existsSync(abs)) out.push.apply(out, listFiles(abs, d));
+  }
+  return out;
+}
+
+/* ---------------- 自动备份：发布前先把 source 存一份 ---------------- */
+function backupRoot() {
+  return require('path').join(hexo.base_dir, '.backup');
+}
+
+function backupSource(tag) {
+  const fs = require('fs');
+  const path = require('path');
+  const root = backupRoot();
+  const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+  const dir = path.join(root, (tag ? tag + '-' : '') + stamp);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+    for (const d of ['source', 'scripts']) {
+      const src = path.join(hexo.base_dir, d);
+      if (fs.existsSync(src)) fs.cpSync(src, path.join(dir, d), { recursive: true });
+    }
+    for (const f of ['_config.yml', '_config.butterfly.yml', '.pages.yml']) {
+      const src = path.join(hexo.base_dir, f);
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(dir, f));
+    }
+    // 只保留最近 10 份，免得越堆越多
+    const list = fs.readdirSync(root).sort();
+    while (list.length > 10) {
+      const old = list.shift();
+      fs.rmSync(path.join(root, old), { recursive: true, force: true });
+    }
+    return dir;
+  } catch (e) {
+    return '';
+  }
+}
+
+function listBackups() {
+  const fs = require('fs');
+  const path = require('path');
+  const root = backupRoot();
+  try {
+    return fs
+      .readdirSync(root)
+      .sort()
+      .reverse()
+      .map((n) => path.join(root, n));
+  } catch (e) {
+    return [];
+  }
 }
 
 /**
@@ -351,16 +426,49 @@ function saveSyncState(files) {
 /**
  * 把线上新增/更新的文章拉到本地。
  * 只在「本地这份没动过」时才覆盖；两边都改过就保留本地并提示。
+ *
+ * 两条通道：先试 git（快）；github.com 连不上就自动改走 api.github.com。
  */
-function syncSource(opts) {
+async function syncSource(opts) {
   const fs = require('fs');
   const path = require('path');
   const base = hexo.base_dir;
   const quiet = !!(opts && opts.quiet);
 
-  const remote = fetchRemoteSource(opts);
-  const remoteRoot = path.join(remote.dir, 'source');
-  const remoteFiles = listFiles(remoteRoot, 'source');
+  // 通道 1：git 克隆 / 拉取
+  let entries = null;
+  let channel = 'git';
+  let gitErr = null;
+  try {
+    const remote = fetchRemoteSource(opts);
+    entries = listFiles(path.join(remote.dir, 'source'), 'source').map((rel) => ({
+      rel: rel,
+      read: () => fs.readFileSync(path.join(remote.dir, rel))
+    }));
+  } catch (e) {
+    gitErr = e;
+  }
+
+  // 通道 2：GitHub API（github.com 被墙 / 502 时）
+  if (!entries) {
+    try {
+      const gh = ghClient();
+      const t = await gh.treeMap(SRC_BRANCH);
+      channel = 'api';
+      entries = Object.keys(t.map)
+        .filter((p) => p.indexOf('source/') === 0)
+        .map((p) => ({
+          rel: p,
+          read: async () => await gh.readBlob(t.map[p].sha)
+        }));
+    } catch (e2) {
+      const e3 = new Error(
+        (gitErr && gitErr.message ? gitErr.message : '取回失败') + '；备用通道也失败：' + (e2 && e2.message ? e2.message : e2)
+      );
+      throw e3;
+    }
+  }
+
   const state = loadSyncState();
   const firstRun = Object.keys(state).length === 0;
   const nextState = {};
@@ -369,10 +477,10 @@ function syncSource(opts) {
   const localOnly = [];
   const conflicts = [];
 
-  for (const rel of remoteFiles) {
-    const rAbs = path.join(remote.dir, rel);
+  for (const ent of entries) {
+    const rel = ent.rel;
+    const rBuf = await ent.read();
     const lAbs = path.join(base, rel);
-    const rBuf = fs.readFileSync(rAbs);
     const rSha = contentKey(rBuf);
     nextState[rel] = rSha;
 
@@ -401,7 +509,11 @@ function syncSource(opts) {
 
   saveSyncState(nextState);
 
-  if (quiet) return { added: added, updated: updated, localOnly: localOnly, conflicts: conflicts };
+  const out = { added, updated, localOnly, conflicts, channel, firstRun };
+  if (quiet) return out;
+  if (channel === 'api') {
+    console.log('  （github.com 连不上，已自动改用 api.github.com 通道，不影响结果）');
+  }
   if (!added.length && !updated.length && !localOnly.length && !conflicts.length) {
     console.log('  本地已经是最新的，没有需要拉取的内容。');
   } else {
@@ -435,7 +547,7 @@ async function publishSource() {
 
   // 先拉一次：确保手机/网页上写的文章先在本地落地，再一起推回去
   try {
-    const s = syncSource({ quiet: true });
+    const s = await syncSource({ quiet: true });
     if (s.added.length || s.updated.length) {
       sub('先从云端取回 ' + (s.added.length + s.updated.length) + ' 个新文件（你在手机或网页上写的）');
     } else {
@@ -447,6 +559,31 @@ async function publishSource() {
   } catch (e) {
     sub('取回云端源码失败，跳过同步直接发布：' + (e && e.message ? e.message : e));
   }
+
+  // 发布前先把整个 source 备份一份，出任何事都能一键还原
+  const bk = backupSource('');
+  if (bk) sub('已备份当前文章到 ' + bk + '（想还原就双击「6-恢复备份.bat」）');
+
+  // 通道 A：git（快）
+  let gitFail = null;
+  try {
+    await publishViaGit();
+    return;
+  } catch (e) {
+    gitFail = e;
+    console.log('');
+    sub('git 通道失败：' + (e && e.message ? e.message : e));
+    sub('自动改用 api.github.com 通道重试（通常能绕过 github.com 连不上的问题）…');
+  }
+
+  // 通道 B：GitHub API
+  await publishViaApi();
+}
+
+async function publishViaGit() {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
 
   const remote = fetchRemoteSource({});
   const dir = remote.dir;
@@ -465,9 +602,20 @@ async function publishSource() {
 
   // 3. 看看动了哪些文件
   runGit(['add', '-A'], dir);
-  const st = runGit(['status', '--porcelain'], dir);
-  const changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
-  const deleted = changed.filter((l) => l.startsWith('D'));
+  let st = runGit(['status', '--porcelain'], dir);
+  let changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
+  let deleted = changed.filter((l) => l.startsWith('D'));
+
+  // 只增改、不删除：本地没有的文件，把线上那版恢复回来
+  if (deleted.length) {
+    const paths = deleted.map((l) => l.replace(/^D\s+/, '').replace(/^"(.*)"$/, '$1'));
+    runGit(['restore', '--source=HEAD', '--staged', '--worktree', '--'].concat(paths), dir);
+    st = runGit(['status', '--porcelain'], dir);
+    changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
+    deleted = changed.filter((l) => l.startsWith('D'));
+    sub('有 ' + paths.length + ' 个文件本地不在了，已按线上版本保留（发布不会删线上文件）');
+  }
+
   if (changed.length === 0) {
     console.log('');
     sub('没有检测到任何改动 —— 不用发布。');
@@ -477,16 +625,12 @@ async function publishSource() {
   sub('这次要上传的文件（' + changed.length + ' 个）：');
   changed.slice(0, 12).forEach((l) => console.log('           ' + l.replace(/^([AMDR?]+)\s+/, '$1  ')));
   if (changed.length > 12) console.log('           …还有 ' + (changed.length - 12) + ' 个');
-  if (deleted.length) {
-    sub('提醒：有 ' + deleted.length + ' 个文件你本地删了、线上还在，本次不会删它们');
-  }
 
   // 4. 提交并推送源码
   const msg = 'publish from local: ' + new Date().toISOString().replace('T', ' ').slice(0, 19);
   const c = runGit(['commit', '-m', msg], dir);
   if (c.code !== 0) {
-    sub('提交失败：' + (c.text.split('\n')[0] || '未知'));
-    return;
+    throw new Error('提交失败：' + (c.text.split('\n')[0] || '未知'));
   }
   sub('已提交，正在推送到 ' + SRC_BRANCH + ' 分支…');
   const p = runGit(['push', authUrl, 'HEAD:' + SRC_BRANCH], dir);
@@ -495,7 +639,51 @@ async function publishSource() {
     e.gitOutput = p.text.split(cred.token).join('****');
     throw e;
   }
-  sub('上传成功');
+  sub('上传成功（git 通道）');
+}
+
+/** 走 api.github.com 的发布：只上传内容真的变了的文件，永不删除线上文件 */
+async function publishViaApi() {
+  const fs = require('fs');
+  const path = require('path');
+  const base = hexo.base_dir;
+  const gh = ghClient();
+  const mod = require('./gh');
+
+  let t;
+  try {
+    t = await gh.treeMap(SRC_BRANCH);
+  } catch (e) {
+    throw new Error('连 api.github.com 也失败了：' + (e && e.message ? e.message : e) + '。请检查网络或换用手机热点再试。');
+  }
+
+  const files = localManagedFiles();
+  const upserts = {};
+  let same = 0;
+  for (const rel of files) {
+    const buf = fs.readFileSync(path.join(base, rel));
+    const sha = mod.blobSha(buf);
+    const r = t.map[rel];
+    if (r && r.sha === sha) {
+      same++;
+      continue;
+    }
+    upserts[rel] = buf;
+  }
+
+  const n = Object.keys(upserts).length;
+  if (!n) {
+    console.log('');
+    sub('没有检测到任何改动 —— 不用发布。');
+    return;
+  }
+  sub('这次要上传的文件（' + n + ' 个，' + same + ' 个没变已跳过）：');
+  Object.keys(upserts).slice(0, 12).forEach((f) => console.log('           +  ' + f));
+  if (n > 12) console.log('           …还有 ' + (n - 12) + ' 个');
+
+  const msg = 'publish from local: ' + new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const r = await gh.apply({ branch: SRC_BRANCH, message: msg, upserts: upserts, deletes: [] });
+  sub('上传成功（api 通道，提交 ' + String(r.sha).slice(0, 7) + '）');
 }
 
 const cmd = (process.argv[2] || 'help').toLowerCase();
@@ -547,7 +735,7 @@ async function main() {
     step('检查云端有没有新文章', '有就自动拉下来，保证你看到的是最新版');
     try {
       ensureGit();
-      const s = syncSource({ quiet: true, timeout: 20000 });
+      const s = await syncSource({ quiet: true, timeout: 20000 });
       if (s.added.length || s.updated.length) {
         sub('已从云端同步 ' + (s.added.length + s.updated.length) + ' 个文件到本地');
       } else {
@@ -599,6 +787,49 @@ async function main() {
   } else if (cmd === 'clean') {
     await hexo.call('clean', {});
     console.log('  已清理');
+  } else if (cmd === 'restore') {
+    const fs = require('fs');
+    const pathMod = require('path');
+    const list = listBackups();
+    console.log('');
+    if (!list.length) {
+      console.log('  目前还没有任何备份。');
+      console.log('  备份是每次「发布到网站」时自动生成的，发过一次就会有。');
+    } else {
+      console.log('  可用的备份（新的在上面，每份都含当时完整的 source 文章目录）：');
+      list.forEach((dir, i) => {
+        let n = 0;
+        try {
+          n = listFiles(pathMod.join(dir, 'source'), '').length;
+        } catch (e) {}
+        console.log('    ' + (i + 1) + ') ' + pathMod.basename(dir) + '   （' + n + ' 个文件）');
+      });
+      console.log('');
+      const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout });
+      const ans = await new Promise((res) => {
+        rl.question('  要还原第几份？直接回车 = 第 1 份（最新）：', (a) => res((a || '').trim()));
+        rl.on('close', () => res(''));
+      });
+      rl.close();
+      const idx = Math.max(1, Math.min(list.length, parseInt(ans || '1', 10) || 1)) - 1;
+      const pick = list[idx];
+      const keep = backupSource('restore前');
+      let n = 0;
+      for (const d of ['source', 'scripts']) {
+        const src = pathMod.join(pick, d);
+        if (!fs.existsSync(src)) continue;
+        fs.cpSync(src, pathMod.join(hexo.base_dir, d), { recursive: true });
+        n += listFiles(src, '').length;
+      }
+      for (const f of ['_config.yml', '_config.butterfly.yml', '.pages.yml']) {
+        const src = pathMod.join(pick, f);
+        if (fs.existsSync(src)) fs.copyFileSync(src, pathMod.join(hexo.base_dir, f));
+      }
+      console.log('');
+      console.log('  已还原 ' + n + ' 个文件，来源：' + pathMod.basename(pick));
+      if (keep) console.log('  还原前的状态也留了一份：' + pathMod.basename(keep));
+      console.log('  还原只改本地文件。要让线上也变回原样，再双击「1-发布到网站.bat」。');
+    }
   } else if (cmd === 'sync') {
     beginSteps(2);
 
@@ -606,7 +837,7 @@ async function main() {
     ensureGit();
 
     step('从云端取回最新文章', '只下载云端比本地新的文件；你自己改过的不动，不会丢');
-    const r = syncSource({});
+    const r = await syncSource({});
     console.log('');
     if (r.added.length || r.updated.length) {
       console.log('  完成！新文章已经放进 source/_posts，可以打开后台编辑了。');

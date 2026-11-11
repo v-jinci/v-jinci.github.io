@@ -10,6 +10,14 @@
 media:
   input: source/img
   output: /img
+  label: 图片库（上传的图片都放这里）
+  categories: [image]
+  rename: false
+  commit:
+    templates:
+      create: "img(create): {filename}"
+      update: "img(update): {filename}"
+      delete: "img(delete): {filename}"
 
 settings:
   content:
@@ -29,7 +37,11 @@ content:
     type: collection
     path: source/_posts
     format: yaml-frontmatter
-    filename: "{primary}.md"
+    # 新文章文件名带日期前缀：2026-11-11-标题.md
+    # 这样两篇文章重名也不会互相覆盖（以前的写法只按标题命名，重名会直接盖掉旧的）
+    filename:
+      template: "{year}-{month}-{day}-{primary}.md"
+      field: create
     view:
       primary: title
       sort: date
