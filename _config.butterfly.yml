@@ -152,6 +152,18 @@ footer:
     version: false
   custom_text:
 
+# ==========================================================
+#  背景图（都在 /site 后台「外观图片」里可视化修改，不用手改这里）
+#
+#  wb_look.nav_bg ：文章底部「上一篇 / 下一篇」卡片的背景图。
+#  footer_img     ：页脚背景图。留空 '' 就是纯色。
+#  想换成自己的照片：把图片放进 source/img/，再改文件名即可。
+# ==========================================================
+footer_img: /img/footer-bg.svg
+
+wb_look:
+  nav_bg: /img/nav-cover.svg
+
 # 页面顶部图（留空则用主题默认渐变，干净清爽）
 
 # ==========================================================
@@ -212,3 +224,37 @@ giscus:
 inject:
   head:
     - <style>.wl-addr{display:none!important}</style>
+    - |
+      <style>
+      /* ---- 文章底部「上一篇 / 下一篇」：图片打底 + 暗色遮罩，保证文字看得清 ---- */
+      /* 背景图来自 wb_look.nav_bg（/site 后台可改），由 scripts/wb-look.js 注入成 CSS 变量 */
+      #pagination.pagination-post a.pagination-related{position:relative;overflow:hidden;border-radius:14px;box-shadow:0 6px 20px rgba(15,23,42,.10)}
+      #pagination.pagination-post a.pagination-related .cover{
+        background-image:var(--wb-nav-bg,url('/img/nav-cover.svg'))!important;
+        background-size:cover!important;background-position:center!important;background-color:transparent!important}
+      #pagination.pagination-post a.pagination-related:nth-of-type(2) .cover{
+        background-image:var(--wb-nav-bg2,var(--wb-nav-bg,url('/img/nav-cover3.svg')))!important}
+      #pagination.pagination-post a.pagination-related:hover .cover{opacity:1!important}
+      #pagination.pagination-post a.pagination-related::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+        background:linear-gradient(120deg,rgba(8,15,28,.42),rgba(8,15,28,.16) 55%,rgba(8,15,28,.38))}
+      /* 文字是绝对定位的，只抬层级、不改变定位方式，否则会跑到卡片顶部 */
+      #pagination.pagination-post a.pagination-related .info .info-1,
+      #pagination.pagination-post a.pagination-related .info .info-2{position:absolute;z-index:2}
+      #pagination.pagination-post .info-item-1,
+      #pagination.pagination-post .info-item-2{color:rgba(255,255,255,.96)!important;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+      #pagination.pagination-post .info-1 .info-item-1{opacity:.72;letter-spacing:.08em}
+
+      /* ---- 页脚：背景图 + 遮罩 + 白字 ---- */
+      #footer{position:relative;background-size:cover;background-position:center;background-repeat:no-repeat}
+      #footer::before{content:"";position:absolute;inset:0;pointer-events:none;
+        background:linear-gradient(180deg,rgba(6,12,24,.4),rgba(6,12,24,.62))}
+      #footer>*{position:relative;z-index:1}
+      #footer,
+      #footer a,
+      #footer .footer-copyright,
+      #footer .footer-other,
+      #footer .footer-separator{color:rgba(255,255,255,.9)!important}
+      #footer a:hover{color:#fff!important;text-decoration:underline}
+      /* 深色模式下别压得太黑 */
+      html[data-theme="dark"] #footer::before{background:linear-gradient(180deg,rgba(6,12,24,.45),rgba(6,12,24,.68))}
+      </style>

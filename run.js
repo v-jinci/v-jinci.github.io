@@ -461,6 +461,7 @@ async function syncSource(opts) {
         .filter((p) => p.indexOf('source/') === 0)
         .map((p) => ({
           rel: p,
+          sha: t.map[p].sha,
           read: async () => await gh.readBlob(t.map[p].sha)
         }));
     } catch (e2) {
@@ -481,8 +482,18 @@ async function syncSource(opts) {
 
   for (const ent of entries) {
     const rel = ent.rel;
-    const rBuf = await ent.read();
     const lAbs = path.join(base, rel);
+
+    // API 通道的省流量优化：本地文件的 git blob 指纹和线上一样，就不用下载内容了
+    if (ent.sha && fs.existsSync(lAbs)) {
+      const localBuf = fs.readFileSync(lAbs);
+      if (require('./gh').blobSha(localBuf) === ent.sha) {
+        nextState[rel] = contentKey(localBuf);
+        continue;
+      }
+    }
+
+    const rBuf = await ent.read();
     const rSha = contentKey(rBuf);
     nextState[rel] = rSha;
 

@@ -7,17 +7,21 @@
 # 注意：settings.content.merge 必须是 true，
 #       否则保存时会把这个 schema 之外的 front-matter（top_img / type 等）删掉。
 
+# 图片库：上传的图片都进 source/img/，正文里写成 /img/xxx.png
+# 必须用「数组 + name」的写法，下面的字段才能用 options.media: images 指过来。
+# 用单对象写法时，正文工具栏的图片按钮不会出现（这是之前找不到上传按钮的原因）。
 media:
-  input: source/img
-  output: /img
-  label: 图片库（上传的图片都放这里）
-  categories: [image]
-  rename: false
-  commit:
-    templates:
-      create: "img(create): {filename}"
-      update: "img(update): {filename}"
-      delete: "img(delete): {filename}"
+  - name: images
+    label: 图片库
+    input: source/img
+    output: /img
+    categories: [image]
+    rename: false
+    commit:
+      templates:
+        create: "img(create): {filename}"
+        update: "img(update): {filename}"
+        delete: "img(delete): {filename}"
 
 settings:
   content:
@@ -68,9 +72,23 @@ content:
         label: 分类
         type: string
         list: true
+      # 封面图：填了它，文章底部「上一篇 / 下一篇」卡片就用这张图打底
+      - name: cover
+        label: 封面图（可不填，不填用默认深色渐变）
+        type: image
+        options:
+          media: images
+          categories: [image]
+          rename: false
       - name: body
         label: 正文
         type: rich-text
+        options:
+          # 指向上面的 images 图片库 → 工具栏出现图片按钮（内含「上传」页签）
+          media: images
+          format: markdown
+          switcher: true
+          rename: false
 
   # ---------------- 独立页面 ----------------
   - name: pages
@@ -90,6 +108,9 @@ content:
           - name: body
             label: 正文
             type: rich-text
+            options:
+              media: images
+              format: markdown
 
       - name: link
         label: 友链
@@ -104,6 +125,9 @@ content:
           - name: body
             label: 正文
             type: rich-text
+            options:
+              media: images
+              format: markdown
 
       - name: messageBoard
         label: 留言板
@@ -118,6 +142,9 @@ content:
           - name: body
             label: 正文（留言板本身是空的，评论组件会渲染在下面）
             type: rich-text
+            options:
+              media: images
+              format: markdown
 
       - name: history
         label: 编年史
@@ -132,3 +159,6 @@ content:
           - name: body
             label: 正文
             type: rich-text
+            options:
+              media: images
+              format: markdown

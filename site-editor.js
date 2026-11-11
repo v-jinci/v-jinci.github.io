@@ -380,6 +380,8 @@ async function handle(hexo, req, res, options) {
       const avatarPath = pick('avatarFile', 'avatarPath', '头像');
       const bannerPath = pick('bannerFile', 'bannerPath', '大图');
       const faviconPath = pick('faviconFile', 'faviconPath', '图标');
+      const navBgPath = pick('navBgFile', 'navBgPath', '上下篇背景');
+      const footerBgPath = pick('footerBgFile', 'footerBgPath', '页脚背景');
 
       /* --- _config.yml --- */
       let siteRaw = readText(siteFile);
@@ -431,6 +433,20 @@ async function handle(hexo, req, res, options) {
       }
       if (data.commentUse !== undefined) {
         const r = setScalar(thNext, ['comments', 'use'], data.commentUse);
+        if (r != null) thNext = r;
+      }
+      // 文章底部「上一篇 / 下一篇」的背景（wb_look.nav_bg，经 scripts/wb-look.js 注入）
+      // 只有真改了才写，避免无意义的提交。
+      if (navBgPath) {
+        const curNav = ((require('js-yaml').load(thRaw) || {}).wb_look || {}).nav_bg || '';
+        if (String(navBgPath) !== String(curNav)) {
+          const r = setScalar(thNext, ['wb_look', 'nav_bg'], navBgPath);
+          if (r != null) thNext = r;
+        }
+      }
+      // 页脚背景：允许清空（清空 = 纯色页脚）
+      if (footerBgPath !== undefined && footerBgPath !== null) {
+        const r = setScalar(thNext, ['footer_img'], footerBgPath);
         if (r != null) thNext = r;
       }
       // 社交链接整块重写
@@ -545,6 +561,8 @@ function renderPage(cur) {
   const avatar = (theme.avatar || {}).img || '';
   const banner = theme.index_img || theme.default_top_img || '';
   const favicon = theme.favicon || '';
+  const navBg = (theme.wb_look || {}).nav_bg || '';
+  const footerBg = typeof theme.footer_img === 'string' ? theme.footer_img : '';
   const subs = (theme.subtitle && theme.subtitle.sub) || [];
   const waline = theme.waline || {};
   const social = cur.social || {};
@@ -701,6 +719,32 @@ function renderPage(cur) {
       </div>
 
       <div class="card">
+        <h2>文章底部「上一篇 / 下一篇」背景</h2>
+        <div class="media">
+          <div class="thumb wide" id="navBgThumb" style="background-image:url('${esc(navBg)}')"></div>
+          <div style="flex:1 1 260px">
+            <input type="file" id="navBgFile" accept="image/*">
+            <div class="hint">建议横图（1200×600 以上）。文字会盖在上面，所以<b>深色图更好看</b>；系统会自动再压一层暗色遮罩，保证字看得清。</div>
+            <div class="field" style="margin-top:8px;margin-bottom:0"><label>或者直接填路径</label><input type="text" id="navBgPath" value="${esc(navBg)}"></div>
+            <div class="hint">想换回自带的深色渐变：把上面填成 <code>/img/nav-cover.svg</code></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>页脚（网页最下面那条）背景</h2>
+        <div class="media">
+          <div class="thumb wide" id="footerBgThumb" style="background-image:url('${esc(footerBg)}')"></div>
+          <div style="flex:1 1 260px">
+            <input type="file" id="footerBgFile" accept="image/*">
+            <div class="hint">同样建议深色横图（1600×400 左右）。页脚文字是白色的，浅色图会看不清。</div>
+            <div class="field" style="margin-top:8px;margin-bottom:0"><label>或者直接填路径</label><input type="text" id="footerBgPath" value="${esc(footerBg)}"></div>
+            <div class="hint">留空 = 纯色页脚。自带图：<code>/img/footer-bg.svg</code></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <h2>侧边栏</h2>
         <div class="media">
           <div class="thumb" id="avatarThumb" style="background-image:url('${esc(avatar)}')"></div>
@@ -839,7 +883,7 @@ var $ = function (s) { return document.querySelector(s); };
 var statusEl = $('#status');
 function setStatus(text, kind) { statusEl.textContent = text; statusEl.className = 'status ' + (kind || ''); }
 var boot = JSON.parse(document.getElementById('bootData').textContent || '{}');
-var picked = { avatar: null, banner: null, favicon: null };
+var picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
 
 /* ---- 标签切换 ---- */
 $('#tabs').addEventListener('click', function (e) {
@@ -873,6 +917,8 @@ function hookFile(input, key, thumbId) {
 hookFile('avatarFile', 'avatar', 'avatarThumb');
 hookFile('bannerFile', 'banner', 'bannerThumb');
 hookFile('faviconFile', 'favicon', 'faviconThumb');
+hookFile('navBgFile', 'navBg', 'navBgThumb');
+hookFile('footerBgFile', 'footerBg', 'footerBgThumb');
 
 /* ---- 导航 ---- */
 var ICONS = ['fas fa-home','fas fa-archive','fas fa-tags','fas fa-folder-open','fas fa-link','fas fa-history','far fa-comment-dots','fas fa-download','fas fa-user','fas fa-rss','fas fa-book','fas fa-camera','fas fa-music','fas fa-code'];
@@ -1073,6 +1119,7 @@ function collect() {
     keywords: val('keywords'), description: val('description'), language: val('language'),
     mail: val('mail'), github: val('github'), since: val('since'), footerText: val('footerText'),
     bannerPath: val('bannerPath'), avatarPath: val('avatarPath'), faviconPath: val('faviconPath'),
+    navBgPath: val('navBgPath'), footerBgPath: val('footerBgPath'),
     authorDesc: val('authorDesc'), notice: val('notice'),
     postLength: val('postLength'),
     asideEnable: chk('asideEnable'), tocEnable: chk('tocEnable'),
@@ -1087,6 +1134,8 @@ function collect() {
   if (picked.avatar) out.avatarFile = picked.avatar;
   if (picked.banner) out.bannerFile = picked.banner;
   if (picked.favicon) out.faviconFile = picked.favicon;
+  if (picked.navBg) out.navBgFile = picked.navBg;
+  if (picked.footerBg) out.footerBgFile = picked.footerBg;
   return out;
 }
 async function post(url, body) {
@@ -1102,7 +1151,7 @@ $('#f').addEventListener('submit', async function (e) {
   setStatus('正在保存…');
   try {
     var j = await post('/site/save', collect());
-    picked = { avatar: null, banner: null, favicon: null };
+    picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     setStatus('已保存：' + (j.touched || []).join('、') + '。本地预览已刷新；线上要点「保存并发布」。', 'ok');
   } catch (err) {
     setStatus('保存失败：' + err.message, 'err');
@@ -1116,7 +1165,7 @@ $('#publishBtn').addEventListener('click', async function () {
   setStatus('先保存，再推送…（约 30 秒，别关窗口）');
   try {
     await post('/site/save', collect());
-    picked = { avatar: null, banner: null, favicon: null };
+    picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     await post('/site/publish', {});
     setStatus('已推送！GitHub 正在编译，1-2 分钟后刷新 https://v-jinci.github.io 就能看到。', 'ok');
   } catch (err) {
