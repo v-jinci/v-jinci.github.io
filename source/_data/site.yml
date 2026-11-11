@@ -24,7 +24,7 @@ contacts:
     href: "mailto:599676700@qq.com"
   - label: "微信"
     icon: "fab fa-weixin"
-    hidden: true
+    value: "RVV19981227"
   - label: "QQ"
     icon: "fab fa-qq"
-    hidden: true
+    value: "599676700"
