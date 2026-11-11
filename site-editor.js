@@ -1,7 +1,7 @@
 /**
  * 站点信息编辑器（只在本机运行）
  *
- * 访问：启动 start-admin.bat 后打开 http://localhost:4000/site
+ * 访问：双击「2-打开写作后台.bat」后打开 http://localhost:4000/site
  * 能改：站点标题 / 副标题 / 描述 / 关键词 / 作者
  *       首页顶部大图 / 轮播标语
  *       侧边栏头像 / 作者简介 / 公告
@@ -315,7 +315,7 @@ async function handle(hexo, req, res, options) {
 
     if (req.method === 'POST' && url === '/publish') {
       if (typeof options.publish !== 'function') {
-        sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击 publish.bat。' });
+        sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击 「1-发布到网站.bat」。' });
         return;
       }
       const log = await options.publish();
@@ -601,7 +601,7 @@ $('#publishBtn').addEventListener('click', async () => {
     setStatus('已推送！GitHub 正在编译，1-2 分钟后刷新 https://v-jinci.github.io 就能看到。', 'ok');
     if (j.log) console.log(j.log);
   } catch (err) {
-    setStatus('发布失败：' + err.message + '（可以回黑窗口双击 publish.bat 重试）', 'err');
+    setStatus('发布失败：' + err.message + '（可以回黑窗口双击 「1-发布到网站.bat」 重试）', 'err');
   } finally {
     btn.disabled = false;
   }
