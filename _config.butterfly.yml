@@ -40,7 +40,14 @@ index_img: /img/V_bg.jpg
 subtitle:
   enable: true
   effect: true
+  # 打字效果参数（/site 后台「站点文字」里可调）
+  # typeSpeed 数值越小打得越快；backDelay 是每句打完停多久（毫秒）
   typed_option:
+    typeSpeed: 150
+    backSpeed: 50
+    backDelay: 1500
+    startDelay: 300
+    loop: true
   source: false
   sub:
     - 有可能的就一定会发生
@@ -162,7 +169,19 @@ footer:
 footer_img: /img/footer-bg.svg
 
 wb_look:
+  # 文章底部「上一篇 / 下一篇」卡片的背景图
   nav_bg: /img/nav-cover.svg
+  # 主页头部背景：多张图会自动轮播；hero_video 设了就用视频（图片当封面）
+  hero_images:
+  hero_video: ''
+  hero_interval: 6
+  hero_scope: home
+  hero_overlay: 20
+  # 首页大标题下面那行字的样式（0 / 空 = 跟随主题）
+  sub_size: 0
+  sub_spacing: 0
+  sub_color: ''
+  sub_weight: 0
 
 # 页面顶部图（留空则用主题默认渐变，干净清爽）
 

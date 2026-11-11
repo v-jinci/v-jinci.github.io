@@ -10,3 +10,21 @@ sections:
   archives: ''
   tags: ''
   categories: ''
+
+# 关于页的联系方式卡片：写 <!--WB_CONTACTS--> 的地方会显示它们
+# hidden: true = 暂时不显示，但内容留着
+contacts:
+  - label: "GitHub"
+    icon: "fab fa-github"
+    value: "@v-jinci"
+    href: "https://github.com/v-jinci"
+  - label: "邮箱"
+    icon: "fas fa-envelope"
+    value: "599676700@qq.com"
+    href: "mailto:599676700@qq.com"
+  - label: "微信"
+    icon: "fab fa-weixin"
+    hidden: true
+  - label: "QQ"
+    icon: "fab fa-qq"
+    hidden: true

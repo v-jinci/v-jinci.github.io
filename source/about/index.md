@@ -19,7 +19,6 @@ top_img:
 
 ## 联系我
 
-- GitHub：[@v-jinci](https://github.com/v-jinci)
-- 邮箱：599676700@qq.com
+<!--WB_CONTACTS-->
 
 想聊点什么，随时来[留言板](/messageBoard/)。

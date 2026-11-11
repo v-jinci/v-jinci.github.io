@@ -3,14 +3,16 @@
  *
  * 访问：双击「2-打开写作后台.bat」后打开 http://localhost:4000/site
  *
- * 能改的东西分了 7 类：
- *   1 基本信息：标题 / 作者 / 副标题 / 描述 / 关键词 / 联系邮箱 / 起始年份
- *   2 外观图片：首页大图 / 头像 / 浏览器标签小图标 / 简介 / 公告 / 首页标语 + 几个开关
- *   3 导航菜单：增删、改名字、换图标、调顺序
- *   4 下载区：上传文件或填外链，自动算大小
- *   5 页面密码：给任意一个导航页单独加密码（可加可不加，随时改）
- *   6 评论区：开 / 关，服务地址，访客是否要登录
- *   7 留言管理：审核制留言（没有后端时用）
+ * 能改的东西分了 8 类：
+ *   1 基本信息：标题 / 作者 / 副标题 / 描述 / 关键词 / 联系邮箱 / 起始年份 / 首页标语的速度和样式
+ *   2 联系方式：关于页的联系卡片（微信 / QQ / GitHub / 邮箱…，可弹窗、可带二维码）
+ *   3 外观图片：主页背景（多图轮播 / 视频）/ 首页大图 / 头像 / favicon / 上下篇背景 / 页脚背景
+ *               / 简介 / 公告 + 几个开关
+ *   4 导航菜单：增删、改名字、换图标、调顺序
+ *   5 下载区：上传文件或填外链，自动算大小
+ *   6 页面密码：给任意一个导航页单独加密码（可加可不加，随时改）
+ *   7 评论区：开 / 关，服务地址，访客是否要登录
+ *   8 留言管理：审核制留言（没有后端时用）
  *
  * 写文件的原则：能按行替换的就只动那几行，注释和别的配置原样保留；
  * 只有 _data 下的数据文件是整份重写（结构简单，手写序列化）。
@@ -129,6 +131,92 @@ function setMapRaw(raw, keyPath, pairs) {
   return lines.slice(0, blk.start).concat(next, lines.slice(end)).join('\n');
 }
 
+/** setScalar 的加强版：键不存在就插到父块末尾（父块必须已存在） */
+function ensureScalar(raw, keyPath, value) {
+  const lines = raw.split(/\r?\n/);
+  const parent = keyPath.slice(0, -1);
+  const key = keyPath[keyPath.length - 1];
+  const blk = parent.length ? findBlock(lines, parent) : { indent: -1, start: 0, end: lines.length };
+  if (!blk) return null;
+  const want = parent.length ? blk.indent + 2 : 0;
+  for (let i = blk.start; i < blk.end; i++) {
+    const m = lines[i].match(/^(\s*)([^\s:#][^:]*):(.*)$/);
+    if (m && m[2].trim() === key && m[1].length === want) {
+      lines[i] = ' '.repeat(want) + key + ': ' + fmtScalar(value);
+      return lines.join('\n');
+    }
+  }
+  let at = blk.end;
+  while (at > blk.start && (!lines[at - 1].trim() || /^\s*#/.test(lines[at - 1]))) at--;
+  lines.splice(at, 0, ' '.repeat(want) + key + ': ' + fmtScalar(value));
+  return lines.join('\n');
+}
+
+/** 找出某个键所在的行号（找不到返回 -1） */
+function findKeyLine(lines, names) {
+  let start = 0;
+  let end = lines.length;
+  let indent = -1;
+  let hit = -1;
+  for (let n = 0; n < names.length; n++) {
+    const name = names[n];
+    let found = -1;
+    let foundIndent = -1;
+    for (let i = start; i < end; i++) {
+      const m = lines[i].match(/^(\s*)([^\s:#][^:]*):(.*)$/);
+      if (!m) continue;
+      const ind = m[1].length;
+      if (indent >= 0 && ind <= indent) break;
+      if (m[2].trim() !== name) continue;
+      found = i;
+      foundIndent = ind;
+      break;
+    }
+    if (found < 0) return -1;
+    indent = foundIndent;
+    start = found + 1;
+    hit = found;
+    let e = start;
+    for (; e < end; e++) {
+      const line = lines[e];
+      if (!line.trim() || /^\s*#/.test(line)) continue;
+      if (line.match(/^(\s*)/)[1].length <= indent) break;
+    }
+    end = e;
+  }
+  return hit;
+}
+
+/** setList 的加强版：列表不存在就整块插到父块末尾 */
+function ensureList(raw, keyPath, items) {
+  const lines = raw.split(/\r?\n/);
+  const parent = keyPath.slice(0, -1);
+  const key = keyPath[keyPath.length - 1];
+  const list = items.filter((s) => String(s == null ? '' : s).trim() !== '');
+  const blk = findBlock(lines, keyPath);
+
+  if (blk) {
+    // 原来是 key: [] 这种内联写法，先还原成块写法，否则会拼出非法 YAML
+    const ki = findKeyLine(lines, keyPath);
+    if (ki >= 0 && /:\s*\S/.test(lines[ki])) lines[ki] = lines[ki].replace(/:\s*\S.*$/, ':');
+    const itemIndent = ' '.repeat(blk.indent + 2);
+    const next = list.map((s) => itemIndent + '- ' + fmtScalar(s));
+    let end = blk.end;
+    while (end > blk.start && (!lines[end - 1].trim() || /^\s*#/.test(lines[end - 1]))) end--;
+    return lines.slice(0, blk.start).concat(next, lines.slice(end)).join('\n');
+  }
+
+  const pblk = parent.length ? findBlock(lines, parent) : { indent: -1, start: 0, end: lines.length };
+  if (!pblk) return null;
+  const want = parent.length ? pblk.indent + 2 : 0;
+  let at = pblk.end;
+  while (at > pblk.start && (!lines[at - 1].trim() || /^\s*#/.test(lines[at - 1]))) at--;
+  const add = [' '.repeat(want) + key + ':'];
+  list.forEach((s) => add.push(' '.repeat(want + 2) + '- ' + fmtScalar(s)));
+  lines.splice(at, 0, ...add);
+  return lines.join('\n');
+}
+
 function writeIfChanged(file, raw, next, touched, label) {
   if (next == null || next === raw) return;
   if (raw.indexOf('\r\n') !== -1) next = next.replace(/\r?\n/g, '\r\n');
@@ -147,6 +235,17 @@ function safeName(name, fallbackExt) {
   return n.slice(0, 80);
 }
 
+/** 文件名只留 ASCII，避免中文名在 URL / CSS 里出问题 */
+function asciiName(name, fallbackExt) {
+  let n = String(name || '').split(/[\\/]/).pop() || '';
+  n = n.replace(/[\u4e00-\u9fa5]/g, '');
+  n = n.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[.-]+|[-]+$/g, '');
+  const ext = (n.match(/\.[A-Za-z0-9]+$/) || [''])[0];
+  let base = (ext ? n.slice(0, -ext.length) : n).slice(0, 40);
+  if (!base) base = 'wb-' + Date.now();
+  return base + (ext || fallbackExt || '');
+}
+
 /* ------------------------------ 数据文件 ------------------------------ */
 
 const F_SITE_DATA = ['source', '_data', 'site.yml'];
@@ -155,7 +254,11 @@ const F_COMMENTS = ['source', '_data', 'comments.yml'];
 
 function loadSiteData(base) {
   const d = readYaml(path.join(base, ...F_SITE_DATA), {});
-  return { mail: d.mail || '', sections: d.sections || {} };
+  return {
+    mail: d.mail || '',
+    sections: d.sections || {},
+    contacts: Array.isArray(d.contacts) ? d.contacts : null,
+  };
 }
 
 function dumpSiteData(d) {
@@ -166,6 +269,23 @@ function dumpSiteData(d) {
   keys.forEach((k) => {
     const v = String(d.sections[k] || '');
     out.push('  ' + k + ': ' + (v ? JSON.stringify(v) : "''"));
+  });
+
+  const cs = Array.isArray(d.contacts) ? d.contacts : [];
+  out.push('');
+  out.push('# 关于页的联系方式卡片：写 <!--WB_CONTACTS--> 的地方会显示它们');
+  out.push('# hidden: true = 暂时不显示，但内容留着');
+  out.push('contacts:');
+  if (!cs.length) out.push('  []');
+  cs.forEach((c) => {
+    if (!c || !String(c.label || '').trim()) return;
+    out.push('  - label: ' + JSON.stringify(String(c.label).trim()));
+    out.push('    icon: ' + JSON.stringify(String(c.icon || 'fas fa-link').trim()));
+    if (String(c.value || '').trim()) out.push('    value: ' + JSON.stringify(String(c.value).trim()));
+    if (String(c.href || '').trim()) out.push('    href: ' + JSON.stringify(String(c.href).trim()));
+    if (String(c.qr || '').trim()) out.push('    qr: ' + JSON.stringify(String(c.qr).trim()));
+    if (String(c.hint || '').trim()) out.push('    hint: ' + JSON.stringify(String(c.hint).trim()));
+    if (c.hidden) out.push('    hidden: true');
   });
   return out.join('\n') + '\n';
 }
@@ -282,7 +402,7 @@ function loadCurrent(base) {
   const mine = readYaml(themeFile, {});
   const def = fs.existsSync(themeDefault) ? readYaml(themeDefault, {}) : {};
   const theme = Object.assign({}, def, mine);
-  ['avatar', 'footer', 'aside', 'subtitle', 'darkmode', 'toc', 'index_post_content', 'comments', 'waline'].forEach((k) => {
+  ['avatar', 'footer', 'aside', 'subtitle', 'darkmode', 'toc', 'index_post_content', 'comments', 'waline', 'wb_look'].forEach((k) => {
     theme[k] = Object.assign({}, def[k] || {}, mine[k] || {});
   });
   theme.aside.card_author = Object.assign({}, (def.aside || {}).card_author || {}, (mine.aside || {}).card_author || {});
@@ -296,13 +416,36 @@ function loadCurrent(base) {
     const idx = v.indexOf('||');
     return { name, path: (idx === -1 ? v : v.slice(0, idx)).trim(), icon: idx === -1 ? '' : v.slice(idx + 2).trim() };
   });
+
+  const siteData = loadSiteData(base);
+  // 第一次打开「联系方式」时给个能直接用的起点（GitHub + 邮箱取自现有配置）
+  if (!siteData.contacts) {
+    const githubUrl = String((mine.social || {})['fab fa-github'] || '').trim();
+    siteData.contacts = [];
+    if (githubUrl) {
+      siteData.contacts.push({
+        label: 'GitHub',
+        icon: 'fab fa-github',
+        value: githubUrl.replace(/^https?:\/\/(www\.)?github\.com\//i, '@'),
+        href: githubUrl,
+      });
+    }
+    if (siteData.mail) {
+      siteData.contacts.push({ label: '邮箱', icon: 'fas fa-envelope', value: siteData.mail, href: 'mailto:' + siteData.mail });
+    }
+    siteData.contacts.push(
+      { label: '微信', icon: 'fab fa-weixin', value: '', qr: '', hidden: true },
+      { label: 'QQ', icon: 'fab fa-qq', value: '', hidden: true }
+    );
+  }
+
   return {
     site,
     theme,
     nav,
     social: mine.social || {},
     comments: loadComments(base),
-    siteData: loadSiteData(base),
+    siteData,
     downloads: loadDownloads(base),
     sections: PAGE_SECTIONS,
   };
@@ -358,6 +501,21 @@ async function handle(hexo, req, res, options) {
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, name), buf);
       sendJson(res, 200, { ok: true, path: '/files/' + name, size: buf.length });
+      return;
+    }
+
+    // 图片 / 视频上传：原始二进制直接写进 source/img（图片）或 source/media（视频）
+    if (req.method === 'POST' && url === '/media') {
+      const q = new URL(req.url, 'http://localhost').searchParams;
+      const isVideo = q.get('kind') === 'video';
+      const name = asciiName(q.get('name'), isVideo ? '.mp4' : '.png');
+      const buf = await readBuffer(req, isVideo ? 150 * 1024 * 1024 : 20 * 1024 * 1024);
+      if (!buf.length) throw new Error('文件是空的');
+      const sub = isVideo ? 'media' : 'img';
+      const dir = path.join(base, 'source', sub);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, name), buf);
+      sendJson(res, 200, { ok: true, path: '/' + sub + '/' + name, size: buf.length });
       return;
     }
 
@@ -449,6 +607,35 @@ async function handle(hexo, req, res, options) {
         const r = setScalar(thNext, ['footer_img'], footerBgPath);
         if (r != null) thNext = r;
       }
+      // ---- 主页背景（多图轮播 / 视频）与首页标语样式 ----
+      const numOr = (v) => {
+        if (v === undefined || v === null || String(v).trim() === '') return undefined;
+        const n = Number(v);
+        return isNaN(n) ? undefined : n;
+      };
+      if (Array.isArray(data.heroImages)) {
+        const r = ensureList(thNext, ['wb_look', 'hero_images'], data.heroImages);
+        if (r != null) thNext = r;
+      }
+      [
+        [['wb_look', 'hero_video'], data.heroVideo === undefined ? undefined : String(data.heroVideo).trim()],
+        [['wb_look', 'hero_interval'], numOr(data.heroInterval)],
+        [['wb_look', 'hero_scope'], data.heroScope],
+        [['wb_look', 'hero_overlay'], numOr(data.heroOverlay)],
+        [['wb_look', 'sub_size'], numOr(data.subSize)],
+        [['wb_look', 'sub_spacing'], numOr(data.subSpacing)],
+        [['wb_look', 'sub_color'], data.subColor === undefined ? undefined : String(data.subColor).trim()],
+        [['wb_look', 'sub_weight'], numOr(data.subWeight)],
+        [['subtitle', 'typed_option', 'typeSpeed'], numOr(data.typeSpeed)],
+        [['subtitle', 'typed_option', 'backSpeed'], numOr(data.backSpeed)],
+        [['subtitle', 'typed_option', 'backDelay'], numOr(data.backDelay)],
+        [['subtitle', 'typed_option', 'loop'], data.typedLoop === undefined ? undefined : (data.typedLoop ? 'true' : 'false')],
+      ].forEach(([p, v]) => {
+        if (v === undefined) return;
+        const r = ensureScalar(thNext, p, v);
+        if (r != null) thNext = r;
+      });
+
       // 社交链接整块重写
       if (data.github !== undefined || data.mail !== undefined) {
         const pairs = [];
@@ -487,7 +674,7 @@ async function handle(hexo, req, res, options) {
         });
       }
 
-      /* --- site.yml：邮箱 + 页面密码 --- */
+      /* --- site.yml：邮箱 + 页面密码 + 联系方式 --- */
       const siteData = loadSiteData(base);
       if (mail) siteData.mail = mail;
       if (Array.isArray(data.sections)) {
@@ -502,7 +689,27 @@ async function handle(hexo, req, res, options) {
           }
         });
       }
-      writeWhole(base, F_SITE_DATA, dumpSiteData(siteData), touched, '页面密码');
+      if (Array.isArray(data.contacts)) {
+        siteData.contacts = data.contacts
+          .filter((c) => c && String(c.label || '').trim())
+          .map((c) => ({
+            label: String(c.label).trim(),
+            icon: String(c.icon || 'fas fa-link').trim(),
+            value: String(c.value || '').trim(),
+            href: String(c.href || '').trim(),
+            qr: String(c.qr || '').trim(),
+            hint: String(c.hint || '').trim(),
+            hidden: !!c.hidden,
+          }));
+        // 邮箱改了，联系方式里的邮箱跟着改
+        if (mail) {
+          siteData.contacts.forEach((c) => {
+            if (/^mailto:/i.test(c.href)) c.href = 'mailto:' + mail;
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.value)) c.value = mail;
+          });
+        }
+      }
+      writeWhole(base, F_SITE_DATA, dumpSiteData(siteData), touched, '联系方式 / 页面密码');
 
       /* --- 下载区 --- */
       if (Array.isArray(data.downloads)) {
@@ -562,6 +769,11 @@ function renderPage(cur) {
   const banner = theme.index_img || theme.default_top_img || '';
   const favicon = theme.favicon || '';
   const navBg = (theme.wb_look || {}).nav_bg || '';
+  const wb = theme.wb_look || {};
+  const heroImages = Array.isArray(wb.hero_images) ? wb.hero_images : [];
+  const heroVideo = typeof wb.hero_video === 'string' ? wb.hero_video : '';
+  const typed = (theme.subtitle && theme.subtitle.typed_option) || {};
+  const contacts = cur.siteData.contacts || [];
   const footerBg = typeof theme.footer_img === 'string' ? theme.footer_img : '';
   const subs = (theme.subtitle && theme.subtitle.sub) || [];
   const waline = theme.waline || {};
@@ -653,6 +865,7 @@ function renderPage(cur) {
 
   <div class="tabs" id="tabs">
     <button data-tab="basic" class="on">基本信息</button>
+    <button data-tab="ct">联系方式</button>
     <button data-tab="look">外观图片</button>
     <button data-tab="nav">导航菜单</button>
     <button data-tab="dl">下载区</button>
@@ -681,6 +894,32 @@ function renderPage(cur) {
         <div class="field"><label>首页轮播标语（一行一句，会逐字打出来）</label>
           <textarea id="subLines" rows="4">${esc(subs.join('\n'))}</textarea>
         </div>
+        <div class="row" style="margin-top:12px">
+          <div class="field" style="max-width:170px"><label>打字速度（毫秒/字）</label><input type="number" id="typeSpeed" min="10" max="500" value="${esc(typed.typeSpeed == null ? 150 : typed.typeSpeed)}">
+            <div class="hint">越小越快：40 飞快、80 正常、150 慢</div>
+          </div>
+          <div class="field" style="max-width:170px"><label>每句停多久（毫秒）</label><input type="number" id="backDelay" min="0" max="10000" value="${esc(typed.backDelay == null ? 1500 : typed.backDelay)}"></div>
+          <div class="field" style="max-width:170px"><label>删字速度（毫秒/字）</label><input type="number" id="backSpeed" min="10" max="300" value="${esc(typed.backSpeed == null ? 50 : typed.backSpeed)}"></div>
+          <div class="field" style="max-width:150px"><label>一直循环</label>
+            <select id="typedLoop">
+              <option value="1"${typed.loop === false ? '' : ' selected'}>循环播放</option>
+              <option value="0"${typed.loop === false ? ' selected' : ''}>打完就停</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="max-width:150px"><label>字号 px</label><input type="number" id="subSize" min="0" max="80" value="${esc(wb.sub_size || 0)}">
+            <div class="hint">0 = 跟随主题</div>
+          </div>
+          <div class="field" style="max-width:150px"><label>字间距 px</label><input type="number" id="subSpacing" min="-5" max="20" value="${esc(wb.sub_spacing || 0)}"></div>
+          <div class="field" style="max-width:150px"><label>字重</label>
+            <select id="subWeight">
+              ${[0, 300, 400, 500, 600, 700].map((w) => '<option value="' + w + '"' + (Number(wb.sub_weight || 0) === w ? ' selected' : '') + '>' + (w === 0 ? '跟随主题' : w) + '</option>').join('')}
+            </select>
+          </div>
+          <div class="field" style="max-width:200px"><label>颜色</label><input type="text" id="subColor" value="${esc(wb.sub_color || '')}" placeholder="留空跟随主题，如 #ffffff">
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -704,8 +943,69 @@ function renderPage(cur) {
       </div>
     </div>
 
+    <!-- ===== 1.5 联系方式 ===== -->
+    <div class="panel" id="p-ct">
+      <div class="card">
+        <h2>关于页的联系方式<span class="badge">显示在 /about/</span></h2>
+        <div class="desc">
+          除了 GitHub 和邮箱，还能放微信、QQ、Telegram 等。<b>填了「链接」就是普通链接</b>（点了直接跳转）；
+          <b>没填链接就点一下弹出小窗</b>，显示账号 / 号码和二维码，带「复制」按钮。
+          不想让它出现在网页上，勾「不显示」即可（内容留着）。
+        </div>
+        <div id="ctList"></div>
+        <button type="button" class="ghost" id="ctAdd">+ 添加一个</button>
+        <div class="warn">
+          图标是 Font Awesome 写法，常用的：<br>
+          fab fa-weixin 微信 · fab fa-qq QQ · fab fa-telegram 电报 · fab fa-weibo 微博 ·
+          fab fa-bilibili B站 · fab fa-x-twitter X · fab fa-discord Discord · fab fa-github GitHub ·
+          fas fa-envelope 邮箱 · fas fa-comments 其他<br>
+          二维码图片建议正方形、300×300 以上。
+        </div>
+      </div>
+    </div>
+
     <!-- ===== 2 外观 ===== -->
     <div class="panel" id="p-look">
+      <div class="card">
+        <h2>主页背景：多图轮播 / 视频<span class="badge">推荐</span></h2>
+        <div class="desc">
+          放 2 张以上会自动淡入淡出轮播，顺序就是下面列表的顺序；也能传一段短视频当背景
+          （视频优先，图片只作为加载前的封面）。这里设了之后，会盖掉下面那张「顶部大图」。
+        </div>
+        <div id="heroList"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button type="button" class="ghost" id="heroAddBtn">+ 添加图片</button>
+          <input type="file" id="heroPick" accept="image/*" multiple style="display:none">
+          <span class="hint" id="heroState"></span>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field" style="max-width:170px"><label>切换间隔（秒）</label><input type="number" id="heroInterval" min="2" max="60" value="${esc(wb.hero_interval == null ? 6 : wb.hero_interval)}"></div>
+          <div class="field" style="max-width:190px"><label>作用范围</label>
+            <select id="heroScope">
+              <option value="home"${String(wb.hero_scope || 'home') === 'all' ? '' : ' selected'}>只首页</option>
+              <option value="all"${String(wb.hero_scope || 'home') === 'all' ? ' selected' : ''}>全站每一页</option>
+            </select>
+          </div>
+          <div class="field" style="max-width:190px"><label>压暗程度 %</label><input type="number" id="heroOverlay" min="0" max="60" value="${esc(wb.hero_overlay == null ? 20 : wb.hero_overlay)}">
+            <div class="hint">图片太亮、标题看不清就调大</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field" style="flex:1 1 300px"><label>视频背景（mp4 / webm，建议 ≤ 15MB）</label>
+            <input type="text" id="heroVideoPath" value="${esc(heroVideo)}" placeholder="留空 = 只用图片">
+            <div class="hint">手机和电脑都会自动静音循环播放；动效太强的话建议加一层压暗。</div>
+          </div>
+          <div class="field" style="flex:0 0 auto;margin-top:26px">
+            <input type="file" id="heroVideoPick" accept="video/mp4,video/webm">
+          </div>
+        </div>
+        <div class="hint" id="heroVideoState"></div>
+        <div class="warn">
+          体积提醒：图片单张控制在 500KB 以内、视频 15MB 以内。GitHub 单文件上限 100MB，
+          但太大了手机打开会很久。视频建议 6–12 秒循环、无音轨。
+        </div>
+      </div>
+
       <div class="card">
         <h2>首页 / 内页顶部大图</h2>
         <div class="media">
@@ -877,6 +1177,8 @@ function renderPage(cur) {
     comments: cur.comments || [],
     nav: cur.nav || [],
     downloads: downloads,
+    contacts: contacts,
+    heroImages: heroImages,
   }).replace(/</g, '\\u003c')}</script>
 <script>
 var $ = function (s) { return document.querySelector(s); };
@@ -968,6 +1270,160 @@ function collectNav() {
       icon: el.querySelector('[data-k=icon]').value.trim(),
     };
   }).filter(function (n) { return n.name && n.path; });
+}
+
+/* ---- 主页背景 ---- */
+function uploadMedia(file, kind) {
+  return fetch('/site/media?kind=' + kind + '&name=' + encodeURIComponent(file.name), { method: 'POST', body: file })
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (!j.ok) throw new Error(j.error || '上传失败');
+      return j;
+    });
+}
+function heroRow(src) {
+  var el = document.createElement('div');
+  el.className = 'item hero-item';
+  el.innerHTML =
+    '<div class="row" style="align-items:center;margin-bottom:0">' +
+    '<div class="thumb" style="width:132px;height:70px"></div>' +
+    '<div class="field" style="flex:1 1 200px;margin-top:0"><input type="text" data-k="src" value="' + esc2(src || '') + '"></div>' +
+    '<div style="display:flex;gap:6px">' +
+    '<button type="button" class="mini hero-up">↑</button>' +
+    '<button type="button" class="mini hero-down">↓</button>' +
+    '<button type="button" class="mini danger hero-del">删除</button>' +
+    '</div></div>';
+  var th = el.querySelector('.thumb');
+  var inp = el.querySelector('[data-k=src]');
+  var paint = function () {
+    var v = inp.value.trim();
+    th.style.backgroundImage = v ? 'url("' + v + '")' : 'none';
+  };
+  paint();
+  inp.addEventListener('input', paint);
+  el.querySelector('.hero-up').addEventListener('click', function () { move(el, -1); });
+  el.querySelector('.hero-down').addEventListener('click', function () { move(el, 1); });
+  el.querySelector('.hero-del').addEventListener('click', function () { el.remove(); setStatus('已删除一张背景图（未保存）', ''); });
+  return el;
+}
+function initHero() {
+  var list = $('#heroList');
+  list.innerHTML = '';
+  var data = boot.heroImages || [];
+  if (!data.length) { var e = document.createElement('div'); e.className = 'empty'; e.textContent = '还没有设置，现在用的是下面那张「顶部大图」。'; list.appendChild(e); return; }
+  data.forEach(function (s) { list.appendChild(heroRow(s)); });
+}
+function collectHero() {
+  return Array.prototype.map.call(document.querySelectorAll('#heroList .hero-item'), function (el) {
+    return el.querySelector('[data-k=src]').value.trim();
+  }).filter(Boolean);
+}
+$('#heroAddBtn').addEventListener('click', function () { $('#heroPick').click(); });
+$('#heroPick').addEventListener('change', function () {
+  var files = Array.prototype.slice.call(this.files || []);
+  if (!files.length) return;
+  var picks = files.slice(0, 8);
+  var state = $('#heroState');
+  var done = 0;
+  var fail = 0;
+  picks.reduce(function (chain, f) {
+    return chain.then(function () {
+      state.textContent = '上传中… ' + f.name + '（' + (done + 1) + '/' + picks.length + '）';
+      return uploadMedia(f, 'img').then(function (j) {
+        var e = $('#heroList .empty'); if (e) e.remove();
+        $('#heroList').appendChild(heroRow(j.path));
+        done++;
+      }).catch(function (err) { fail++; state.textContent = '失败：' + f.name + '（' + err.message + '）'; });
+    });
+  }, Promise.resolve()).then(function () {
+    state.textContent = '已上传 ' + done + ' 张' + (fail ? '，失败 ' + fail + ' 张' : '') + '，记得点保存';
+    if (done) setStatus('背景图已上传，记得保存', '');
+    $('#heroPick').value = '';
+  });
+});
+$('#heroVideoPick').addEventListener('change', function () {
+  var f = this.files && this.files[0];
+  if (!f) return;
+  var st = $('#heroVideoState');
+  st.textContent = '上传中… ' + f.name;
+  uploadMedia(f, 'video').then(function (j) {
+    $('#heroVideoPath').value = j.path;
+    st.textContent = '已上传：' + j.path + '（' + fmtSize(j.size) + '），记得点保存';
+    setStatus('视频已上传，记得保存', '');
+  }).catch(function (err) { st.textContent = '上传失败：' + err.message; });
+  this.value = '';
+});
+
+/* ---- 联系方式 ---- */
+function ctRow(c) {
+  c = c || { label: '', icon: 'fab fa-weixin', value: '', href: '', qr: '', hint: '', hidden: false };
+  var el = document.createElement('div');
+  el.className = 'item ct-item';
+  el.innerHTML =
+    '<div class="row">' +
+    '<div class="field" style="flex:0 1 120px"><label>名称</label><input type="text" data-k="label" value="' + esc2(c.label || '') + '" placeholder="微信"></div>' +
+    '<div class="field" style="flex:0 1 190px"><label>图标</label><input type="text" data-k="icon" value="' + esc2(c.icon || '') + '" placeholder="fab fa-weixin"></div>' +
+    '<div class="field" style="flex:1 1 160px"><label>账号 / 号码</label><input type="text" data-k="value" value="' + esc2(c.value || '') + '"></div>' +
+    '<div class="field" style="flex:0 0 auto;margin-top:26px;display:flex;gap:6px">' +
+    '<button type="button" class="mini ct-up">↑</button>' +
+    '<button type="button" class="mini ct-down">↓</button>' +
+    '<button type="button" class="mini danger ct-del">删除</button>' +
+    '</div></div>' +
+    '<div class="row">' +
+    '<div class="field" style="flex:1 1 220px"><label>链接（可空，填了就直接跳转）</label><input type="text" data-k="href" value="' + esc2(c.href || '') + '" placeholder="https://… 或 mailto:…"></div>' +
+    '<div class="field" style="flex:1 1 180px"><label>备注（弹窗里的小字，可空）</label><input type="text" data-k="hint" value="' + esc2(c.hint || '') + '"></div>' +
+    '<div class="field" style="flex:0 0 auto;margin-top:26px"><label class="chk"><input type="checkbox" data-k="hidden"' + (c.hidden ? ' checked' : '') + '><span>不显示</span></label></div>' +
+    '</div>' +
+    '<div class="row" style="margin-bottom:0">' +
+    '<div class="field" style="flex:1 1 220px;margin-top:0"><label>二维码图片（可空）</label><input type="text" data-k="qr" value="' + esc2(c.qr || '') + '" placeholder="/img/qr.png"></div>' +
+    '<div class="field" style="flex:0 0 auto;margin-top:20px"><input type="file" class="ct-up-file" accept="image/*"></div>' +
+    '<div class="field" style="flex:0 0 auto;margin-top:20px"><span class="hint ct-state"></span></div>' +
+    '</div>';
+  el.querySelector('.ct-up').addEventListener('click', function () { move(el, -1); });
+  el.querySelector('.ct-down').addEventListener('click', function () { move(el, 1); });
+  el.querySelector('.ct-del').addEventListener('click', function () {
+    if (!confirm('删掉这一项？点保存后才真正消失。')) return;
+    el.remove();
+    setStatus('已删除一项（未保存）', '');
+  });
+  var up = el.querySelector('.ct-up-file');
+  up.addEventListener('change', function () {
+    var f = up.files && up.files[0];
+    if (!f) return;
+    el.querySelector('.ct-state').textContent = '上传中…';
+    uploadMedia(f, 'img').then(function (j) {
+      el.querySelector('[data-k=qr]').value = j.path;
+      el.querySelector('.ct-state').textContent = '已上传';
+      setStatus('二维码已上传，记得保存', '');
+    }).catch(function (err) { el.querySelector('.ct-state').textContent = '失败：' + err.message; });
+  });
+  return el;
+}
+function initCt() {
+  var list = $('#ctList');
+  list.innerHTML = '';
+  var data = boot.contacts || [];
+  if (!data.length) { var e = document.createElement('div'); e.className = 'empty'; e.textContent = '还没有联系方式'; list.appendChild(e); return; }
+  data.forEach(function (c) { list.appendChild(ctRow(c)); });
+}
+$('#ctAdd').addEventListener('click', function () {
+  var e = $('#ctList .empty'); if (e) e.remove();
+  var el = ctRow({});
+  $('#ctList').appendChild(el);
+  el.querySelector('[data-k=label]').focus();
+});
+function collectCt() {
+  return Array.prototype.map.call(document.querySelectorAll('#ctList .ct-item'), function (el) {
+    return {
+      label: el.querySelector('[data-k=label]').value.trim(),
+      icon: el.querySelector('[data-k=icon]').value.trim(),
+      value: el.querySelector('[data-k=value]').value.trim(),
+      href: el.querySelector('[data-k=href]').value.trim(),
+      qr: el.querySelector('[data-k=qr]').value.trim(),
+      hint: el.querySelector('[data-k=hint]').value.trim(),
+      hidden: el.querySelector('[data-k=hidden]').checked,
+    };
+  }).filter(function (c) { return c.label; });
 }
 
 /* ---- 下载区 ---- */
@@ -1120,6 +1576,12 @@ function collect() {
     mail: val('mail'), github: val('github'), since: val('since'), footerText: val('footerText'),
     bannerPath: val('bannerPath'), avatarPath: val('avatarPath'), faviconPath: val('faviconPath'),
     navBgPath: val('navBgPath'), footerBgPath: val('footerBgPath'),
+    heroImages: collectHero(), heroVideo: val('heroVideoPath'),
+    heroInterval: val('heroInterval'), heroScope: val('heroScope'), heroOverlay: val('heroOverlay'),
+    subSize: val('subSize'), subSpacing: val('subSpacing'), subColor: val('subColor'), subWeight: val('subWeight'),
+    typeSpeed: val('typeSpeed'), backSpeed: val('backSpeed'), backDelay: val('backDelay'),
+    typedLoop: val('typedLoop') === '1',
+    contacts: collectCt(),
     authorDesc: val('authorDesc'), notice: val('notice'),
     postLength: val('postLength'),
     asideEnable: chk('asideEnable'), tocEnable: chk('tocEnable'),
@@ -1178,6 +1640,8 @@ $('#publishBtn').addEventListener('click', async function () {
 /* ---- 初始化动态列表（把服务端渲染的行换成可交互的） ---- */
 initNav();
 initDl();
+initHero();
+initCt();
 renderCm();
 </script>
 <datalist id="iconList">

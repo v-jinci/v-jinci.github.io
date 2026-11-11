@@ -81,11 +81,12 @@ content:
           categories: [image]
           rename: false
       - name: body
-        label: 正文
+        label: 正文（插图：在正文里输入斜杠 / 选「图片」即可上传；也能直接把图片拖进正文）
         type: rich-text
         options:
-          # 指向上面的 images 图片库 → 工具栏出现图片按钮（内含「上传」页签）
+          # 指向上面的 images 图片库 → 支持斜杠菜单插图 + 拖拽/粘贴上传
           media: images
+          categories: [image]
           format: markdown
           switcher: true
           rename: false
