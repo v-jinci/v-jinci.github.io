@@ -337,9 +337,12 @@ public/                生成出来的网页（自动生成，别手动改）
 **修法（二选一，做一次就永久有效）**
 
 - 方法 A（推荐，不用登 Vercel）：把 `_netlify_drop` 这个文件夹重新拖到 Netlify 部署一次。
-  里面已经放好了改过的 `ui/index.html`，接口地址指向 Netlify 自己（国内能访问）。
+  里面已经放好了改过的 `ui/index.html`（接口地址指向 Netlify 自己）和 `ui/admin.js`
+  （后台脚本存本地，不再依赖 unpkg，国内打开快很多）。
   具体：Netlify 站点 → **Deploys** → 页面底部 **Deploy manually** 的虚线框 → 把 `_netlify_drop` 文件夹拖进去。
   之后统一用 **https://weiblog-comments.netlify.app/ui** 登录，不用 VPN，也不用再记那串带哈希的 vercel 地址。
+  > 注意：拖的必须是整个 `_netlify_drop` 文件夹（里面还有 `_redirects` 这个转发规则文件）。
+  > 少拖它，评论接口就会 404，页面上留言也会跟着挂。
 - 方法 B（一步到位）：Vercel 项目 → Settings → Environment Variables → 加一条
   `SERVER_URL` = `https://weiblog-comments.netlify.app` → 重新部署一次。
   这样 Vercel 自己吐出来的 `/ui` 也会指向 Netlify。
