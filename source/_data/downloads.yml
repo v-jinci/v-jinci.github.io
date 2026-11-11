@@ -2,3 +2,9 @@
 #
 # file: /files/xxx.zip      -> 文件放在 source/files/ 里，跟着仓库一起发布
 # url:  https://...          -> 外部链接（网盘等），不占仓库体积
+- name: "122"
+  desc: "125"
+  file: "/files/Screenshot_20250918_095524_com.coolapk.market.png"
+  url: ""
+  size: "1.6 MB"
+  date: "2026-11-11"
