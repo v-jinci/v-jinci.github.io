@@ -21,7 +21,7 @@ menu:
   关于: /about/ || fas fa-user
 
 social:
-  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github || Github || Github
+  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github || Github || Github || Github
   fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
@@ -55,7 +55,8 @@ subtitle:
     - 有可能的就一定会发生
     - 吾不识青天高，黄地厚。
     - 唯见月寒日暖，来煎人寿。
-    - 竹杖芒鞋轻胜马，谁怕？一蓑烟雨任平生。
+    - 竹杖芒鞋轻胜马，谁怕？
+    - 一蓑烟雨任平生。
 
 # 首页文章摘要：3 = 自动截取正文
 index_post_content:
@@ -160,7 +161,7 @@ footer:
   copyright:
     enable: true
     version: false
-  custom_text: 有可能的就一定会发生「What can happen will happen」
+  custom_text: 有可能的就一定会发生 「 What can happen will happen 」
 
 # ==========================================================
 #  背景图（都在 /site 后台「外观图片」里可视化修改，不用手改这里）
@@ -169,11 +170,11 @@ footer:
 #  footer_img     ：页脚背景图。留空 '' 就是纯色。
 #  想换成自己的照片：把图片放进 source/img/，再改文件名即可。
 # ==========================================================
-footer_img: /img/footer-bg.svg
+footer_img: /img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg
 
 wb_look:
   # 文章底部「上一篇 / 下一篇」卡片的背景图
-  nav_bg: /img/nav-cover.svg
+  nav_bg: /img/b9ac1696bc480b88622e8d45e9d4678ac80bcbc1-b548bedc.jpg
   # 主页头部背景：多张图会自动轮播；hero_video 设了就用视频（图片当封面）
   hero_images:
     - /img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg
@@ -196,7 +197,7 @@ wb_look:
   img_zoom: true
   # 页脚「本站已运行 XXX 天」小徽章
   uptime_enable: true
-  uptime_since: 2021-12-27
+  uptime_since: ''
   uptime_text: '本站已运行 {days} 天'
   # 首页排版见下面顶层的 index_layout（/site 后台「细节开关」里切换）
   # 自定义 404 页面（生成 public/404.html，GitHub Pages 会自动使用）
