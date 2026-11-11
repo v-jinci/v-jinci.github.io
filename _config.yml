@@ -3,8 +3,8 @@
 # ==========================================================
 
 # ---------- 基础信息 ----------
-title: "玮's Blog"
-subtitle: 'V '
+title: 玮's Blog
+subtitle: V wants to be an explorer
 description: 记录思考、学习与生活的个人博客
 keywords: '玮,博客,日志,生活记录,读书笔记'
 author: 玮
@@ -30,7 +30,7 @@ category_dir: categories
 code_dir: downloads/code
 i18n_dir: :lang
 skip_render:
-  - 'downloads/**'
+  - 'files/**'
 
 # ---------- 写作 ----------
 new_post_name: :year-:month-:day-:title.md

@@ -17,11 +17,12 @@ menu:
   友链: /link/ || fas fa-link
   编年史: /history/ || fas fa-history
   留言板: /messageBoard/ || far fa-comment-dots
+  下载: /downloads/ || fas fa-download
   关于: /about/ || fas fa-user
 
 social:
   fab fa-github: https://github.com/v-jinci || Github
-  fas fa-envelope: mailto:renweiwei127@163.com || Email
+  fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
   img: /img/Avatar.png
@@ -43,7 +44,8 @@ subtitle:
   source: false
   sub:
     - 有可能的就一定会发生
-    - 吾不识青天高，黄地厚。唯见月寒日暖，来煎人寿。
+    - 吾不识青天高，黄地厚。
+    - 唯见月寒日暖，来煎人寿。
 
 # 首页文章摘要：3 = 自动截取正文
 index_post_content:
@@ -182,7 +184,7 @@ waline:
     meta: [nick, mail, link]
     pageSize: 10
     commentSorting: latest
-    login: enable
+    login: disable
 
 # 旧的 Giscus（现在没启用，留着备用）
 giscus:
@@ -198,3 +200,15 @@ giscus:
     data-input-position: top
     data-loading: lazy
     data-reactions-enabled: '1'
+
+# ==========================================================
+#  自定义注入
+#
+#  为什么隐藏评论里的「地区」：
+#  网站走 Netlify 转发到 Vercel，服务端看到的永远是转发节点的 IP（新加坡），
+#  所以每个访客都被标成「新加坡」，显示出来反而误导。真要大致的地区，
+#  得去掉转发或者绑自己的域名，以后再说。
+# ==========================================================
+inject:
+  head:
+    - <style>.wl-addr{display:none!important}</style>
