@@ -21,12 +21,12 @@ menu:
   关于: /about/ || fas fa-user
 
 social:
-  fab fa-github: https://github.com/v-jinci || Github
+  fab fa-github: https://github.com/v-jinci || Github || Github
   fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
   img: /img/Avatar.png
-  effect: false
+  effect: true
 
 favicon: /img/favicon.svg
 
@@ -57,7 +57,7 @@ subtitle:
 # 首页文章摘要：3 = 自动截取正文
 index_post_content:
   method: 3
-  length: 260
+  length: 275
 
 # 目录
 toc:
@@ -187,7 +187,7 @@ wb_look:
   img_zoom: true
   # 页脚「本站已运行 XXX 天」小徽章
   uptime_enable: true
-  uptime_since: 2021-01-01
+  uptime_since: ''
   uptime_text: '本站已运行 {days} 天'
   # 首页排版见下面顶层的 index_layout（/site 后台「细节开关」里切换）
   # 自定义 404 页面（生成 public/404.html，GitHub Pages 会自动使用）
@@ -224,7 +224,7 @@ comments:
 waline:
   # 走 Netlify 转发节点（vercel.app 域名在国内被 DNS 污染，访客打不开）
   # Netlify 只做请求转发，真正的服务端、数据、后台都还在 Vercel + Neon，没有迁移
-  serverURL: https://weiblog-comments.netlify.app
+  serverURL: 'https://weiblog-comments.netlify.app'
   bg:
   # 用 Waline 的阅读量统计（会多一次请求，先不开）
   pageview: false
