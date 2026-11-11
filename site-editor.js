@@ -761,7 +761,22 @@ async function handle(hexo, req, res, options) {
         /* 文件已保存，重新载入失败也不影响下次启动 */
       }
 
-      sendJson(res, 200, { ok: true, touched: touched.length ? touched : ['（没有变化）'] });
+      // 把「最终落盘的值」回传前端：上传后文件名会带内容指纹，
+      // 前端输入框如果不跟着更新，下次保存就会把旧路径写回去
+      // （这就是「换完图又自动恢复成原来那张」的根源）。
+      let paths = {};
+      try {
+        const th = require('js-yaml').load(thNext) || {};
+        paths = {
+          avatarPath: (th.avatar && th.avatar.img) || '',
+          bannerPath: th.index_img || '',
+          faviconPath: th.favicon || '',
+          navBgPath: (th.wb_look && th.wb_look.nav_bg) || '',
+          footerBgPath: typeof th.footer_img === 'string' ? th.footer_img : '',
+        };
+      } catch (e) { /* 解析失败就不回传，前端保持原样 */ }
+
+      sendJson(res, 200, { ok: true, touched: touched.length ? touched : ['（没有变化）'], paths: paths });
       return;
     }
 
@@ -1344,6 +1359,26 @@ hookFile('faviconFile', 'favicon', 'faviconThumb');
 hookFile('navBgFile', 'navBg', 'navBgThumb');
 hookFile('footerBgFile', 'footerBg', 'footerBgThumb');
 
+/* 保存后用服务器回传的真实路径刷新输入框和缩略图（上传会改名，不回填就会写回旧路径） */
+function applySavedPaths(p) {
+  if (!p) return;
+  var map = [
+    ['avatarPath', 'avatarThumb'],
+    ['bannerPath', 'bannerThumb'],
+    ['faviconPath', 'faviconThumb'],
+    ['navBgPath', 'navBgThumb'],
+    ['footerBgPath', 'footerBgThumb'],
+  ];
+  map.forEach(function (m) {
+    var v = p[m[0]];
+    if (typeof v !== 'string' || !v) return;
+    var inp = document.getElementById(m[0]);
+    if (inp) inp.value = v;
+    var t = document.getElementById(m[1]);
+    if (t) t.style.backgroundImage = 'url(' + v + ')';
+  });
+}
+
 /* ---- 导航 ---- */
 var ICONS = ['fas fa-home','fas fa-archive','fas fa-tags','fas fa-folder-open','fas fa-link','fas fa-history','far fa-comment-dots','fas fa-download','fas fa-user','fas fa-rss','fas fa-book','fas fa-camera','fas fa-music','fas fa-code'];
 function navRow(n) {
@@ -1735,6 +1770,7 @@ $('#f').addEventListener('submit', async function (e) {
   setStatus('正在保存…');
   try {
     var j = await post('/site/save', collectAll());
+    applySavedPaths(j.paths);
     picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     setStatus('已保存：' + (j.touched || []).join('、') + '。本地预览已刷新；线上要点「保存并发布」。', 'ok');
   } catch (err) {
@@ -1748,7 +1784,8 @@ $('#publishBtn').addEventListener('click', async function () {
   btn.disabled = true;
   setStatus('先保存，再推送…（约 30 秒，别关窗口）');
   try {
-    await post('/site/save', collectAll());
+    var jj = await post('/site/save', collectAll());
+    applySavedPaths(jj.paths);
     picked = { avatar: null, banner: null, favicon: null, navBg: null, footerBg: null };
     await post('/site/publish', {});
     setStatus('已推送！GitHub 正在编译，1-2 分钟后刷新 https://v-jinci.github.io 就能看到。', 'ok');
