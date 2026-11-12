@@ -22,6 +22,61 @@ function chcp(cp) {
 chcp(65001);
 
 /* ---------------------------------------------------------------
+ * 统一打印「可以点的网址」：Windows 控制台里按住 Ctrl 点一下就能打开
+ * 不管服务是刚启动、还是已经在跑，都走这里，保证窗口里永远有链接
+ * --------------------------------------------------------------- */
+function printLinks(title) {  console.log('');
+  if (title) console.log('  ' + title);
+  console.log('  ┌─────────────────────────────────────────────────────');
+  console.log('  │  本地预览：   http://localhost:4000');
+  console.log('  │  可视化写作： http://localhost:4000/write   （像 Word，推荐）');
+  console.log('  │  站点信息：   http://localhost:4000/site');
+  console.log('  │  旧写作后台： http://localhost:4000/admin');
+  console.log('  │              账号 admin   密码 weiblog2026');
+  console.log('  │');
+  console.log('  │  按住 Ctrl 点上面的地址，就能在浏览器里打开');
+  console.log('  │  想停止服务：在这个黑窗口按 Ctrl + C');
+  console.log('  │  写了新文章要上线：另开「1-发布到网站.bat」');
+  console.log('  └─────────────────────────────────────────────────────');
+  console.log('');
+}
+
+/* bat 里用 WB_OPEN 指定打开哪个页面（/ 首页、/write 写作页） */
+function openPath() {
+  let v = String(process.env.WB_OPEN || '/write').trim();
+  // 个别终端会把 "/write" 当文件路径改写成 D:\...\write，这里纠正回来
+  if (v.indexOf('\\') >= 0 || /^[a-zA-Z]:/.test(v)) {
+    const seg = v.split(/[\\/]/).filter(Boolean).pop() || '';
+    v = '/' + seg;
+  }
+  if (v.indexOf('http') === 0) v = v.replace(/^https?:\/\/[^/]+/i, '');
+  if (!v || v.charAt(0) !== '/') v = '/' + v;
+  return v === '/' ? '' : v;
+}
+
+/* 用系统默认浏览器打开网址（服务真的起来之后再调用，不会白开一个错误页） */
+function openBrowser(url) {
+  try {
+    const cp = require('child_process');
+    if (isWin) {
+      cp.spawn(process.env.ComSpec || 'cmd', ['/c', 'start', '', url], {
+        stdio: 'ignore',
+        detached: true,
+        windowsHide: true,
+      }).unref();
+    } else {
+      cp.spawn(process.platform === 'darwin' ? 'open' : 'xdg-open', [url], {
+        stdio: 'ignore',
+        detached: true,
+      }).unref();
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ---------------------------------------------------------------
  * 分步提示：让每次运行都能看清"现在到第几步、这步在干什么"
  * 用法：beginSteps(总步数)  ->  step('这一步做什么', '给外行的解释')
  * --------------------------------------------------------------- */
@@ -237,7 +292,7 @@ async function deployGit() {
 
 const SRC_BRANCH = 'hexo-src';
 // 这些是站点真正需要的源码，publish 时整份覆盖到副本上
-const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'gh.js', 'site-editor.js', 'README-使用说明.md'];
+const MANAGED_FILES = ['_config.yml', '_config.butterfly.yml', 'package.json', 'package-lock.json', '.gitignore', '.pages.yml', 'run.js', 'gh.js', 'site-editor.js', 'write-editor.js', 'README-使用说明.md'];
 const MANAGED_DIRS = ['source', 'scaffolds', '.github', 'scripts'];
 
 /** 解析仓库地址 + 读令牌，返回 { host, pathPart, cleanUrl, cred, authUrl } */
@@ -735,10 +790,10 @@ async function main() {
       s.listen(4000);
     });
     if (busy) {
-      console.log('  4000 端口已经有服务在跑了 —— 说明之前那个预览/后台窗口还开着。');
-      console.log('  这不是故障，直接用浏览器打开 http://localhost:4000 就能用。');
-      console.log('  想重新启动的话：先把那个黑窗口按 Ctrl + C 关掉，再双击本文件。');
-      chcp(936);
+      console.log('  4000 端口已经有服务在跑了 —— 说明之前那个预览/后台窗口还开着，不用再启动一次。');
+      printLinks('直接打开下面任意一个地址就能用：');
+      const u = openPath();
+      openBrowser('http://localhost:4000' + u);
       try {
         await hexo.exit();
       } catch (e) {}
@@ -764,18 +819,7 @@ async function main() {
     }
 
     step('启动本地服务', '马上就好，浏览器会自动打开后台页面');
-    console.log('');
-    console.log('  ┌─────────────────────────────────────────────────────');
-    console.log('  │  本地预览： http://localhost:4000');
-    console.log('  │  写作后台： http://localhost:4000/admin');
-    console.log('  │            账号 admin   密码 weiblog2026');
-    console.log('  │  站点信息： http://localhost:4000/site');
-    console.log('  │            改标题、头像、首页大图，不用碰代码');
-    console.log('  │');
-    console.log('  │  想停止服务：在这个黑窗口按 Ctrl + C');
-    console.log('  │  写了新文章要上线：另开「1-发布到网站.bat」');
-    console.log('  └─────────────────────────────────────────────────────');
-    console.log('');
+    printLinks('服务已启动，按住 Ctrl 点下面的地址就能打开：');
 
     try {
       await hexo.call('server', { port: 4000, draft: true, open: false });
@@ -791,6 +835,10 @@ async function main() {
       }
       throw e;
     }
+    // 服务真的监听了才开浏览器（bat 里不再靠固定等 14 秒，避免打开时还是「无法访问」）
+    const pagePath = openPath();
+    const target = 'http://localhost:4000' + pagePath;
+    if (openBrowser(target)) console.log('  已在浏览器打开 ' + target);
     return; // server 常驻，不往下走
   }
 
@@ -1012,10 +1060,7 @@ async function main() {
       }
     }
   } else if (cmd === 'info') {
-    console.log('');
-    console.log('  写作后台： http://localhost:4000/admin');
-    console.log('  账号： admin        密码： weiblog2026');
-    console.log('');
+    printLinks('写作/预览地址（按住 Ctrl 点一下就打开）：');
     console.log('  写完后点右上角 Publish 即可发布到线上。');
     console.log('  用完关掉那个 hexo-server 窗口就能停止服务。');
     console.log('');

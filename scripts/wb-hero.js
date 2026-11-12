@@ -63,8 +63,8 @@ hexo.extend.filter.register('after_render:html', (str) => {
   }
   if (video) {
     layers +=
-      '<video class="wb-hero-video" autoplay muted loop playsinline preload="auto"' + poster + '>' +
-      '<source src="' + esc(video + cacheKey(video)) + '"></video>';
+      '<video class="wb-hero-video" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="auto"' + poster + '>' +
+      '<source src="' + esc(video + cacheKey(video)) + '" type="video/mp4"></video>';
   }
 
   const hero = '<div class="wb-hero" aria-hidden="true">' + layers + '</div>';
@@ -95,14 +95,34 @@ hexo.extend.filter.register('after_render:html', (str) => {
     js =
       '<script>(function(){' +
       'var box=document.querySelector("#page-header .wb-hero");if(!box)return;' +
-      // 视频：能播就淡入盖住图片；播不了（编码不支持 / 文件没传上去）就自动退回图片轮播。
       'var v=box.querySelector(".wb-hero-video");' +
+      'var s=box.querySelectorAll(".wb-slide");' +
+      // 视频真正播起来以后，把底下那张兜底大图藏掉：
+      // 两层全屏画面同时合成，弱显卡会掉帧（看起来就是一顿一顿）。
+      'function dropImg(){for(var i=0;i<s.length;i++){s[i].style.display="none";s[i].style.willChange="auto"}}' +
+      'function showImg(){for(var i=0;i<s.length;i++){s[i].style.display="";s[i].classList.add("on")}}' +
+      'function play(){var p=v.play&&v.play();if(p&&p.catch)p.catch(function(){})}' +
       'if(v){' +
-      'v.addEventListener("playing",function(){v.classList.add("on")});' +
+      'v.addEventListener("playing",function(){v.classList.add("on");setTimeout(dropImg,900)});' +
       'v.addEventListener("error",function(){v.classList.remove("on");v.style.display="none"});' +
-      'var ps=v.play&&v.play();if(ps&&ps.catch)ps.catch(function(){});' +
+      // 播 7 秒后看一眼有没有大面积掉帧：有就干脆退回图片轮播，宁可静止也别一卡一卡
+      'setTimeout(function(){' +
+      'if(!v.getVideoPlaybackQuality)return;' +
+      'var q=v.getVideoPlaybackQuality();var tot=q.totalVideoFrames||0;' +
+      'if(tot>150&&q.droppedVideoFrames/tot>0.3){try{v.pause()}catch(e){}' +
+      'v.classList.remove("on");v.style.display="none";showImg();}' +
+      '},7000);' +
+      // 头图滚出屏幕就暂停解码，滚回来再播（读文章时少抢 CPU，滑动更跟手）
+      'if(window.IntersectionObserver){' +
+      'new IntersectionObserver(function(es){' +
+      'es.forEach(function(e){if(e.isIntersecting){if(!document.hidden)play()}else{try{v.pause()}catch(err){}}});' +
+      '},{threshold:0.01}).observe(box);' +
       '}' +
-      'var s=box.querySelectorAll(".wb-slide");if(s.length<2)return;' +
+      'document.addEventListener("visibilitychange",function(){' +
+      'if(document.hidden){try{v.pause()}catch(e){}}else{play()}});' +
+      'play();' +
+      '}' +
+      'if(s.length<2)return;' +
       'if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches)return;' +
       'var i=0,t=setInterval(function(){s[i].classList.remove("on");i=(i+1)%s.length;s[i].classList.add("on");},' +
       interval * 1000 + ');' +

@@ -82,7 +82,7 @@ function applyImgLayout(html, defaultWidth, defaultFloat) {
     if (!w) return tag;
 
     let f = floatFromSrc(src) || dF;
-    if (f === 'auto') f = pctOf(w) > 0 && pctOf(w) <= 70 ? 'l' : '';
+    if (f === 'auto') f = pctOf(w) > 0 && pctOf(w) <= 70 ? 'l' : 'c'; // 小图环绕、大图居中
 
     const decls = [];
     decls.push('width:' + w);

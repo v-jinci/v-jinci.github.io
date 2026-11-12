@@ -36,15 +36,17 @@ function ffmpegExe() {
   return null;
 }
 
-/* 把临时视频压到「最长边 1600、crf 28」——背景视频肉眼看不出差别，体积通常只剩 1/5 */
+/* 把临时视频压成「最长边 1280、crf 28、无 B 帧、2 秒一个关键帧」：
+   体积小，而且浏览器解码几乎零负担 —— 背景视频不卡的关键就在后面两项 */
 function shrinkVideo(inputPath, outputPath) {
   const exe = ffmpegExe();
   if (!exe) return { ok: false, reason: 'no-ffmpeg' };
   const args = [
     '-y', '-hide_banner', '-loglevel', 'error',
     '-i', inputPath,
-    '-vf', "scale='min(1600,iw)':-2",
-    '-c:v', 'libx264', '-crf', '28', '-preset', 'veryfast', '-profile:v', 'main',
+    '-vf', "scale='min(1280,iw)':-2",
+    '-c:v', 'libx264', '-crf', '28', '-preset', 'medium', '-profile:v', 'main', '-level', '3.1',
+    '-bf', '0', '-g', '60', '-keyint_min', '30', '-sc_threshold', '0',
     '-pix_fmt', 'yuv420p',
     '-c:a', 'aac', '-b:a', '96k',
     '-movflags', '+faststart',
@@ -126,6 +128,8 @@ function register(hexo, opts) {
   const options = opts || {};
   hexo.extend.filter.register('server_middleware', (app) => {
     app.use('/site', (req, res) => handle(hexo, req, res, options));
+    // 可视化写作页：/write 单独挂一份，和 /site 互不干扰
+    app.use('/write', (req, res) => require('./write-editor').handle(hexo, req, res, options));
   });
 }
 
@@ -589,8 +593,10 @@ async function handle(hexo, req, res, options) {
   try {
     if (req.method === 'GET' && (url === '/' || url === '' || url === '/index.html')) {
       const cur = loadCurrent(base);
+      // 先把页面算完再发响应头：渲染出错时还能给浏览器回一句 500，而不是整个服务崩掉
+      const html = renderPage(cur);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(renderPage(cur));
+      res.end(html);
       return;
     }
 
@@ -801,6 +807,7 @@ async function handle(hexo, req, res, options) {
         [['wb_look', 'avatar_spin'], boolStr(data.avatarEffect)],
         // 正文图片默认宽度 / 上传自动压缩
         [['wb_look', 'post_img_width'], numOr(data.postImgWidth)],
+        [['wb_look', 'post_img_float'], strOr(data.postImgFloat)],
         [['wb_look', 'upload_shrink'], boolStr(data.uploadShrink)],
       ].forEach(([p, v]) => {
         if (v === undefined) return;
@@ -989,11 +996,25 @@ async function handle(hexo, req, res, options) {
           try { if (typeof hexo.load === 'function') await hexo.load(); } catch (e) { /* 已写入 */ }
         }
       }
+      // 整篇排版（front-matter 的 img_float），和 Pages CMS 里的「正文图片排版」是同一个字段
+      if (data.imgFloat !== undefined) {
+        let raw3 = readText(abs);
+        const cur3 = (raw3.match(/^img_float:\s*(.+)$/m) || [])[1];
+        const now3 = cur3 ? cur3.replace(/["']/g, '').trim() : '';
+        const want3 = String(data.imgFloat || '').trim().toLowerCase();
+        if (now3 !== want3) {
+          raw3 = setFmField(raw3, 'img_float', want3);
+          fs.writeFileSync(abs, raw3);
+          changed++;
+          try { if (typeof hexo.load === 'function') await hexo.load(); } catch (e) { /* 已写入 */ }
+        }
+      }
       sendJson(res, 200, { ok: true, changed: changed });
       return;
     }
 
-    if (req.method === 'POST' && url === '/publish') {      if (typeof options.publish !== 'function') {
+    if (req.method === 'POST' && url === '/publish') {
+      if (typeof options.publish !== 'function') {
         sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击「1-发布到网站.bat」。' });
         return;
       }
@@ -1005,7 +1026,14 @@ async function handle(hexo, req, res, options) {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Not found');
   } catch (e) {
-    sendJson(res, 500, { ok: false, error: String((e && e.message) || e) });
+    if (res.headersSent) {
+      try { res.end(); } catch (e2) {}
+      return;
+    }
+    sendJson(res, 500, {
+      ok: false,
+      error: String((e && e.message) || e) + (e && e.stack ? ' || ' + String(e.stack).split('\n').slice(1, 4).join(' | ') : ''),
+    });
   }
 }
 
@@ -1062,11 +1090,31 @@ function renderPage(cur) {
         const images = [];
         const seen = {};
         const pushImg = (u) => {
-          const src = String(u || '').trim();
-          if (!src || !/^(\/|https?:)/i.test(src) || seen[src]) return;
+          const full = String(u || '').trim();
+          if (!full || !/^(\/|https?:)/i.test(full)) return;
+          const cut = full.search(/[?#]/);
+          const src = cut > 0 ? full.slice(0, cut) : full;
+          const qs = cut > 0 ? full.slice(cut + 1) : '';
+          if (!src || seen[src]) return;
           seen[src] = 1;
-          const wm = src.match(/[?#&]w=([^&?#]+)/);
-          images.push({ src: src.replace(/[?#&]w=[^&?#]*/g, ''), full: src, w: wm ? wm[1] : '' });
+          let w = '';
+          let f = '';
+          // 地址里可能写着未编码的 %（例如 ?w=30%），直接 decode 会抛 URIError
+          const dec = (s) => {
+            try {
+              return decodeURIComponent(s);
+            } catch (e) {
+              return s;
+            }
+          };
+          qs.split('&').filter(Boolean).forEach((kv) => {
+            const i = kv.indexOf('=');
+            const k = (i < 0 ? kv : kv.slice(0, i)).toLowerCase();
+            const v = i < 0 ? '' : kv.slice(i + 1);
+            if (k === 'w') w = dec(v);
+            if (k === 'f') f = v.toLowerCase();
+          });
+          images.push({ src: src, full: full, w: w, f: f });
         };
         const mdRe = /!\[[^\]]*\]\(([^)\s]+)/g;
         let mm;
@@ -1075,11 +1123,13 @@ function renderPage(cur) {
         while ((mm = imgRe.exec(body))) pushImg(mm[1]);
 
         const iw = fm.match(/^img_width:\s*(.+)$/m);
+        const ifl = fm.match(/^img_float:\s*(.+)$/m);
         return {
           file: f,
           title: clean(t && t[1]) || f.replace(/\.md$/, ''),
           password: clean(p && p[1]),
           imgWidth: clean(iw && iw[1]),
+          imgFloat: clean(ifl && ifl[1]),
           images: images,
         };
       })
@@ -1121,21 +1171,27 @@ function renderPage(cur) {
     .filter((p) => p.images && p.images.length)
     .map((p) => {
       const allW = clampPct(p.imgWidth);
+      const allF = ['l', 'r', 'c'].indexOf(String(p.imgFloat || '').toLowerCase()) >= 0 ? String(p.imgFloat).toLowerCase() : '';
+      const optOf = (cur, val, txt) => '<option value="' + val + '"' + (cur === val ? ' selected' : '') + '>' + txt + '</option>';
       const rows = p.images
         .map((im, idx) => {
           const v = numOf(im.w);
           const pct = clampPct(v) || allW || 100;
+          const fv = ['l', 'r', 'c'].indexOf(String(im.f || '').toLowerCase()) >= 0 ? String(im.f).toLowerCase() : '';
           return (
             '<div class="pi-row" data-src="' + esc(im.src) + '" data-idx="' + idx + '">' +
             '<div class="pi-frame"><img class="pi-thumb" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%"></div>' +
             '<div class="pi-meta">' +
             '<div class="pi-name" title="' + esc(im.src) + '">' + esc(shortName(im.src)) + '</div>' +
-            '<div class="pi-sub">' + (v ? '单独 ' + esc(v) + '%' : '跟随整篇' + (allW ? ' ' + allW + '%' : '')) + '</div>' +
+            '<div class="pi-sub">' + (v ? '宽 ' + esc(v) + '%' : '宽度跟随整篇' + (allW ? ' ' + allW + '%' : '')) + '</div>' +
             '</div>' +
             '<div class="pi-ctl">' +
             '<input class="pi-w" type="number" min="10" max="100" step="1" value="' + esc(v) + '" placeholder="跟随">' +
             '<span class="pi-pct">%</span>' +
             '</div>' +
+            '<select class="pi-f" title="文字排在图片的哪一侧">' +
+            optOf(fv, '', '自动') + optOf(fv, 'l', '文字在右') + optOf(fv, 'r', '文字在左') + optOf(fv, 'c', '图片居中') +
+            '</select>' +
             '</div>'
           );
         })
@@ -1144,8 +1200,12 @@ function renderPage(cur) {
         .map((im, idx) => {
           const v = numOf(im.w);
           const pct = clampPct(v) || allW || 100;
+          // 预览里放几行「假文字」：选了环绕就能直接看到文字绕到图片旁边
           return (
-            '<img class="pi-pv" data-idx="' + idx + '" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%">'
+            '<div class="pi-demo" data-idx="' + idx + '">' +
+            '<img class="pi-pv" data-idx="' + idx + '" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%">' +
+            '<div class="pi-lines"><i></i><i></i><i></i><i></i><i></i><i></i></div>' +
+            '</div>'
           );
         })
         .join('');
@@ -1155,10 +1215,13 @@ function renderPage(cur) {
         '<div class="pi-title" title="' + esc(p.file) + '">' + esc(p.title) + '</div>' +
         '<div class="pi-all"><span>整篇</span>' +
         '<input class="pi-all-w" type="number" min="10" max="100" step="1" value="' + esc(allW || '') + '" placeholder="跟全站"><span class="pi-pct">%</span>' +
+        '<select class="pi-all-f" title="整篇图片的排版">' +
+        optOf(allF, '', '自动排版') + optOf(allF, 'l', '图片在左') + optOf(allF, 'r', '图片在右') + optOf(allF, 'c', '图片居中') +
+        '</select>' +
         '</div>' +
         '</div>' +
         '<div class="pi-prev-area"><div class="pi-prev">' + prevs + '</div>' +
-        '<div class="pi-prev-tip">👆 这里就是文章里的真实宽度效果，点图片可跳到对应设置</div></div>' +
+        '<div class="pi-prev-tip">👆 虚线框就是文章的一行：图缩小后文字会自动绕到旁边。点图片可跳到对应设置</div></div>' +
         rows +
         '</div>'
       );
@@ -1231,9 +1294,19 @@ function renderPage(cur) {
   .pi-title{flex:1 1 140px;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pi-all{display:flex;align-items:center;gap:4px;font-size:12px;color:#7b8698;flex:0 0 auto;white-space:nowrap}
   .pi-prev-area{margin:10px 0 2px;background:#f3f6fb;border:1px dashed #d8e1ee;border-radius:10px;padding:8px}
-  .pi-prev{max-height:360px;overflow:auto;background:#fff;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .pi-prev{max-height:420px;overflow:auto;background:transparent;border-radius:8px;padding:2px}
   .pi-prev:empty:before{content:"这篇文章正文里没有图片";color:#9aa7bd;font-size:12.5px}
-  .pi-pv{max-width:100%;height:auto;border-radius:6px;display:block;cursor:pointer;transition:width .15s ease;box-shadow:0 1px 4px rgba(15,23,42,.08)}
+  /* 预览：图片 + 几行假文字，选了「文字在右」就能看到文字真的绕过去 */
+  .pi-demo{position:relative;background:#fff;border:1px dashed #dfe6f2;border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .pi-demo::after{content:"";display:block;clear:both}
+  .pi-lines{overflow:hidden}
+  .pi-lines i{display:block;height:7px;border-radius:4px;background:#e9eef7;margin:0 0 7px}
+  .pi-lines i:nth-child(2){width:92%}
+  .pi-lines i:nth-child(3){width:97%}
+  .pi-lines i:nth-child(4){width:68%}
+  .pi-lines i:nth-child(5){width:88%}
+  .pi-lines i:nth-child(6){width:40%}
+  .pi-pv{max-width:100%;height:auto;border-radius:6px;display:block;cursor:pointer;transition:width .15s ease;box-shadow:0 2px 8px rgba(15,23,42,.12)}
   .pi-pv.hit{outline:3px solid #93a4f7;outline-offset:2px}
   .pi-prev-tip{font-size:11.5px;color:#9aa7bd;margin-top:6px;text-align:center}
   .pi-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f4f9;min-width:0;border-radius:8px;transition:background .2s}
@@ -1248,18 +1321,23 @@ function renderPage(cur) {
   .pi-ctl input,.pi-all input{width:62px;padding:6px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:13px;text-align:center}
   .pi-ctl input:focus,.pi-all input:focus{outline:2px solid #c7d2fe;border-color:#93a4f7}
   .pi-pct{font-size:12px;color:#9aa7bd}
+  .pi-f,.pi-all-f{width:auto;padding:5px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:12px;color:#4b5563}
+  .pi-f:focus,.pi-all-f:focus{outline:2px solid #c7d2fe;border-color:#93a4f7}
+  .pi-all{flex-wrap:wrap;row-gap:6px}
   @media (max-width:560px){
     .pi-post{padding:10px}
     .pi-title{flex-basis:100%}
     .pi-prev-area{padding:6px}
-    .pi-prev{padding:8px 6px}
+    .pi-prev{padding:0}
+    .pi-row{flex-wrap:wrap}
+    .pi-meta{flex:1 1 120px}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>站点设置<span class="badge">仅本机可改</span></h1>
-  <div class="sub">改完点「保存」，本地预览立刻变；点「保存并发布到线上」1-2 分钟后网站更新。返回 <a href="/">网站预览</a> · <a href="/admin">写文章后台</a></div>
+  <div class="sub">改完点「保存」，本地预览立刻变；点「保存并发布到线上」1-2 分钟后网站更新。返回 <a href="/">网站预览</a> · <a href="/write">写文章（可视化）</a> · <a href="/admin">写文章后台</a></div>
 
   <div class="tabs" id="tabs">
     <button data-tab="basic" class="on">基本信息</button>
@@ -1559,11 +1637,11 @@ function renderPage(cur) {
     <!-- ===== 正文图片大小 ===== -->
     <div class="panel" id="p-img">
       <div class="card">
-        <h2>正文图片大小<span class="badge">不用改代码</span></h2>
-        <div class="desc">先看每篇文章右上角的「整篇图片」：选一个宽度就能管整篇的图，不用一张张调。想单独调某张，再改它自己那一行。</div>
-        <div class="warn">在 Pages CMS 里在线写文章时，文章表单里同样有「正文图片宽度」这一项，选一下就行，不用回本地改。这里只用做批量微调。</div>
+        <h2>正文图片大小与排版<span class="badge">不用改代码</span></h2>
+        <div class="desc">上面虚线框就是文章的一行：图片缩到 70% 以下，文字会自动绕到图片旁边；右边的下拉可以指定「文字在右 / 在左 / 图片居中」。整篇可以统一设，单张也能单独改。</div>
+        <div class="warn">在 Pages CMS 里在线写文章时，文章表单里同样有「正文图片宽度」和「正文图片排版」两项，选一下就行。想让某一张图不和文字挤在一起，把它的排版选「图片居中」即可。</div>
         <div id="postImgList">${imgRows || '<div class="hint">文章正文里还没插入图片。</div>'}</div>
-        <button type="button" id="postImgSave" style="margin-top:14px">保存图片大小</button>
+    <button type="button" id="postImgSave" style="margin-top:14px">保存图片大小与排版</button>
         <div class="hint" id="postImgState" style="margin-top:8px"></div>
       </div>
     </div>
@@ -1620,12 +1698,24 @@ function renderPage(cur) {
               <option value="70"${Number(wb.post_img_width) === 70 ? ' selected' : ''}>70%（画面内留白）</option>
               <option value="60"${Number(wb.post_img_width) === 60 ? ' selected' : ''}>60%（小一点）</option>
               <option value="50"${Number(wb.post_img_width) === 50 ? ' selected' : ''}>50%（半宽）</option>
+              <option value="40"${Number(wb.post_img_width) === 40 ? ' selected' : ''}>40%（小图，文字在旁边）</option>
+              <option value="30"${Number(wb.post_img_width) === 30 ? ' selected' : ''}>30%（小图，文字在旁边）</option>
+              <option value="20"${Number(wb.post_img_width) === 20 ? ' selected' : ''}>20%（最小，文字在旁边）</option>
             </select>
             <div class="hint">想单独调某一张：在图片地址后面加 <code>?w=60%</code> 或 <code>?w=400px</code>，这张就按那个大小显示。</div>
           </div>
+          <div class="field" style="max-width:230px"><label>文字排在图片哪一侧</label>
+            <select id="postImgFloat">
+              <option value="auto"${!wb.post_img_float || wb.post_img_float === 'auto' ? ' selected' : ''}>自动（小图自动环绕）</option>
+              <option value="l"${wb.post_img_float === 'l' ? ' selected' : ''}>左环绕（文字在右）</option>
+              <option value="r"${wb.post_img_float === 'r' ? ' selected' : ''}>右环绕（文字在左）</option>
+              <option value="c"${wb.post_img_float === 'c' ? ' selected' : ''}>居中（文字在下方）</option>
+            </select>
+            <div class="hint">「自动」＝宽度 ≤ 70% 时文字绕到旁边，整行的图仍然居中。</div>
+          </div>
           <div class="field" style="flex:1 1 280px">
             <label><input type="checkbox" id="uploadShrink"${wbOn(wb.upload_shrink, true)}> 上传图片 / 视频时自动压缩</label>
-            <div class="hint">图片：最长边 1920px 转 webp；视频：最长边 1600px、CRF 28 重编码（体积通常只剩 1/5）；肉眼看不出差别。上传时会显示压缩前后大小。</div>
+            <div class="hint">图片：最长边 1920px 转 webp；视频：最长边 1280px 重编码成「播放最顺滑」的格式（无 B 帧 + 2 秒关键帧，体积通常只剩 1/5）。上传时会显示压缩前后大小。</div>
           </div>
         </div>
       </div>
@@ -1698,6 +1788,7 @@ function collectAll() {
   var cb = function (id, k) { var el = document.getElementById(id); if (el) d[k] = !!el.checked; };
   var tx = function (id, k) { var el = document.getElementById(id); if (el) d[k] = el.value; };
   tx('postImgWidth', 'postImgWidth');
+  tx('postImgFloat', 'postImgFloat');
   cb('uploadShrink', 'uploadShrink');
   cb('imgZoom', 'imgZoom');
   cb('uptimeEnable', 'uptimeEnable');
@@ -2288,17 +2379,39 @@ renderCm();
   }
   function paint(scope) {
     var allEl = scope.querySelector('.pi-all-w');
+    var allFEl = scope.querySelector('.pi-all-f');
     var all = clampW(allEl && allEl.value);
+    var allF = allFEl ? allFEl.value : '';
     Array.prototype.forEach.call(scope.querySelectorAll('.pi-row'), function (row) {
       var ownEl = row.querySelector('.pi-w');
       var own = clampW(ownEl && ownEl.value);
       var pct = Number(own || all || 100);
+      var fEl = row.querySelector('.pi-f');
+      var mode = (fEl ? fEl.value : '') || allF || 'auto';
+      if (mode === 'auto') mode = pct <= 70 ? 'l' : 'c';   // 和 wb-post.js 的自动规则保持一致
       var th = row.querySelector('.pi-thumb');
       if (th) th.style.width = Math.max(26, Math.round(pct * 0.66)) + 'px';
       var sub = row.querySelector('.pi-sub');
-      if (sub) sub.textContent = own ? '单独 ' + own + '%' : '跟随整篇' + (all ? ' ' + all + '%' : '');
+      if (sub) {
+        sub.textContent =
+          (own ? '宽 ' + own + '%' : '宽度跟随整篇' + (all ? ' ' + all + '%' : '')) +
+          ' · ' + (mode === 'l' ? '文字在右' : mode === 'r' ? '文字在左' : '图片居中');
+      }
       var pv = scope.querySelector('.pi-pv[data-idx="' + row.getAttribute('data-idx') + '"]');
-      if (pv) pv.style.width = pct + '%';
+      if (pv) {
+        pv.style.width = pct + '%';
+        pv.style.display = 'block';
+        if (mode === 'l') {
+          pv.style.float = 'left';
+          pv.style.margin = '0 10px 6px 0';
+        } else if (mode === 'r') {
+          pv.style.float = 'right';
+          pv.style.margin = '0 0 6px 10px';
+        } else {
+          pv.style.float = 'none';
+          pv.style.margin = '0 auto 10px';
+        }
+      }
     });
   }
 
@@ -2310,6 +2423,15 @@ renderCm();
     var t = e.target;
     if (!t || !t.classList) return;
     if (t.classList.contains('pi-w') || t.classList.contains('pi-all-w')) {
+      var scope = scopeOf(t);
+      if (scope) paint(scope);
+    }
+  });
+  // 切换「文字在左 / 在右 / 居中」：预览立刻重排
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !t.classList) return;
+    if (t.classList.contains('pi-f') || t.classList.contains('pi-all-f')) {
       var scope = scopeOf(t);
       if (scope) paint(scope);
     }
@@ -2342,11 +2464,14 @@ renderCm();
       var imgs = [];
       Array.prototype.forEach.call(p.querySelectorAll('.pi-row'), function (r) {
         var v = clampW(r.querySelector('.pi-w').value);
-        imgs.push({ src: r.getAttribute('data-src'), width: v ? v + '%' : '' });
+        var fEl = r.querySelector('.pi-f');
+        imgs.push({ src: r.getAttribute('data-src'), width: v ? v + '%' : '', float: fEl ? fEl.value : '' });
       });
       var allW = p.querySelector('.pi-all-w');
+      var allF = p.querySelector('.pi-all-f');
       var body = { file: p.getAttribute('data-file'), images: imgs };
       if (allW) body.imgWidth = clampW(allW.value);
+      if (allF) body.imgFloat = allF.value || '';
       jobs.push(post('/site/postimg', body));
     });
     state.textContent = '保存中…';
