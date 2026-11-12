@@ -55,25 +55,75 @@ content:
         label: 标题
         type: string
         required: true
+        description: 就是文章标题，会显示在首页卡片和浏览器标签上
       - name: date
         label: 发布日期
         type: date
         options:
           time: true
           format: "yyyy-MM-dd HH:mm:ss"
+        description: 决定文章在首页的排序（新的在前），也决定网址里的日期
       - name: description
-        label: 摘要（列表页显示的一句话）
+        label: 摘要（首页卡片显示的两行简介）
         type: text
+        description: 不填就自动截取正文开头——但截出来常常是半句话，建议自己写一两句
+      - name: tags
+        label: 标签
+        type: string
+        list: true
+        description: 想加几个就加几个，回车分隔（例：Hexo、折腾记录）。页面上会显示成小方块
+      - name: categories
+        label: 分类
+        type: string
+        list: true
+        description: 一般只填一个（例：技术）。和标签的区别：分类是唯一归属，标签是关键词
+      # 封面图：首页卡片左侧那张图；也用作分享到微信/QQ 时的缩略图
+      - name: cover
+        label: 封面图（可不填）
+        type: image
+        options:
+          media: images
+          categories: [image]
+          rename: false
+        description: 首页卡片和「上一篇/下一篇」卡片用这张图打底；不填就用深色渐变。建议横图，1200×675 左右
+
+      # ---------------- 排版与显示开关（都可以不填） ----------------
+      - name: series
+        label: 系列 / 专栏（例：Hexo 折腾记）
+        type: string
+        description: 填一个名字，同名的文章会在文末自动生成「系列合集」目录，点一下就能跳转。只写一篇没关系，第二篇起才会出现
+      - name: sticky
+        label: 置顶（首页排在最前面）
+        type: select
+        options:
+          values:
+            - label: 不置顶（默认）
+              value: "0"
+            - label: 置顶 1（最优先）
+              value: "1"
+            - label: 置顶 2
+              value: "2"
+            - label: 置顶 3
+              value: "3"
+        description: 选了置顶，这篇会排在首页最前面，标题旁边还会出现一个小图钉图标。多篇置顶时数字小的更靠前
+      - name: comments
+        label: 显示评论区
+        type: boolean
+        description: 默认开着。纯公告、纯目录这类不需要评论的文章，关掉它（关掉后这篇不加载评论组件，打开更快）
+      - name: toc
+        label: 显示右侧目录
+        type: boolean
+        description: 默认开着。短文（两三屏以内）关掉更清爽；长文建议开着，方便跳段落
       # 填了密码，这篇在网页上就要输密码才能看（本地写作、保存都不受影响）
       - name: password
-        label: 访问密码（留空＝公开；填了就要输密码才能看）
+        label: 访问密码（留空＝公开）
         type: string
+        description: 填了数字或文字，这篇文章在网页上就要输入同样的密码才能看；正文在源码里也是加密的，别人扒不到
       # 正文里图片默认多大（只影响这一篇）
-      # 填数字就是百分比，例如 72 = 72%；留空 = 跟随全站默认
       - name: img_width
         label: 正文图片宽度（只影响这一篇）
         type: string
-        description: 填数字，例如 40 表示 40%；留空＝跟随全站默认。想单独调某一张，在图片地址后加 ?w=50%
+        description: 填数字＝百分比，例如 40 表示 40%；留空＝跟随全站默认。只想调某一张，在图片地址后加 ?w=50%
       # 图片和文字怎么排：选「左环绕」，文字就会写在图片右边，不再是图下一大段空白
       - name: img_float
         label: 正文图片排版（文字在图的哪一侧）
@@ -88,24 +138,20 @@ content:
               value: r
             - label: 居中 —— 图片单独一行，文字在下方
               value: c
-      - name: tags
-        label: 标签
+        description: 只影响没有单独设过排版的图片；某一张想单独改，在图片地址后加 ?f=r（图片靠右）
+
+      # ---------------- 转载 ----------------
+      - name: reprint_name
+        label: 转载来源名称（转载别处文章才填）
         type: string
-        list: true
-      - name: categories
-        label: 分类
+        description: 例：某某的博客。填了之后文末会自动出现「本文转载自 …」，原创文章留空即可
+      - name: reprint_url
+        label: 转载原文链接（转载才填）
         type: string
-        list: true
-      # 封面图：填了它，文章底部「上一篇 / 下一篇」卡片就用这张图打底
-      - name: cover
-        label: 封面图（可不填，不填用默认深色渐变）
-        type: image
-        options:
-          media: images
-          categories: [image]
-          rename: false
+        description: 填原文网址（https:// 开头），文末的来源会变成可点的链接
+
       - name: body
-        label: 正文（插图：在正文里输入斜杠 / 选「图片」即可上传；也能直接把图片拖进正文）
+        label: 正文
         type: rich-text
         options:
           # 指向上面的 images 图片库 → 支持斜杠菜单插图 + 拖拽/粘贴上传
@@ -114,6 +160,7 @@ content:
           format: markdown
           switcher: true
           rename: false
+        description: 插图：正文里输入斜杠 / 选「图片」，或直接把图拖进来。写法小抄：提示框＝引用块开头写「提示：/注意：/重点：/警告：」；折叠＝引用块开头写「折叠：标题」；金句＝引用块里只写一句短话；图注＝图片下一行写 *说明*；并排＝连着插两张图；步骤＝有序列表第一句写「步骤：」；按钮＝【按钮】后面跟链接。这些都能在手机上用编辑器现有的按钮写出来
 
   # ---------------- 独立页面 ----------------
   - name: pages

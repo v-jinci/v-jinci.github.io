@@ -107,6 +107,186 @@ function applyImgLayout(html, defaultWidth, defaultFloat) {
   });
 }
 
+/* ------------- 1.5 正文写法约定（在 Pages CMS 里打几个字就出效果） -------------
+ *
+ *  提示框：用「引用块」，第一行写  提示：/ 注意：/ 重点：/ 警告：
+ *  折叠块：引用块第一行写  折叠：标题
+ *  金句  ：引用块里只写一句短话（60 字以内）
+ *  图注  ：图片下一行写  *说明文字*
+ *  并排  ：连着插 2~3 张图（中间不空行）
+ *  步骤  ：有序列表第一项写  步骤：
+ *  按钮  ：【按钮】后面跟一个链接
+ *  表格  ：直接插表格，自动美化 + 手机上可横向滑
+ * ---------------------------------------------------------------------- */
+
+const WB_NOTE = [
+  { re: /^(提示|小提示|小贴士|技巧|TIP)\s*[:：]?\s*/i, cls: 'wb-note-tip', name: '提示', icon: '💡' },
+  { re: /^(注意|小心|NOTE)\s*[:：]?\s*/i, cls: 'wb-note-warn', name: '注意', icon: '⚠️' },
+  { re: /^(重点|要点|划重点|KEY)\s*[:：]?\s*/i, cls: 'wb-note-key', name: '重点', icon: '📌' },
+  { re: /^(警告|危险|重要|WARN)\s*[:：]?\s*/i, cls: 'wb-note-danger', name: '警告', icon: '🚫' },
+];
+const WB_FOLD = /^(折叠|收起|展开|点开看|FOLD)\s*[:：]?\s*/i;
+const WB_STEP = /^(步骤|流程|做法|STEPS?)\s*[:：]\s*/i;
+
+// 去掉标签后的纯文本
+function plainText(html) {
+  return String(html)
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// 首段开头的关键字（允许关键字被加粗/斜体包着）
+function stripKeywordPrefix(html, re) {
+  const s = String(html);
+  const lead = s.match(/^(\s*)((?:<(?:strong|b|em|i|span)\b[^>]*>)*)([\s\S]*)$/);
+  if (!lead) return s;
+  const m = lead[3].match(re);
+  if (!m || !m[0]) return s;
+  return lead[1] + lead[2] + lead[3].slice(m[0].length);
+}
+
+/* 图片改成「占满容器」：并排 / 图注里都用它，避免残留的浮动影响排版 */
+function imgFull(tag) {
+  const st = (tag.match(/style=("|')([^"']*)\1/i) || [])[2] || '';
+  const keep = st
+    .split(';')
+    .filter((d) => /^\s*(max-width|border-radius|height|object-fit)\s*:/i.test(d))
+    .join(';');
+  const decl = 'width:100%;float:none;margin:0;display:block;' + (keep ? keep + ';' : '');
+  let out = tag;
+  // 去掉之前加的浮动类名，免得 CSS 里的 float 跟进来
+  out = out.replace(/class=("|')([^"']*)\1/i, (m0, q, v) => {
+    const cls = v.split(/\s+/).filter((c) => c && !/^wb-fig(-[lrc])?$/.test(c)).join(' ');
+    return cls ? 'class=' + q + cls + q : '';
+  });
+  if (/style=("|')/i.test(out)) out = out.replace(/style=("|')([^"']*)\1/i, (m0, q) => 'style=' + q + decl + q);
+  else out = out.replace(/<img/i, (m0) => m0 + ' style="' + decl + '"');
+  return out.replace(/<img\s+/i, '<img ');
+}
+
+/* 图片 + 下一行 *说明*  →  带图注的 figure（浮动也跟着图走，文字照样能绕） */
+function figBox(img, cap) {
+  const st = (img.match(/style=("|')([^"']*)\1/i) || [])[2] || '';
+  const w = ((st.match(/(?:^|;)\s*width\s*:\s*([^;]+)/i) || [])[1] || '').trim();
+  const f = /float\s*:\s*left/i.test(st) ? 'l' : /float\s*:\s*right/i.test(st) ? 'r' : 'c';
+  const boxStyle = w ? ' style="width:' + w + '"' : '';
+  const text = String(cap).replace(/<[^>]*>/g, '').trim();
+  return (
+    '<figure class="wb-figbox wb-figbox--' + f + '"' + boxStyle + '>' +
+    imgFull(img) +
+    '<figcaption>' + text + '</figcaption></figure>'
+  );
+}
+
+function addBtnClass(a) {
+  if (/class=("|')/i.test(a)) {
+    return a.replace(/class=("|')([^"']*)\1/i, (m0, q, v) => 'class=' + q + (v + ' wb-btn').trim() + q);
+  }
+  return a.replace(/<a\b/i, '<a class="wb-btn"');
+}
+
+function applyRichBlocks(html) {
+  let out = String(html);
+
+  /* ---- ① 引用块：提示框 / 折叠块 / 金句 ---- */
+  out = out.replace(/<blockquote(\s[^>]*)?>([\s\S]*?)<\/blockquote>/gi, (m0, attr, inner) => {
+    const pm = inner.match(/^(\s*)<p(\s[^>]*)?>([\s\S]*?)<\/p>/);
+    const firstHtml = pm ? pm[3] : inner;
+    const firstTxt = plainText(firstHtml);
+
+    // 折叠块
+    const fold = firstTxt.match(WB_FOLD);
+    if (fold) {
+      const body = pm ? inner.replace(pm[0], '') : '';
+      const hasBody = plainText(body).length > 0;
+      const title = (hasBody ? firstTxt.slice(fold[0].length).trim() : '') || '点开看更多';
+      const content = hasBody ? body.trim() : pm ? '<p>' + firstTxt.slice(fold[0].length).trim() + '</p>' : '';
+      return (
+        '<details class="wb-fold"><summary>' + esc(title) + '</summary>' +
+        '<div class="wb-fold-body">' + content + '</div></details>'
+      );
+    }
+
+    // 提示框
+    for (let i = 0; i < WB_NOTE.length; i++) {
+      const k = WB_NOTE[i];
+      if (!firstTxt.match(k.re)) continue;
+      let body = inner;
+      if (pm) {
+        const restHtml = stripKeywordPrefix(pm[3], k.re);
+        body = inner.replace(pm[0], plainText(restHtml) ? '<p>' + restHtml + '</p>' : '');
+      }
+      return (
+        '<div class="wb-note ' + k.cls + '">' +
+        '<div class="wb-note-h">' + k.icon + ' ' + k.name + '</div>' +
+        '<div class="wb-note-b">' + body.trim() + '</div></div>'
+      );
+    }
+
+    // 金句：只有一个短段落
+    const one = inner.trim().match(/^<p(\s[^>]*)?>([\s\S]*?)<\/p>$/);
+    if (one && !/<img/i.test(inner)) {
+      const t = plainText(one[2]);
+      if (t.length > 0 && t.length <= 60) return '<blockquote class="wb-quote">' + inner.trim() + '</blockquote>';
+    }
+    return m0;
+  });
+
+  /* ---- ② 步骤条：有序列表第一项写「步骤：」 ---- */
+  out = out.replace(/<ol(\s[^>]*)?>([\s\S]*?)<\/ol>/gi, (m0, attr, inner) => {
+    const li = inner.match(/^(\s*)<li(\s[^>]*)?>([\s\S]*?)<\/li>/);
+    if (!li) return m0;
+    if (!plainText(li[3]).match(WB_STEP)) return m0;
+    const rest = stripKeywordPrefix(li[3], WB_STEP);
+    const newInner = inner.replace(li[0], li[1] + '<li' + (li[2] || '') + '>' + rest + '</li>');
+    return '<ol class="wb-steps">' + newInner + '</ol>';
+  });
+
+  /* ---- ③ 并排：一个段落里只有 2~3 张图 ---- */
+  out = out.replace(/<p(\s[^>]*)?>([\s\S]*?)<\/p>/gi, (m0, attr, inner) => {
+    const imgs = inner.match(/<img\b[^>]*>/gi);
+    if (!imgs || imgs.length < 2 || imgs.length > 3) return m0;
+    const left = inner
+      .replace(/<img\b[^>]*>/gi, '')
+      .replace(/<br\s*\/?>/gi, '')
+      .replace(/&nbsp;/g, '')
+      .replace(/\s+/g, '');
+    if (left) return m0;
+    return (
+      '<div class="wb-cols wb-cols-' + imgs.length + '">' +
+      imgs.map((t) => imgFull(t)).join('') +
+      '</div>'
+    );
+  });
+
+  /* ---- ④ 图注：图片紧跟着 *斜体说明*（同一段或下一段都认） ---- */
+  out = out.replace(
+    /<p(\s[^>]*)?>\s*(<img\b[^>]*>)\s*(?:<br\s*\/?>)?\s*<em>([\s\S]*?)<\/em>\s*<\/p>/gi,
+    (m0, attr, img, cap) => figBox(img, cap)
+  );
+  out = out.replace(
+    /<p(\s[^>]*)?>\s*(<img\b[^>]*>)\s*<\/p>\s*<p(\s[^>]*)?>\s*<em>([\s\S]*?)<\/em>\s*<\/p>/gi,
+    (m0, a1, img, a2, cap) => figBox(img, cap)
+  );
+
+  /* ---- ⑤ 按钮：【按钮】+ 链接 ---- */
+  out = out.replace(/<p(\s[^>]*)?>\s*【按钮】\s*(<a\b[\s\S]*?<\/a>)\s*<\/p>/gi, (m0, attr, a) => {
+    return '<p class="wb-btn-row">' + addBtnClass(a) + '</p>';
+  });
+
+  /* ---- ⑥ 表格：外面套一层，手机上可以横向滑 ---- */
+  if (out.indexOf('class="wb-table"') === -1) {
+    out = out.replace(/<table\b/gi, '<div class="wb-table"><table').replace(/<\/table>/gi, '</table></div>');
+  }
+
+  return out;
+}
+
 /* --------------------------- 2. 文章加密 --------------------------- */
 
 const ITER = 120000;
@@ -172,6 +352,54 @@ function lockBlock(payload) {
   );
 }
 
+/* ---------------------- 3. 系列 / 转载 / 目录开关 ---------------------- */
+
+function seriesBlock(name, data) {
+  let list = [];
+  try {
+    // 用数据库模型拿全部文章：locals.get('posts') 在渲染单篇时还不完整（只拿到一部分）
+    const model = hexo.model ? hexo.model('Post') : null;
+    const arr = model && typeof model.toArray === 'function' ? model.toArray() : [];
+    list = arr
+      .filter((p) => String(p.series == null ? '' : p.series).trim() === name)
+      .sort((a, b) => Number(a.date) - Number(b.date));
+  } catch (e) {
+    list = [];
+  }
+  if (list.length < 2) return '';
+
+  const root = hexo.config.root || '/';
+  const base = root.slice(-1) === '/' ? root : root + '/';
+  const items = list
+    .map((p) => {
+      const same = (p.path && data.path && p.path === data.path) || (p._id && data._id && p._id === data._id);
+      const href = base + String(p.path || '').replace(/^\//, '');
+      const title = esc(p.title || '无标题');
+      const day = p.date && p.date.format ? p.date.format('YYYY-MM-DD') : '';
+      return (
+        '<li>' + (same ? '<strong>' + title + '</strong>（当前这篇）' : '<a href="' + href + '">' + title + '</a>') +
+        (day ? ' <span class="wb-series-d">' + day + '</span>' : '') +
+        '</li>'
+      );
+    })
+    .join('');
+
+  return (
+    '<div class="wb-series"><div class="wb-series-t">📚 系列合集 · ' + esc(name) +
+    '（共 ' + list.length + ' 篇）</div><ul>' + items + '</ul></div>'
+  );
+}
+
+function reprintBlock(name, url) {
+  const u = String(url || '').trim();
+  const n = String(name || '').trim() || u;
+  if (!u && !n) return '';
+  const link = u
+    ? '<a href="' + esc(u) + '" target="_blank" rel="noopener noreferrer">' + esc(n) + '</a>'
+    : esc(n);
+  return '<div class="wb-reprint">📎 本文转载自 ' + link + '，版权归原作者所有' + (u ? '。' : '') + '</div>';
+}
+
 /* ------------------------------ 挂载 ------------------------------ */
 
 /* 锁的样式和脚本从正文里抽出来，统一注入 <head>：
@@ -205,6 +433,9 @@ hexo.extend.filter.register('after_post_render', function (data) {
 
   data.content = applyImgLayout(data.content, defW, defF);
 
+  // 正文写法约定：提示框 / 折叠 / 金句 / 图注 / 并排 / 步骤 / 按钮 / 表格
+  data.content = applyRichBlocks(data.content);
+
   const pwd = data.password === 0 ? '0' : String(data.password || '').trim();
   if (pwd) {
     // 摘要位置只留一句话，卡片截断时看到的就是这句，不会漏出代码
@@ -214,15 +445,39 @@ hexo.extend.filter.register('after_post_render', function (data) {
     data.postDesc = tip; // 主题首页卡片优先用这个，避免把锁块的说明文字重复贴出来
     data.description = data.description || '加密文章';
   }
+
+  // ↓ 下面这些统一加在加密之后，加密文章也能看到（合集目录、来源、目录开关）
+  // 系列：同系列的文章自动在文末串成一份目录
+  const series = String(data.series == null ? '' : data.series).trim();
+  if (series) {
+    const block = seriesBlock(series, data);
+    if (block) data.content += block;
+  }
+
+  // 转载来源
+  if (data.reprint_url || data.reprint_name) {
+    data.content += reprintBlock(data.reprint_name, data.reprint_url);
+  }
+
+  // 目录开关（toc: false）：留一个看不见的记号，由下面 after_render 注入隐藏样式
+  if (data.toc === false) data.content += '<span class="wb-notoc" hidden></span>';
+
   return data;
 });
 
-// 只有在含锁块的页面注入：样式进 <head>，脚本进 </body>（要在 DOM 之后执行才能找到锁块）
+// 只有需要的页面才注入：锁块的样式进 <head>、脚本进 </body>（要在 DOM 之后执行才能找到锁块）
+// 另外处理 toc: false（隐藏右侧目录）——用正文里那个看不见的记号判断
 hexo.extend.filter.register('after_render:html', function (str) {
-  if (typeof str !== 'string' || str.indexOf('class="wb-lock"') === -1) return str;
+  if (typeof str !== 'string') return str;
+  let out = str;
+
+  if (out.indexOf('wb-notoc') !== -1 && out.indexOf('</head>') !== -1) {
+    out = out.replace('</head>', '<style>#card-toc{display:none!important}</style></head>');
+  }
+
+  if (out.indexOf('class="wb-lock"') === -1) return out;
   const css = lockAssets.filter((s) => s.indexOf('<style') === 0).join('');
   const js = lockAssets.filter((s) => s.indexOf('<script') === 0).join('');
-  let out = str;
   if (css && out.indexOf('</head>') !== -1) out = out.replace('</head>', css + '</head>');
   if (js) {
     if (out.indexOf('</body>') !== -1) out = out.replace('</body>', js + '</body>');
