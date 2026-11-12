@@ -109,6 +109,25 @@ function lockBlock(payload) {
 
 /* ------------------------------ 挂载 ------------------------------ */
 
+/* 锁的样式和脚本从正文里抽出来，统一注入 <head>：
+   否则首页/归档卡片把正文当纯文本截断时，会把 .wb-lock{...} 当成摘要显示 */
+const lockAssets = [];
+
+function splitLockAssets(html) {
+  let rest = html;
+  const css = rest.match(/<style>[\s\S]*?<\/style>/i);
+  if (css) {
+    rest = rest.replace(css[0], '');
+    if (lockAssets.indexOf(css[0]) === -1) lockAssets.push(css[0]);
+  }
+  const js = rest.match(/<script>[\s\S]*?<\/script>/i);
+  if (js) {
+    rest = rest.replace(js[0], '');
+    if (lockAssets.indexOf(js[0]) === -1) lockAssets.push(js[0]);
+  }
+  return rest;
+}
+
 hexo.extend.filter.register('after_post_render', function (data) {
   if (!data || typeof data.content !== 'string') return data;
 
@@ -119,10 +138,25 @@ hexo.extend.filter.register('after_post_render', function (data) {
 
   const pwd = data.password === 0 ? '0' : String(data.password || '').trim();
   if (pwd) {
-    data.content = lockBlock(encryptHtml(data.content, pwd));
-    // 列表页别把正文摘要漏出去
-    data.excerpt = '<p>🔒 本文已加密，输入密码后查看。</p>';
+    // 摘要位置只留一句话，卡片截断时看到的就是这句，不会漏出代码
+    const tip = '<p class="wb-lock-tip">🔒 本文已加密，输入密码后查看正文。</p>';
+    data.content = tip + splitLockAssets(lockBlock(encryptHtml(data.content, pwd)));
+    data.excerpt = tip;
     data.description = data.description || '加密文章';
   }
   return data;
+});
+
+// 只有在含锁块的页面注入：样式进 <head>，脚本进 </body>（要在 DOM 之后执行才能找到锁块）
+hexo.extend.filter.register('after_render:html', function (str) {
+  if (typeof str !== 'string' || str.indexOf('class="wb-lock"') === -1) return str;
+  const css = lockAssets.filter((s) => s.indexOf('<style') === 0).join('');
+  const js = lockAssets.filter((s) => s.indexOf('<script') === 0).join('');
+  let out = str;
+  if (css && out.indexOf('</head>') !== -1) out = out.replace('</head>', css + '</head>');
+  if (js) {
+    if (out.indexOf('</body>') !== -1) out = out.replace('</body>', js + '</body>');
+    else if (out.indexOf('</html>') !== -1) out = out.replace('</html>', js + '</html>');
+  }
+  return out;
 });
