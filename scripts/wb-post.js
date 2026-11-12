@@ -17,9 +17,9 @@ function esc(s) {
 
 // 支持 ?w=60% / ?w=400px / #w=60%
 function widthFromSrc(src) {
-  const m = String(src || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%|px)?/i);
+  const m = String(src || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
   if (!m) return '';
-  const unit = (m[2] || '%').toLowerCase();
+  const unit = (m[2] || '%').toLowerCase() === 'px' ? 'px' : '%'; // %25 是编码后的 %，统一按百分比处理
   const n = Number(m[1]);
   if (!n || n <= 0) return '';
   return n + unit;

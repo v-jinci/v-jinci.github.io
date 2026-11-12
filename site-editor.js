@@ -57,6 +57,18 @@ function shrinkVideo(inputPath, outputPath) {
   return { ok: true };
 }
 
+/* 把 markdown / <img> 里某张图的 ?w= 参数改成指定值（空 = 去掉，恢复默认） */
+function setImgWidth(raw, src, w, onHit) {
+  const re = src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const q = w ? '?w=' + w : '';
+  let out = raw;
+  const md = new RegExp('(!\\[[^\\]]*\\]\\()' + re + '((?:[?#&]w=[^&?#\\s]*)?)((?:\\s+"[^"]*")?\\))', 'g');
+  out = out.replace(md, (m0, a, b, c) => { onHit(); return a + src + q + c; });
+  const tag = new RegExp('(<img\\b[^>]*?\\bsrc=")' + re + '((?:[?#&]w=[^&?#\\s]*)?)(")', 'gi');
+  out = out.replace(tag, (m0, a, b, c) => { onHit(); return a + src + q + c; });
+  return out;
+}
+
 module.exports = { register };
 
 function register(hexo, opts) {
@@ -887,6 +899,31 @@ async function handle(hexo, req, res, options) {
       return;
     }
 
+    // 正文图片大小：只改图片地址后面的 ?w= 参数，正文其它内容一个字都不动
+    if (req.method === 'POST' && url === '/postimg') {
+      const data = JSON.parse((await readBody(req)) || '{}');
+      const file = String(data.file || '');
+      if (!/^[^\\/]+\.md$/i.test(file)) throw new Error('文件名不合法');
+      const abs = path.join(base, 'source', '_posts', file);
+      if (!fs.existsSync(abs)) throw new Error('找不到这篇文章：' + file);
+      let raw = readText(abs);
+      const items = Array.isArray(data.images) ? data.images : [];
+      let changed = 0;
+      items.forEach((it) => {
+        const src = String(it.src || '').trim();
+        const w = String(it.width || '').trim();
+        if (!src) return;
+        raw = setImgWidth(raw, src, w, () => { changed++; });
+      });
+      if (changed) {
+        const next = raw;
+        if (next !== readText(abs)) fs.writeFileSync(abs, next);
+        try { if (typeof hexo.load === 'function') await hexo.load(); } catch (e) { /* 已写入 */ }
+      }
+      sendJson(res, 200, { ok: true, changed: changed });
+      return;
+    }
+
     if (req.method === 'POST' && url === '/publish') {
       if (typeof options.publish !== 'function') {
         sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击「1-发布到网站.bat」。' });
@@ -952,7 +989,29 @@ function renderPage(cur) {
         const t = fm.match(/^title:\s*(.+)$/m);
         const p = fm.match(/^password:\s*(.+)$/m);
         const clean = (s) => String(s || '').trim().replace(/^["']|["']$/g, '');
-        return { file: f, title: clean(t && t[1]) || f.replace(/\.md$/, ''), password: clean(p && p[1]) };
+        // 顺便扫一遍正文里的图片，给「正文图片大小」面板用
+        const body = m ? raw.slice(m[0].length) : raw;
+        const images = [];
+        const seen = {};
+        const pushImg = (u) => {
+          const src = String(u || '').trim();
+          if (!src || !/^(\/|https?:)/i.test(src) || seen[src]) return;
+          seen[src] = 1;
+          const wm = src.match(/[?#&]w=([^&?#]+)/);
+          images.push({ src: src.replace(/[?#&]w=[^&?#]*/g, ''), full: src, w: wm ? wm[1] : '' });
+        };
+        const mdRe = /!\[[^\]]*\]\(([^)\s]+)/g;
+        let mm;
+        while ((mm = mdRe.exec(body))) pushImg(mm[1]);
+        const imgRe = /<img\b[^>]*\bsrc=["']([^"']+)/gi;
+        while ((mm = imgRe.exec(body))) pushImg(mm[1]);
+
+        return {
+          file: f,
+          title: clean(t && t[1]) || f.replace(/\.md$/, ''),
+          password: clean(p && p[1]),
+          images: images,
+        };
       })
       .sort((a, b) => (a.file < b.file ? 1 : -1));
   })();
@@ -972,6 +1031,33 @@ function renderPage(cur) {
       '</div></div>'
     );
   }).join('');
+
+  // 「正文图片大小」面板：按文章列出正文里的每张图 + 当前宽度
+  const imgRows = postList
+    .filter((p) => p.images && p.images.length)
+    .map((p) => {
+      const rows = p.images
+        .map((im) => {
+          const opts = ['', '85%', '70%', '60%', '50%']
+            .map((v) => '<option value="' + v + '"' + (String(im.w) === v ? ' selected' : '') + '>' + (v || '100%（默认）') + '</option>')
+            .join('');
+          return (
+            '<div class="pi-row" data-src="' + esc(im.src) + '" style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef1f6">' +
+            '<img src="' + esc(im.src) + '" alt="" style="width:96px;height:56px;object-fit:cover;border-radius:8px;background:#eef1f6;flex:0 0 auto">' +
+            '<div style="flex:1;min-width:0;font-size:13px;color:#64748b;word-break:break-all">' + esc(im.src.split('/').pop()) + '</div>' +
+            '<select class="pi-w" style="padding:6px 8px;border-radius:8px;border:1px solid #d7dce6;background:#fff">' + opts + '</select>' +
+            '</div>'
+          );
+        })
+        .join('');
+      return (
+        '<div class="pi-post" data-file="' + esc(p.file) + '" style="margin-top:16px">' +
+        '<div style="font-weight:600;font-size:14px;margin-bottom:2px">' + esc(p.title) + '</div>' +
+        rows +
+        '</div>'
+      );
+    })
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1049,6 +1135,7 @@ function renderPage(cur) {
     <button data-tab="pw">页面密码</button>
     <button data-tab="cm">评论区</button>
     <button data-tab="msg">留言管理</button>
+    <button data-tab="img">正文图片</button>
     <button data-tab="misc">细节开关</button>
   </div>
 
@@ -1334,6 +1421,17 @@ function renderPage(cur) {
     </div>
 
     <!-- ===== 7 留言 ===== -->
+    <!-- ===== 正文图片大小 ===== -->
+    <div class="panel" id="p-img">
+      <div class="card">
+        <h2>正文图片大小<span class="badge">不用改代码</span></h2>
+        <div class="desc">给每张图选个宽度，点下面「保存图片大小」，正文里的图片地址会自动带上参数。100% = 撑满正文宽度。</div>
+        <div id="postImgList">${imgRows || '<div class="hint">文章正文里还没插入图片。</div>'}</div>
+        <button type="button" id="postImgSave" style="margin-top:14px">保存图片大小</button>
+        <div class="hint" id="postImgState" style="margin-top:8px"></div>
+      </div>
+    </div>
+
     <!-- ===== 9 细节开关 ===== -->
     <div class="panel" id="p-misc">
       <div class="card">
@@ -2040,6 +2138,34 @@ initDl();
 initHero();
 initCt();
 renderCm();
+
+/* 正文图片大小：收集每篇文章的图片宽度，逐篇保存 */
+(function () {
+  var btnSave = document.getElementById('postImgSave');
+  if (!btnSave) return;
+  btnSave.addEventListener('click', function () {
+    var state = document.getElementById('postImgState');
+    var posts = document.querySelectorAll('#postImgList .pi-post');
+    if (!posts.length) return;
+    var jobs = [];
+    Array.prototype.forEach.call(posts, function (p) {
+      var imgs = [];
+      Array.prototype.forEach.call(p.querySelectorAll('.pi-row'), function (r) {
+        imgs.push({ src: r.getAttribute('data-src'), width: r.querySelector('.pi-w').value });
+      });
+      if (imgs.length) jobs.push(post('/site/postimg', { file: p.getAttribute('data-file'), images: imgs }));
+    });
+    state.textContent = '保存中…';
+    btnSave.disabled = true;
+    Promise.all(jobs)
+      .then(function () {
+        state.textContent = '已保存。本地预览刷新即可看到；线上需要点「保存并发布」。';
+        setStatus('正文图片大小已更新', 'ok');
+      })
+      .catch(function (e) { state.textContent = '保存失败：' + e.message; })
+      .then(function () { btnSave.disabled = false; });
+  });
+})();
 </script>
 <datalist id="iconList">
   <option value="fas fa-home"></option><option value="fas fa-archive"></option><option value="fas fa-tags"></option>
