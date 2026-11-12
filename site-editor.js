@@ -20,6 +20,42 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const { spawnSync } = require('child_process');
+
+/* 视频转码：优先用 @ffmpeg-installer/ffmpeg 自带的二进制，找不到就跳过压缩（不影响上传） */
+function ffmpegExe() {
+  const cands = ['@ffmpeg-installer/ffmpeg', 'ffmpeg-static'];
+  for (const m of cands) {
+    try {
+      const p = require(m);
+      const exe = typeof p === 'string' ? p : p && p.path;
+      if (exe && fs.existsSync(exe)) return exe;
+    } catch (e) {}
+  }
+  return null;
+}
+
+/* 把临时视频压到「最长边 1600、crf 28」——背景视频肉眼看不出差别，体积通常只剩 1/5 */
+function shrinkVideo(inputPath, outputPath) {
+  const exe = ffmpegExe();
+  if (!exe) return { ok: false, reason: 'no-ffmpeg' };
+  const args = [
+    '-y', '-hide_banner', '-loglevel', 'error',
+    '-i', inputPath,
+    '-vf', "scale='min(1600,iw)':-2",
+    '-c:v', 'libx264', '-crf', '28', '-preset', 'veryfast', '-profile:v', 'main',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '96k',
+    '-movflags', '+faststart',
+    outputPath,
+  ];
+  const r = spawnSync(exe, args, { timeout: 15 * 60 * 1000, windowsHide: true });
+  if (r.status !== 0 || !fs.existsSync(outputPath)) {
+    return { ok: false, reason: (r.stderr ? String(r.stderr).slice(-200) : 'ffmpeg 转码失败') };
+  }
+  return { ok: true };
+}
 
 module.exports = { register };
 
@@ -509,17 +545,55 @@ async function handle(hexo, req, res, options) {
     }
 
     // 图片 / 视频上传：原始二进制直接写进 source/img（图片）或 source/media（视频）
+    // 带 shrink=1 时：视频先转码压小（图片在浏览器端压，不经过这里）
     if (req.method === 'POST' && url === '/media') {
       const q = new URL(req.url, 'http://localhost').searchParams;
       const isVideo = q.get('kind') === 'video';
+      const wantShrink = q.get('shrink') === '1';
       const name = asciiName(q.get('name'), isVideo ? '.mp4' : '.png');
       const buf = await readBuffer(req, isVideo ? 150 * 1024 * 1024 : 20 * 1024 * 1024);
       if (!buf.length) throw new Error('文件是空的');
       const sub = isVideo ? 'media' : 'img';
       const dir = path.join(base, 'source', sub);
       fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(path.join(dir, name), buf);
-      sendJson(res, 200, { ok: true, path: '/' + sub + '/' + name, size: buf.length });
+
+      let out = buf;
+      let shrunk = false;
+      let note = '';
+      if (isVideo && wantShrink) {
+        const tmpIn = path.join(os.tmpdir(), 'wb-up-' + Date.now() + path.extname(name));
+        const tmpOut = tmpIn.replace(/(\.[^.]+)?$/, '-small.mp4');
+        try {
+          fs.writeFileSync(tmpIn, buf);
+          const r = shrinkVideo(tmpIn, tmpOut);
+          if (r.ok) {
+            const small = fs.readFileSync(tmpOut);
+            if (small.length && small.length < buf.length) {
+              out = small;
+              shrunk = true;
+            }
+          } else if (r.reason === 'no-ffmpeg') {
+            note = '本机没装视频压缩工具，视频按原样上传了';
+          } else {
+            note = '视频压缩失败，按原样上传';
+          }
+        } catch (e) {
+          note = '视频压缩失败，按原样上传';
+        } finally {
+          try { fs.unlinkSync(tmpIn); } catch (e) {}
+          try { fs.unlinkSync(tmpOut); } catch (e) {}
+        }
+      }
+
+      fs.writeFileSync(path.join(dir, name), out);
+      sendJson(res, 200, {
+        ok: true,
+        path: '/' + sub + '/' + name,
+        size: out.length,
+        originalSize: buf.length,
+        shrunk: shrunk,
+        note: note,
+      });
       return;
     }
 
@@ -1316,8 +1390,8 @@ function renderPage(cur) {
             <div class="hint">想单独调某一张：在图片地址后面加 <code>?w=60%</code> 或 <code>?w=400px</code>，这张就按那个大小显示。</div>
           </div>
           <div class="field" style="flex:1 1 280px">
-            <label><input type="checkbox" id="uploadShrink"${wbOn(wb.upload_shrink, true)}> 上传图片时自动压缩</label>
-            <div class="hint">最长边限制 1920px、转成 webp，肉眼基本看不出差别，体积通常小 60%~85%。上传时会显示压缩前后大小。</div>
+            <label><input type="checkbox" id="uploadShrink"${wbOn(wb.upload_shrink, true)}> 上传图片 / 视频时自动压缩</label>
+            <div class="hint">图片：最长边 1920px 转 webp；视频：最长边 1600px、CRF 28 重编码（体积通常只剩 1/5）；肉眼看不出差别。上传时会显示压缩前后大小。</div>
           </div>
         </div>
       </div>
@@ -1556,7 +1630,8 @@ function uploadMedia(file, kind) {
   var prep = kind === 'img' && wantShrink() ? shrinkImage(file) : Promise.resolve(file);
   return prep
     .then(function (f) {
-      return fetch('/site/media?kind=' + kind + '&name=' + encodeURIComponent(f.name), { method: 'POST', body: f });
+      var q = '/site/media?kind=' + kind + '&name=' + encodeURIComponent(f.name) + (wantShrink() ? '&shrink=1' : '');
+      return fetch(q, { method: 'POST', body: f });
     })
     .then(function (r) { return r.json(); })
     .then(function (j) {
@@ -1628,11 +1703,15 @@ $('#heroVideoPick').addEventListener('change', function () {
   var f = this.files && this.files[0];
   if (!f) return;
   var st = $('#heroVideoState');
-  st.textContent = '上传中… ' + f.name;
+  var big = f.size > 3 * 1024 * 1024;
+  st.textContent = '上传中… ' + f.name + (wantShrink() && big ? '（正在压缩，大视频要等十几秒）' : '');
   uploadMedia(f, 'video').then(function (j) {
     $('#heroVideoPath').value = j.path;
-    st.textContent = '已上传：' + j.path + '（' + fmtSize(j.size) + '），记得点保存';
-    setStatus('视频已上传，记得保存', '');
+    var note = '';
+    if (j.shrunk) note = '，已压缩 ' + fmtSize(j.originalSize) + ' → ' + fmtSize(j.size);
+    else if (j.note) note = '，' + j.note;
+    st.textContent = '已上传：' + j.path + '（' + fmtSize(j.size) + note + '），记得点保存';
+    setStatus('视频已上传' + (j.shrunk ? '并压缩' : '') + '，记得保存', '');
   }).catch(function (err) { st.textContent = '上传失败：' + err.message; });
   this.value = '';
 });
