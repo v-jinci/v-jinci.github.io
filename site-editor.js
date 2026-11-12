@@ -1422,7 +1422,7 @@ function wantShrink() { var el = document.getElementById('uploadShrink'); return
 /* 浏览器里先把图缩小再上传：最长边 1920、webp 质量 0.86，画质基本无损 */
 function shrinkImage(file) {
   return new Promise(function (resolve) {
-    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) return resolve(file);
+    if (file.type !== 'image/jpeg' && file.type !== 'image/png' && file.type !== 'image/webp') return resolve(file);
     if (file.size < 200 * 1024) return resolve(file);
     var img = new Image();
     var url = URL.createObjectURL(file);
