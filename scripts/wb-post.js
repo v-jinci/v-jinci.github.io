@@ -13,7 +13,7 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-/* ------------------------- 1. 正文图片宽度 ------------------------- */
+/* ------------------------- 1. 正文图片宽度 / 排版 ------------------------- */
 
 // 支持 ?w=60% / ?w=400px / #w=60%
 function widthFromSrc(src) {
@@ -25,20 +25,85 @@ function widthFromSrc(src) {
   return n + unit;
 }
 
-function applyImgWidth(html, defaultWidth) {
+// 对齐方式：?f=l 左环绕（文字在右） / ?f=r 右环绕 / ?f=c 居中
+function floatFromSrc(src) {
+  const m = String(src || '').match(/[?#&]f=([a-z\u4e00-\u9fa5]+)/i);
+  if (!m) return '';
+  return normFloat(m[1]);
+}
+
+function normFloat(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  if (!s) return '';
+  if (s === 'l' || s === 'left' || s === '左' || s === '左环绕') return 'l';
+  if (s === 'r' || s === 'right' || s === '右' || s === '右环绕') return 'r';
+  if (s === 'c' || s === 'center' || s === '中' || s === '居中') return 'c';
+  if (s === 'n' || s === 'none' || s === 'block' || s === '整行') return 'c';
+  return ''; // auto / 其它 → 交给默认规则
+}
+
+function pctOf(w) {
+  const n = parseFloat(String(w || '').replace(/[^0-9.]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function addStyle(tag, decl) {
+  if (/style=("|')/i.test(tag)) {
+    return tag.replace(/style=("|')([^"']*)\1/i, (m0, q, v) => 'style=' + q + v.replace(/;?\s*$/, ';') + decl + q);
+  }
+  return tag.replace(/<img/i, (m0) => m0 + ' style="' + decl + '"');
+}
+
+function addClass(tag, cls) {
+  if (/class=("|')/i.test(tag)) {
+    return tag.replace(/class=("|')([^"']*)\1/i, (m0, q, v) => 'class=' + q + (v + ' ' + cls).trim() + q);
+  }
+  return tag.replace(/<img/i, (m0) => m0 + ' class="' + cls + '"');
+}
+
+/**
+ * 给正文图片加「宽度 + 排版」。
+ *   defaultWidth : 整篇默认宽度（百分比数字）
+ *   defaultFloat : 整篇默认排版 l / r / c / auto
+ * 规则（优先级从高到低）：
+ *   图片地址里的 ?w= / ?f=  >  front-matter 的 img_width / img_float  >  全站默认
+ * 宽度小于 70% 且没指定排版时，自动「左环绕」——文字会绕到图片右侧，
+ * 而不是缩成半宽、右边留一大片空白。
+ */
+function applyImgLayout(html, defaultWidth, defaultFloat) {
+  const dW = pctOf(defaultWidth) || 100;
+  const dF = normFloat(defaultFloat) || 'auto';
   return String(html).replace(/<img\b[^>]*>/gi, (tag) => {
     const srcM = tag.match(/\bsrc=("([^"]*)"|'([^']*)')/i);
     const src = srcM ? srcM[2] || srcM[3] || '' : '';
+
     let w = widthFromSrc(src);
-    if (!w && defaultWidth && defaultWidth < 100) w = defaultWidth + '%';
+    if (!w && dW > 0 && dW < 100) w = dW + '%';
     if (!w) return tag;
-    if (/style=/i.test(tag)) {
-      return tag.replace(/style=("|')([^"']*)\1/i, (m0, q, v) => {
-        if (/width\s*:/i.test(v)) return m0;
-        return 'style=' + q + v.replace(/;?\s*$/, ';') + 'width:' + w + ';' + q;
-      });
+
+    let f = floatFromSrc(src) || dF;
+    if (f === 'auto') f = pctOf(w) > 0 && pctOf(w) <= 70 ? 'l' : '';
+
+    const decls = [];
+    decls.push('width:' + w);
+    let cls = 'wb-fig';
+    if (f === 'l') {
+      cls += ' wb-fig-l';
+      decls.push('float:left', 'margin:6px 18px 14px 0');
+    } else if (f === 'r') {
+      cls += ' wb-fig-r';
+      decls.push('float:right', 'margin:6px 0 14px 18px');
+    } else if (f === 'c') {
+      cls += ' wb-fig-c';
+      decls.push('display:block', 'margin:10px auto');
     }
-    return tag.replace(/<img/i, '<img style="width:' + w + '"');
+    decls.push('max-width:100%', 'height:auto');
+
+    let out = tag;
+    if (!(/style=("|')([^"']*)\1/i.test(out) && /width\s*:/i.test(out.match(/style=("|')([^"']*)\1/i)[2]))) {
+      out = addStyle(out, decls.join(';') + ';');
+    }
+    return addClass(out, cls);
   });
 }
 
@@ -135,8 +200,10 @@ hexo.extend.filter.register('after_post_render', function (data) {
   // 优先级：单张图片地址里的 ?w=  >  这篇文章 front-matter 的 img_width（Pages CMS 里选）  >  全站默认值
   const own = Number(String(data.img_width || '').replace(/[^\d.]/g, ''));
   const defW = own ? own : Number(cfg.post_img_width) || 100;
+  // 排版：l 左环绕 / r 右环绕 / c 居中 / auto（宽度小就自动环绕）
+  const defF = normFloat(data.img_float) || normFloat(cfg.post_img_float) || 'auto';
 
-  data.content = applyImgWidth(data.content, defW);
+  data.content = applyImgLayout(data.content, defW, defF);
 
   const pwd = data.password === 0 ? '0' : String(data.password || '').trim();
   if (pwd) {

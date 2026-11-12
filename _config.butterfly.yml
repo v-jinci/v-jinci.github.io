@@ -21,7 +21,7 @@ menu:
   关于: /about/ || fas fa-user
 
 social:
-  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github
+  fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github
   fas fa-envelope: mailto:599676700@qq.com || Email
 
 avatar:
@@ -189,6 +189,9 @@ wb_look:
   avatar_spin: false
   # 正文图片默认宽度（%）；单张想单独调就在图片地址后加 ?w=60% 或 ?w=400px
   post_img_width: 50
+  # 正文图片默认排版：auto=宽度小于 70% 时自动左环绕（文字在右）；
+  # c=一律居中（文字在下方）；l=一律左环绕；r=右环绕
+  post_img_float: auto
   # 后台上传图片时自动压缩（画质基本不变，体积小很多）
   upload_shrink: true
   # 首页大标题下面那行字的样式（0 / 空 = 跟随主题）
@@ -201,7 +204,7 @@ wb_look:
   img_zoom: true
   # 页脚「本站已运行 XXX 天」小徽章
   uptime_enable: true
-  uptime_since: 2021-01-01
+  uptime_since: ''
   uptime_text: '本站已运行 {days} 天'
   # 首页排版见下面顶层的 index_layout（/site 后台「细节开关」里切换）
   # 自定义 404 页面（生成 public/404.html，GitHub Pages 会自动使用）
@@ -310,4 +313,21 @@ inject:
       #footer a:hover{color:#fff!important;text-decoration:underline}
       /* 深色模式下别压得太黑 */
       html[data-theme="dark"] #footer::before{background:linear-gradient(180deg,rgba(6,12,24,.45),rgba(6,12,24,.68))}
+
+      /* ---- 正文图片排版：?w= 定大小，?f= 定环绕（由 scripts/wb-post.js 加类名） ---- */
+      /* 图片靠左 / 靠右时，文字会自动绕到另一边，不再缩成半宽后右边一大片空白 */
+      #article-container .wb-fig{border-radius:8px}
+      #article-container .wb-fig-l{float:left}
+      #article-container .wb-fig-r{float:right}
+      #article-container .wb-fig-c{display:block}
+      /* 浮动图片后面的标题另起一行，避免标题文字也绕着图走 */
+      #article-container h1,#article-container h2,#article-container h3,
+      #article-container h4,#article-container h5,#article-container h6{clear:both}
+      /* 正文结束处收尾，图片再长也不会压到「上一篇/下一篇」和评论 */
+      #article-container::after{content:"";display:block;clear:both}
+      /* 手机上不环绕：一律整行居中，否则文字挤成一条 */
+      @media (max-width:768px){
+        #article-container .wb-fig-l,#article-container .wb-fig-r{
+          float:none!important;display:block!important;width:100%!important;margin:10px auto!important}
+      }
       </style>

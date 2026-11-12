@@ -57,15 +57,48 @@ function shrinkVideo(inputPath, outputPath) {
   return { ok: true };
 }
 
-/* 把 markdown / <img> 里某张图的 ?w= 参数改成指定值（空 = 去掉，恢复默认） */
-function setImgWidth(raw, src, w, onHit) {
+/* 把地址后面的参数改成「指定宽度 + 指定排版」，其它参数原样保留 */
+function rebuildQuery(qs, w, f) {
+  const parts = String(qs || '')
+    .replace(/^[?#]/, '')
+    .split('&')
+    .filter(Boolean);
+  const kept = [];
+  let hasW = false;
+  let hasF = false;
+  parts.forEach((p) => {
+    const k = p.split('=')[0];
+    if (k === 'w') {
+      hasW = true;
+      if (w) kept.push('w=' + w);
+      return;
+    }
+    if (k === 'f') {
+      hasF = true;
+      if (f) kept.push('f=' + f);
+      return;
+    }
+    kept.push(p);
+  });
+  if (w && !hasW) kept.unshift('w=' + w);
+  if (f && !hasF) kept.push('f=' + f);
+  return kept.length ? '?' + kept.join('&') : '';
+}
+
+/* 把 markdown / <img> 里某张图的 ?w=（宽度）和 ?f=（排版）改成指定值，空 = 删掉 */
+function setImgParams(raw, src, w, f, onHit) {
   const re = src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const q = w ? '?w=' + w : '';
   let out = raw;
-  const md = new RegExp('(!\\[[^\\]]*\\]\\()' + re + '((?:[?#&]w=[^&?#\\s]*)?)((?:\\s+"[^"]*")?\\))', 'g');
-  out = out.replace(md, (m0, a, b, c) => { onHit(); return a + src + q + c; });
-  const tag = new RegExp('(<img\\b[^>]*?\\bsrc=")' + re + '((?:[?#&]w=[^&?#\\s]*)?)(")', 'gi');
-  out = out.replace(tag, (m0, a, b, c) => { onHit(); return a + src + q + c; });
+  const md = new RegExp('(!\\[[^\\]]*\\]\\()' + re + '((?:[?#][^)\\s]*)?)((?:\\s+"[^"]*")?\\))', 'g');
+  out = out.replace(md, (m0, a, q, c) => {
+    onHit();
+    return a + src + rebuildQuery(q, w, f) + c;
+  });
+  const tag = new RegExp('(<img\\b[^>]*?\\bsrc=")' + re + '((?:[?#][^"]*)?)(")', 'gi');
+  out = out.replace(tag, (m0, a, q, c) => {
+    onHit();
+    return a + src + rebuildQuery(q, w, f) + c;
+  });
   return out;
 }
 
@@ -930,8 +963,13 @@ async function handle(hexo, req, res, options) {
       items.forEach((it) => {
         const src = String(it.src || '').trim();
         const w = String(it.width || '').trim();
+        const f = String(it.float || '').trim().toLowerCase();
         if (!src) return;
-        raw = setImgWidth(raw, src, w, () => { changed++; });
+        const next = setImgParams(raw, src, w, f, () => {});
+        if (next !== raw) {
+          raw = next;
+          changed++;
+        }
       });
       if (changed) {
         const next = raw;
@@ -955,8 +993,7 @@ async function handle(hexo, req, res, options) {
       return;
     }
 
-    if (req.method === 'POST' && url === '/publish') {
-      if (typeof options.publish !== 'function') {
+    if (req.method === 'POST' && url === '/publish') {      if (typeof options.publish !== 'function') {
         sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击「1-发布到网站.bat」。' });
         return;
       }

@@ -73,7 +73,21 @@ content:
       - name: img_width
         label: 正文图片宽度（只影响这一篇）
         type: string
-        description: 填数字，例如 72 表示 72%；想单独调某一张，在图片地址后加 ?w=50%
+        description: 填数字，例如 40 表示 40%；留空＝跟随全站默认。想单独调某一张，在图片地址后加 ?w=50%
+      # 图片和文字怎么排：选「左环绕」，文字就会写在图片右边，不再是图下一大段空白
+      - name: img_float
+        label: 正文图片排版（文字在图的哪一侧）
+        type: select
+        options:
+          values:
+            - label: 自动（宽度小就左环绕，文字在右）
+              value: auto
+            - label: 左环绕 —— 图片在左，文字绕在右边
+              value: l
+            - label: 右环绕 —— 图片在右，文字绕在左边
+              value: r
+            - label: 居中 —— 图片单独一行，文字在下方
+              value: c
       - name: tags
         label: 标签
         type: string
