@@ -142,6 +142,7 @@ hexo.extend.filter.register('after_post_render', function (data) {
     const tip = '<p class="wb-lock-tip">🔒 本文已加密，输入密码后查看正文。</p>';
     data.content = tip + splitLockAssets(lockBlock(encryptHtml(data.content, pwd)));
     data.excerpt = tip;
+    data.postDesc = tip; // 主题首页卡片优先用这个，避免把锁块的说明文字重复贴出来
     data.description = data.description || '加密文章';
   }
   return data;
