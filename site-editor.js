@@ -662,6 +662,9 @@ async function handle(hexo, req, res, options) {
         // 头像旋转：不依赖主题 styl 编译（主题的 avatar.effect 改动后常常不生效），
         // 统一写进 wb_look.avatar_spin，由 scripts/wb-look.js 注入/关闭动画。
         [['wb_look', 'avatar_spin'], boolStr(data.avatarEffect)],
+        // 正文图片默认宽度 / 上传自动压缩
+        [['wb_look', 'post_img_width'], numOr(data.postImgWidth)],
+        [['wb_look', 'upload_shrink'], boolStr(data.uploadShrink)],
       ].forEach(([p, v]) => {
         if (v === undefined) return;
         const r = ensureScalar(thNext, p, v);
@@ -780,6 +783,36 @@ async function handle(hexo, req, res, options) {
       return;
     }
 
+    // 单篇文章密码：只改 front-matter 里的 password，不动正文
+    if (req.method === 'POST' && url === '/postpass') {
+      const data = JSON.parse((await readBody(req)) || '{}');
+      const file = String(data.file || '');
+      const pwd = String(data.password || '').trim();
+      if (!/^[^\\/]+\.md$/i.test(file)) throw new Error('文件名不合法');
+      const abs = path.join(base, 'source', '_posts', file);
+      if (!fs.existsSync(abs)) throw new Error('找不到这篇文章：' + file);
+      const raw = readText(abs);
+      const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      if (!m) throw new Error('这篇文章开头没有 front-matter（--- 包起来的那段）');
+      let fm = m[1];
+      const lineRe = /^password:.*(?:\r?\n)?/m;
+      if (pwd) {
+        const val = '"' + pwd.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+        fm = lineRe.test(fm)
+          ? fm.replace(lineRe, 'password: ' + val + '\n')
+          : fm.replace(/\s*$/, '') + '\npassword: ' + val + '\n';
+      } else if (lineRe.test(fm)) {
+        fm = fm.replace(lineRe, '');
+      }
+      const next = raw.replace(m[1], fm);
+      if (next !== raw) fs.writeFileSync(abs, next);
+      try {
+        if (typeof hexo.load === 'function') await hexo.load();
+      } catch (e) { /* 文件已写入 */ }
+      sendJson(res, 200, { ok: true, password: pwd });
+      return;
+    }
+
     if (req.method === 'POST' && url === '/publish') {
       if (typeof options.publish !== 'function') {
         sendJson(res, 500, { ok: false, error: '当前进程不支持一键发布，请回到黑窗口双击「1-发布到网站.bat」。' });
@@ -831,6 +864,24 @@ function renderPage(cur) {
   const waline = theme.waline || {};
   const social = cur.social || {};
   const github = social['fab fa-github'] || '';
+  // 文章列表（给「文章密码」用）：只读 front-matter，不动正文
+  const postList = (function () {
+    const dir = path.join(hexo.base_dir, 'source', '_posts');
+    if (!fs.existsSync(dir)) return [];
+    return fs
+      .readdirSync(dir)
+      .filter((f) => /\.md$/i.test(f))
+      .map((f) => {
+        const raw = readText(path.join(dir, f));
+        const m = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        const fm = m ? m[1] : '';
+        const t = fm.match(/^title:\s*(.+)$/m);
+        const p = fm.match(/^password:\s*(.+)$/m);
+        const clean = (s) => String(s || '').trim().replace(/^["']|["']$/g, '');
+        return { file: f, title: clean(t && t[1]) || f.replace(/\.md$/, ''), password: clean(p && p[1]) };
+      })
+      .sort((a, b) => (a.file < b.file ? 1 : -1));
+  })();
   const mail = cur.siteData.mail || '';
   const sections = cur.siteData.sections || {};
   const downloads = cur.downloads || [];
@@ -1252,6 +1303,32 @@ function renderPage(cur) {
       </div>
 
       <div class="card">
+        <h2>正文图片与上传</h2>
+        <div class="row">
+          <div class="field" style="max-width:260px"><label>正文图片默认宽度</label>
+            <select id="postImgWidth">
+              <option value="100"${Number(wb.post_img_width) === 100 || wb.post_img_width === undefined ? ' selected' : ''}>100%（撑满正文）</option>
+              <option value="85"${Number(wb.post_img_width) === 85 ? ' selected' : ''}>85%（略收一点）</option>
+              <option value="70"${Number(wb.post_img_width) === 70 ? ' selected' : ''}>70%（画面内留白）</option>
+              <option value="60"${Number(wb.post_img_width) === 60 ? ' selected' : ''}>60%（小一点）</option>
+              <option value="50"${Number(wb.post_img_width) === 50 ? ' selected' : ''}>50%（半宽）</option>
+            </select>
+            <div class="hint">想单独调某一张：在图片地址后面加 <code>?w=60%</code> 或 <code>?w=400px</code>，这张就按那个大小显示。</div>
+          </div>
+          <div class="field" style="flex:1 1 280px">
+            <label><input type="checkbox" id="uploadShrink"${wbOn(wb.upload_shrink, true)}> 上传图片时自动压缩</label>
+            <div class="hint">最长边限制 1920px、转成 webp，肉眼基本看不出差别，体积通常小 60%~85%。上传时会显示压缩前后大小。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>文章密码<span class="badge">单篇加密</span></h2>
+        <div class="desc">填了密码的文章，网页上必须输密码才显示正文（构建时就加密，查看网页源码也看不到内容）。留空并保存＝取消密码。Pages CMS 里也有同一个「访问密码」格子。</div>
+        <div id="postPassList" class="hint">读取中…</div>
+      </div>
+
+      <div class="card">
         <h2>自定义 404 页面<span class="badge">输错网址时</span></h2>
         <div class="desc">别人访问不存在的地址时看到的页面。留空就用默认文字。</div>
         <div class="row">
@@ -1299,6 +1376,7 @@ function renderPage(cur) {
     downloads: downloads,
     contacts: contacts,
     heroImages: heroImages,
+    posts: postList,
   }).replace(/</g, '\\u003c')}</script>
 <script>
 var $ = function (s) { return document.querySelector(s); };
@@ -1311,6 +1389,8 @@ function collectAll() {
   var d = collect();
   var cb = function (id, k) { var el = document.getElementById(id); if (el) d[k] = !!el.checked; };
   var tx = function (id, k) { var el = document.getElementById(id); if (el) d[k] = el.value; };
+  tx('postImgWidth', 'postImgWidth');
+  cb('uploadShrink', 'uploadShrink');
   cb('imgZoom', 'imgZoom');
   cb('uptimeEnable', 'uptimeEnable');
   cb('notfoundEnable', 'notfoundEnable');
@@ -1337,20 +1417,62 @@ $('#tabs').addEventListener('click', function (e) {
 });
 
 /* ---- 图片选择 ---- */
+function kb(n) { return n >= 1024 * 1024 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+function wantShrink() { var el = document.getElementById('uploadShrink'); return !el || el.checked; }
+/* 浏览器里先把图缩小再上传：最长边 1920、webp 质量 0.86，画质基本无损 */
+function shrinkImage(file) {
+  return new Promise(function (resolve) {
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) return resolve(file);
+    if (file.size < 200 * 1024) return resolve(file);
+    var img = new Image();
+    var url = URL.createObjectURL(file);
+    img.onload = function () {
+      var max = 1920;
+      var s = Math.min(1, max / Math.max(img.width, img.height));
+      var c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * s));
+      c.height = Math.max(1, Math.round(img.height * s));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      function done(blob) {
+        URL.revokeObjectURL(url);
+        if (!blob || blob.size >= file.size * 0.92) return resolve(file);
+        var webp = blob.type === 'image/webp';
+        var name = file.name.replace(/\.[^.]+$/, '') + (webp ? '.webp' : '.jpg');
+        var out = new File([blob], name, { type: blob.type });
+        out._from = file.size;
+        resolve(out);
+      }
+      try {
+        c.toBlob(function (b) {
+          if (b && b.type === 'image/webp') return done(b);
+          c.toBlob(done, 'image/jpeg', 0.86);
+        }, 'image/webp', 0.86);
+      } catch (e) { URL.revokeObjectURL(url); resolve(file); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 function hookFile(input, key, thumbId) {
   var el = document.getElementById(input);
   if (!el) return;
   el.addEventListener('change', function () {
     var f = el.files && el.files[0];
     if (!f) return;
-    var r = new FileReader();
-    r.onload = function () {
-      picked[key] = { name: f.name, dataUrl: r.result };
-      var t = document.getElementById(thumbId);
-      if (t) t.style.backgroundImage = 'url(' + r.result + ')';
-      setStatus('已选择新图片，记得点保存', '');
-    };
-    r.readAsDataURL(f);
+    setStatus('处理图片…', '');
+    var prep = wantShrink() ? shrinkImage(f) : Promise.resolve(f);
+    prep.then(function (f2) {
+      var r = new FileReader();
+      r.onload = function () {
+        picked[key] = { name: f2.name, dataUrl: r.result };
+        var t = document.getElementById(thumbId);
+        if (t) t.style.backgroundImage = 'url(' + r.result + ')';
+        var note = f2.size < f.size ? '（已压缩 ' + kb(f.size) + ' → ' + kb(f2.size) + '）' : '';
+        setStatus('已选择新图片' + note + '，记得点保存', '');
+      };
+      r.readAsDataURL(f2);
+    });
   });
 }
 hookFile('avatarFile', 'avatar', 'avatarThumb');
@@ -1431,7 +1553,11 @@ function collectNav() {
 
 /* ---- 主页背景 ---- */
 function uploadMedia(file, kind) {
-  return fetch('/site/media?kind=' + kind + '&name=' + encodeURIComponent(file.name), { method: 'POST', body: file })
+  var prep = kind === 'img' && wantShrink() ? shrinkImage(file) : Promise.resolve(file);
+  return prep
+    .then(function (f) {
+      return fetch('/site/media?kind=' + kind + '&name=' + encodeURIComponent(f.name), { method: 'POST', body: f });
+    })
     .then(function (r) { return r.json(); })
     .then(function (j) {
       if (!j.ok) throw new Error(j.error || '上传失败');
@@ -1796,8 +1922,41 @@ $('#publishBtn').addEventListener('click', async function () {
   }
 });
 
+/* 文章密码列表：每篇文章一行，改完点该行「保存密码」 */
+function initPosts() {
+  var box = document.getElementById('postPassList');
+  if (!box) return;
+  var list = boot.posts || [];
+  if (!list.length) { box.textContent = '还没有文章。'; return; }
+  box.innerHTML = '';
+  list.forEach(function (p) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.style.cssText = 'align-items:flex-end;margin-bottom:10px';
+    row.innerHTML =
+      '<div class="field" style="flex:2 1 240px;margin-bottom:0"><label>' + String(p.title).replace(/[<>&]/g, '') + '</label>' +
+      '<div class="hint" style="margin:2px 0 0">' + String(p.file).replace(/[<>&]/g, '') + '</div></div>' +
+      '<div class="field" style="flex:1 1 160px;margin-bottom:0"><input type="text" placeholder="留空＝公开"></div>' +
+      '<div class="field" style="flex:0 0 auto;margin-bottom:0"><button type="button" class="ghost">保存密码</button></div>';
+    var inp = row.querySelector('input');
+    inp.value = p.password || '';
+    var btn = row.querySelector('button');
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      post('/site/postpass', { file: p.file, password: inp.value }).then(function (r) {
+        p.password = r.password || '';
+        setStatus('「' + p.title + '」' + (p.password ? '已设为加密' : '已取消密码') + '，记得点「保存并发布」', 'ok');
+      }).catch(function (e) {
+        setStatus('保存失败：' + e.message, 'err');
+      }).then(function () { btn.disabled = false; });
+    });
+    box.appendChild(row);
+  });
+}
+
 /* ---- 初始化动态列表（把服务端渲染的行换成可交互的） ---- */
 initNav();
+initPosts();
 initDl();
 initHero();
 initCt();

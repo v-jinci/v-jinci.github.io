@@ -187,6 +187,10 @@ wb_look:
   hero_overlay: 20
   # 头像是否旋转（/site 后台「显示开关」里改）
   avatar_spin: false
+  # 正文图片默认宽度（%）；单张想单独调就在图片地址后加 ?w=60% 或 ?w=400px
+  post_img_width: 100
+  # 后台上传图片时自动压缩（画质基本不变，体积小很多）
+  upload_shrink: true
   # 首页大标题下面那行字的样式（0 / 空 = 跟随主题）
   sub_size: 0
   sub_spacing: 0

@@ -64,6 +64,10 @@ content:
       - name: description
         label: 摘要（列表页显示的一句话）
         type: text
+      # 填了密码，这篇在网页上就要输密码才能看（本地写作、保存都不受影响）
+      - name: password
+        label: 访问密码（留空＝公开；填了就要输密码才能看）
+        type: string
       - name: tags
         label: 标签
         type: string
