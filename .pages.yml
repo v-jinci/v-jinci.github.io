@@ -68,25 +68,12 @@ content:
       - name: password
         label: 访问密码（留空＝公开；填了就要输密码才能看）
         type: string
-      # 正文里图片默认多大（只影响这一篇；单张图想单独调，在图片地址后加 ?w=50%）
+      # 正文里图片默认多大（只影响这一篇）
+      # 填数字就是百分比，例如 72 = 72%；留空 = 跟随全站默认
       - name: img_width
         label: 正文图片宽度（只影响这一篇）
-        type: select
-        default: ""
-        options:
-          values:
-            - label: 撑满（默认，跟全站设置一致）
-              value: ""
-            - label: 100%
-              value: "100"
-            - label: 85%
-              value: "85"
-            - label: 70%
-              value: "70"
-            - label: 60%
-              value: "60"
-            - label: 50%
-              value: "50"
+        type: string
+        description: 填数字，例如 72 表示 72%；想单独调某一张，在图片地址后加 ?w=50%
       - name: tags
         label: 标签
         type: string

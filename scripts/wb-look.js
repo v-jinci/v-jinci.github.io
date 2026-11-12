@@ -67,6 +67,18 @@ hexo.extend.filter.register('after_render:html', (str, data) => {
       : '.avatar-img{animation:avatar_turn_around 2s linear infinite}'
   );
 
+  // 导航栏：主题是「先 opacity:0，等 JS 跑完再加 .show」，
+  // 首屏图 / 视频没下载完时导航会一直看不见，点不了。这里直接常显。
+  out.push(
+    '#nav{opacity:1!important;transition:opacity .2s ease!important}' +
+      '#nav,#nav a,#nav span,#nav i{visibility:visible!important}'
+  );
+  // 头图还没下载完时先铺深色底，白色导航文字不会白到看不见
+  out.push(
+    '#page-header[style*="background-image"]{background-color:#242a38}' +
+      '#page-header.wb-hero-on{background-color:#242a38}'
+  );
+
   // 图标：强制带上版本号，避免浏览器 / CDN 一直用旧 favicon
   const fav = String((hexo.theme.config && hexo.theme.config.favicon) || '').trim();
   let iconTags = '';

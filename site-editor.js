@@ -1065,8 +1065,8 @@ function renderPage(cur) {
     );
   }).join('');
 
-  // 「正文图片大小」面板：按文章列出正文里的每张图 + 当前宽度
-  const WIDTHS = ['', '100', '85', '70', '60', '50'];
+  // 「正文图片大小」面板：按文章列出正文里的每张图 + 可手填的宽度
+  const numOf = (w) => String(w || '').replace(/[^\d.]/g, '');
   const shortName = (src) => {
     const base = String(src).split('/').pop().split('?')[0] || '图片';
     if (base.length <= 26) return base;
@@ -1074,29 +1074,25 @@ function renderPage(cur) {
     const ext = dot > 0 ? base.slice(dot) : '';
     return base.slice(0, 26 - ext.length - 1) + '…' + ext;
   };
-  const wSel = (cls, cur, firstLabel) =>
-    '<select class="' + cls + '">' +
-    WIDTHS.map(
-      (v) =>
-        '<option value="' + v + '"' + (String(cur || '') === v ? ' selected' : '') + '>' +
-        (v ? v + '%' : firstLabel) + '</option>'
-    ).join('') +
-    '</select>';
 
   const imgRows = postList
     .filter((p) => p.images && p.images.length)
     .map((p) => {
       const rows = p.images
         .map((im) => {
-          const name = shortName(im.src);
+          const v = numOf(im.w);
+          const pct = v ? Math.min(100, Math.max(10, Number(v))) : 100;
           return (
             '<div class="pi-row" data-src="' + esc(im.src) + '">' +
-            '<img class="pi-thumb" src="' + esc(im.src) + '" alt="" loading="lazy">' +
+            '<div class="pi-frame"><img class="pi-thumb" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%"></div>' +
             '<div class="pi-meta">' +
-            '<div class="pi-name" title="' + esc(im.src) + '">' + esc(name) + '</div>' +
-            '<div class="pi-sub">' + (im.w ? '单独设置 ' + esc(im.w) : '跟随全篇') + '</div>' +
+            '<div class="pi-name" title="' + esc(im.src) + '">' + esc(shortName(im.src)) + '</div>' +
+            '<div class="pi-sub">' + (v ? '单独设置 ' + esc(v) + '%' : '跟随整篇') + '</div>' +
             '</div>' +
-            wSel('pi-w', im.w, '跟随全篇') +
+            '<div class="pi-ctl">' +
+            '<input class="pi-w" type="number" min="10" max="100" step="1" value="' + esc(v) + '" placeholder="跟随">' +
+            '<span class="pi-pct">%</span>' +
+            '</div>' +
             '</div>'
           );
         })
@@ -1105,7 +1101,9 @@ function renderPage(cur) {
         '<div class="pi-post" data-file="' + esc(p.file) + '">' +
         '<div class="pi-head">' +
         '<div class="pi-title" title="' + esc(p.file) + '">' + esc(p.title) + '</div>' +
-        '<div class="pi-all"><span>整篇图片</span>' + wSel('pi-all-w', p.imgWidth, '跟随全站') + '</div>' +
+        '<div class="pi-all"><span>整篇</span>' +
+        '<input class="pi-all-w" type="number" min="10" max="100" step="1" value="' + esc(numOf(p.imgWidth)) + '" placeholder="跟全站"><span class="pi-pct">%</span>' +
+        '</div>' +
         '</div>' +
         rows +
         '</div>'
@@ -1177,19 +1175,21 @@ function renderPage(cur) {
   .pi-post{background:#fff;border:1px solid #e8ecf3;border-radius:12px;padding:12px 14px;margin-top:12px}
   .pi-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #eef1f6}
   .pi-title{flex:1 1 140px;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pi-all{display:flex;align-items:center;gap:6px;font-size:12px;color:#7b8698;flex:0 0 auto}
-  .pi-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f4f9;min-width:0}
+  .pi-all{display:flex;align-items:center;gap:4px;font-size:12px;color:#7b8698;flex:0 0 auto;white-space:nowrap}
+  .pi-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f4f9;min-width:0}
   .pi-row:last-child{border-bottom:0}
-  .pi-thumb{flex:0 0 76px;width:76px;height:48px;object-fit:cover;border-radius:8px;background:#eef1f6}
+  .pi-frame{flex:0 0 150px;width:150px;height:94px;border-radius:8px;background:#eef1f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pi-thumb{max-width:100%;max-height:100%;width:auto;height:auto;border-radius:6px;transition:width .15s ease}
   .pi-meta{flex:1 1 0;min-width:0;overflow:hidden}
   .pi-name{font-size:12.5px;color:#4b5563;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pi-sub{font-size:11px;color:#9aa7bd;line-height:1.3;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .pi-w{flex:0 0 auto;width:110px;max-width:38%;padding:6px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:13px}
-  .pi-all-w{width:104px;padding:5px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:12.5px}
+  .pi-ctl{flex:0 0 auto;display:flex;align-items:center;gap:3px}
+  .pi-ctl input,.pi-all input{width:62px;padding:6px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:13px;text-align:center}
+  .pi-ctl input:focus,.pi-all input:focus{outline:2px solid #c7d2fe;border-color:#93a4f7}
+  .pi-pct{font-size:12px;color:#9aa7bd}
   @media (max-width:560px){
     .pi-post{padding:10px}
-    .pi-thumb{flex-basis:52px;width:52px;height:38px}
-    .pi-w{width:92px}
+    .pi-frame{flex-basis:96px;width:96px;height:64px}
     .pi-title{flex-basis:100%}
   }
 </style>
@@ -2217,6 +2217,37 @@ renderCm();
 (function () {
   var btnSave = document.getElementById('postImgSave');
   if (!btnSave) return;
+
+  // 手填数字时，左边缩略图立刻按比例缩放（相对整篇宽度），边填边看效果
+  function clampW(v) {
+    var n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+    if (!n || isNaN(n)) return '';
+    return String(Math.min(100, Math.max(10, Math.round(n))));
+  }
+  function paint(scope, row) {
+    var inp = row.querySelector('.pi-w');
+    var own = clampW(inp && inp.value);
+    var all = scope.querySelector('.pi-all-w');
+    var fallback = clampW(all && all.value) || 100;
+    var pct = own ? Number(own) : Number(fallback);
+    var th = row.querySelector('.pi-thumb');
+    if (th) th.style.width = pct + '%';
+    var sub = row.querySelector('.pi-sub');
+    if (sub) sub.textContent = own ? '单独设置 ' + own + '%' : '跟随整篇' + (clampW(all && all.value) ? '（' + clampW(all.value) + '%）' : '');
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pi-row'), function (row) {
+    var scope = row.closest('.pi-post') || document;
+    var inp = row.querySelector('.pi-w');
+    if (inp) inp.addEventListener('input', function () { paint(scope, row); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.pi-all-w'), function (inp) {
+    var scope = inp.closest('.pi-post') || document;
+    inp.addEventListener('input', function () {
+      Array.prototype.forEach.call(scope.querySelectorAll('.pi-row'), function (row) { paint(scope, row); });
+    });
+  });
+
   btnSave.addEventListener('click', function () {
     var state = document.getElementById('postImgState');
     var posts = document.querySelectorAll('#postImgList .pi-post');
@@ -2225,11 +2256,12 @@ renderCm();
     Array.prototype.forEach.call(posts, function (p) {
       var imgs = [];
       Array.prototype.forEach.call(p.querySelectorAll('.pi-row'), function (r) {
-        imgs.push({ src: r.getAttribute('data-src'), width: r.querySelector('.pi-w').value });
+        var v = clampW(r.querySelector('.pi-w').value);
+        imgs.push({ src: r.getAttribute('data-src'), width: v ? v + '%' : '' });
       });
       var allW = p.querySelector('.pi-all-w');
       var body = { file: p.getAttribute('data-file'), images: imgs };
-      if (allW) body.imgWidth = allW.value;
+      if (allW) body.imgWidth = clampW(allW.value);
       jobs.push(post('/site/postimg', body));
     });
     state.textContent = '保存中…';

@@ -53,8 +53,11 @@ hexo.extend.filter.register('after_render:html', (str) => {
   let layers = '';
   // 先放图片层，再放视频层：视频在上面，图片在下面当兜底。
   // （原来视频在最底层，被第一张图完全盖住 —— 所以「只有一个、不切换、没视频」。）
-  if (images.length) {
-    layers += images
+  // 有视频时，图片只用第一张当兜底：其余几张反正被视频盖住，
+  // 再下载它们只会拖慢首屏（导航栏、标题都跟着变慢）。
+  const useImgs = video ? images.slice(0, 1) : images;
+  if (useImgs.length) {
+    layers += useImgs
       .map((src, i) => '<div class="wb-slide' + (i === 0 ? ' on' : '') + '" style="background-image:url(' + esc(src + cacheKey(src)) + ')"></div>')
       .join('');
   }
