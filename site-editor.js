@@ -1065,8 +1065,13 @@ function renderPage(cur) {
     );
   }).join('');
 
-  // 「正文图片大小」面板：按文章列出正文里的每张图 + 可手填的宽度
-  const numOf = (w) => String(w || '').replace(/[^\d.]/g, '');
+  // 「正文图片大小」面板：文章实际宽度预览 + 每张图手填宽度
+  const numOf = (w) => String(w || '').replace(/[^0-9.]/g, '');
+  const clampPct = (v) => {
+    const n = Number(numOf(v));
+    if (!n) return 0;
+    return Math.min(100, Math.max(10, n));
+  };
   const shortName = (src) => {
     const base = String(src).split('/').pop().split('?')[0] || '图片';
     if (base.length <= 26) return base;
@@ -1078,16 +1083,17 @@ function renderPage(cur) {
   const imgRows = postList
     .filter((p) => p.images && p.images.length)
     .map((p) => {
+      const allW = clampPct(p.imgWidth);
       const rows = p.images
-        .map((im) => {
+        .map((im, idx) => {
           const v = numOf(im.w);
-          const pct = v ? Math.min(100, Math.max(10, Number(v))) : 100;
+          const pct = clampPct(v) || allW || 100;
           return (
-            '<div class="pi-row" data-src="' + esc(im.src) + '">' +
+            '<div class="pi-row" data-src="' + esc(im.src) + '" data-idx="' + idx + '">' +
             '<div class="pi-frame"><img class="pi-thumb" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%"></div>' +
             '<div class="pi-meta">' +
             '<div class="pi-name" title="' + esc(im.src) + '">' + esc(shortName(im.src)) + '</div>' +
-            '<div class="pi-sub">' + (v ? '单独设置 ' + esc(v) + '%' : '跟随整篇') + '</div>' +
+            '<div class="pi-sub">' + (v ? '单独 ' + esc(v) + '%' : '跟随整篇' + (allW ? ' ' + allW + '%' : '')) + '</div>' +
             '</div>' +
             '<div class="pi-ctl">' +
             '<input class="pi-w" type="number" min="10" max="100" step="1" value="' + esc(v) + '" placeholder="跟随">' +
@@ -1097,14 +1103,25 @@ function renderPage(cur) {
           );
         })
         .join('');
+      const prevs = p.images
+        .map((im, idx) => {
+          const v = numOf(im.w);
+          const pct = clampPct(v) || allW || 100;
+          return (
+            '<img class="pi-pv" data-idx="' + idx + '" src="' + esc(im.src) + '" alt="" loading="lazy" style="width:' + pct + '%">'
+          );
+        })
+        .join('');
       return (
         '<div class="pi-post" data-file="' + esc(p.file) + '">' +
         '<div class="pi-head">' +
         '<div class="pi-title" title="' + esc(p.file) + '">' + esc(p.title) + '</div>' +
         '<div class="pi-all"><span>整篇</span>' +
-        '<input class="pi-all-w" type="number" min="10" max="100" step="1" value="' + esc(numOf(p.imgWidth)) + '" placeholder="跟全站"><span class="pi-pct">%</span>' +
+        '<input class="pi-all-w" type="number" min="10" max="100" step="1" value="' + esc(allW || '') + '" placeholder="跟全站"><span class="pi-pct">%</span>' +
         '</div>' +
         '</div>' +
+        '<div class="pi-prev-area"><div class="pi-prev">' + prevs + '</div>' +
+        '<div class="pi-prev-tip">👆 这里就是文章里的真实宽度效果，点图片可跳到对应设置</div></div>' +
         rows +
         '</div>'
       );
@@ -1176,10 +1193,17 @@ function renderPage(cur) {
   .pi-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #eef1f6}
   .pi-title{flex:1 1 140px;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pi-all{display:flex;align-items:center;gap:4px;font-size:12px;color:#7b8698;flex:0 0 auto;white-space:nowrap}
-  .pi-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f4f9;min-width:0}
+  .pi-prev-area{margin:10px 0 2px;background:#f3f6fb;border:1px dashed #d8e1ee;border-radius:10px;padding:8px}
+  .pi-prev{max-height:360px;overflow:auto;background:#fff;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .pi-prev:empty:before{content:"这篇文章正文里没有图片";color:#9aa7bd;font-size:12.5px}
+  .pi-pv{max-width:100%;height:auto;border-radius:6px;display:block;cursor:pointer;transition:width .15s ease;box-shadow:0 1px 4px rgba(15,23,42,.08)}
+  .pi-pv.hit{outline:3px solid #93a4f7;outline-offset:2px}
+  .pi-prev-tip{font-size:11.5px;color:#9aa7bd;margin-top:6px;text-align:center}
+  .pi-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f4f9;min-width:0;border-radius:8px;transition:background .2s}
   .pi-row:last-child{border-bottom:0}
-  .pi-frame{flex:0 0 150px;width:150px;height:94px;border-radius:8px;background:#eef1f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  .pi-thumb{max-width:100%;max-height:100%;width:auto;height:auto;border-radius:6px;transition:width .15s ease}
+  .pi-row.hit{background:#eef2ff}
+  .pi-frame{flex:0 0 66px;width:66px;height:44px;border-radius:7px;background:#eef1f6;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .pi-thumb{max-width:100%;max-height:100%;width:auto;height:auto;border-radius:5px;transition:width .15s ease}
   .pi-meta{flex:1 1 0;min-width:0;overflow:hidden}
   .pi-name{font-size:12.5px;color:#4b5563;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .pi-sub{font-size:11px;color:#9aa7bd;line-height:1.3;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1189,8 +1213,9 @@ function renderPage(cur) {
   .pi-pct{font-size:12px;color:#9aa7bd}
   @media (max-width:560px){
     .pi-post{padding:10px}
-    .pi-frame{flex-basis:96px;width:96px;height:64px}
     .pi-title{flex-basis:100%}
+    .pi-prev-area{padding:6px}
+    .pi-prev{padding:8px 6px}
   }
 </style>
 </head>
@@ -2218,35 +2243,58 @@ renderCm();
   var btnSave = document.getElementById('postImgSave');
   if (!btnSave) return;
 
-  // 手填数字时，左边缩略图立刻按比例缩放（相对整篇宽度），边填边看效果
+  // 手填数字时，上方预览区立刻按真实比例缩放，边填边看效果
   function clampW(v) {
-    var n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+    var n = parseFloat(String(v || '').replace(/[^0-9.]/g, ''));
     if (!n || isNaN(n)) return '';
     return String(Math.min(100, Math.max(10, Math.round(n))));
   }
-  function paint(scope, row) {
-    var inp = row.querySelector('.pi-w');
-    var own = clampW(inp && inp.value);
-    var all = scope.querySelector('.pi-all-w');
-    var fallback = clampW(all && all.value) || 100;
-    var pct = own ? Number(own) : Number(fallback);
-    var th = row.querySelector('.pi-thumb');
-    if (th) th.style.width = pct + '%';
-    var sub = row.querySelector('.pi-sub');
-    if (sub) sub.textContent = own ? '单独设置 ' + own + '%' : '跟随整篇' + (clampW(all && all.value) ? '（' + clampW(all.value) + '%）' : '');
+  function paint(scope) {
+    var allEl = scope.querySelector('.pi-all-w');
+    var all = clampW(allEl && allEl.value);
+    Array.prototype.forEach.call(scope.querySelectorAll('.pi-row'), function (row) {
+      var ownEl = row.querySelector('.pi-w');
+      var own = clampW(ownEl && ownEl.value);
+      var pct = Number(own || all || 100);
+      var th = row.querySelector('.pi-thumb');
+      if (th) th.style.width = Math.max(26, Math.round(pct * 0.66)) + 'px';
+      var sub = row.querySelector('.pi-sub');
+      if (sub) sub.textContent = own ? '单独 ' + own + '%' : '跟随整篇' + (all ? ' ' + all + '%' : '');
+      var pv = scope.querySelector('.pi-pv[data-idx="' + row.getAttribute('data-idx') + '"]');
+      if (pv) pv.style.width = pct + '%';
+    });
   }
 
-  Array.prototype.forEach.call(document.querySelectorAll('.pi-row'), function (row) {
-    var scope = row.closest('.pi-post') || document;
+  // 用事件委托，面板是服务端直出的也没关系，任何输入都会立即刷新预览
+  function scopeOf(el) {
+    return el && el.closest ? el.closest('.pi-post') : null;
+  }
+  document.addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.classList) return;
+    if (t.classList.contains('pi-w') || t.classList.contains('pi-all-w')) {
+      var scope = scopeOf(t);
+      if (scope) paint(scope);
+    }
+  });
+  document.addEventListener('click', function (e) {
+    var pv = e.target && e.target.closest ? e.target.closest('.pi-pv') : null;
+    if (!pv) return;
+    var scope = scopeOf(pv);
+    if (!scope) return;
+    var row = scope.querySelector('.pi-row[data-idx="' + pv.getAttribute('data-idx') + '"]');
+    if (!row) return;
+    Array.prototype.forEach.call(scope.querySelectorAll('.pi-pv, .pi-row'), function (el) { el.classList.remove('hit'); });
+    pv.classList.add('hit');
+    row.classList.add('hit');
     var inp = row.querySelector('.pi-w');
-    if (inp) inp.addEventListener('input', function () { paint(scope, row); });
+    if (inp) { inp.focus(); inp.select(); }
+    if (row.scrollIntoView) {
+      try { row.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (err) { row.scrollIntoView(); }
+    }
   });
-  Array.prototype.forEach.call(document.querySelectorAll('.pi-all-w'), function (inp) {
-    var scope = inp.closest('.pi-post') || document;
-    inp.addEventListener('input', function () {
-      Array.prototype.forEach.call(scope.querySelectorAll('.pi-row'), function (row) { paint(scope, row); });
-    });
-  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.pi-post'), function (scope) { paint(scope); });
 
   btnSave.addEventListener('click', function () {
     var state = document.getElementById('postImgState');
