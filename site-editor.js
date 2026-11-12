@@ -69,6 +69,24 @@ function setImgWidth(raw, src, w, onHit) {
   return out;
 }
 
+/* 只改 front-matter 里的某个字段；value 为空则删除该行。返回新的全文 */
+function setFmField(raw, key, value) {
+  const m = String(raw).match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!m) return raw;
+  let fm = m[1];
+  const lineRe = new RegExp('^' + key + ':.*(?:\\r?\\n)?', 'm');
+  const v = String(value == null ? '' : value).trim();
+  if (v) {
+    const val = '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+    fm = lineRe.test(fm)
+      ? fm.replace(lineRe, key + ': ' + val + '\n')
+      : fm.replace(/\s*$/, '') + '\n' + key + ': ' + val + '\n';
+  } else if (lineRe.test(fm)) {
+    fm = fm.replace(lineRe, '');
+  }
+  return raw.replace(m[1], fm);
+}
+
 module.exports = { register };
 
 function register(hexo, opts) {
@@ -920,6 +938,19 @@ async function handle(hexo, req, res, options) {
         if (next !== readText(abs)) fs.writeFileSync(abs, next);
         try { if (typeof hexo.load === 'function') await hexo.load(); } catch (e) { /* 已写入 */ }
       }
+      // 整篇图片宽度（front-matter 的 img_width），和 Pages CMS 里那个下拉是同一个字段
+      if (data.imgWidth !== undefined) {
+        let raw2 = readText(abs);
+        const cur2 = (raw2.match(/^img_width:\s*(.+)$/m) || [])[1];
+        const now = cur2 ? cur2.replace(/["']/g, '').trim() : '';
+        const want = String(data.imgWidth || '').trim();
+        if (now !== want) {
+          raw2 = setFmField(raw2, 'img_width', want);
+          fs.writeFileSync(abs, raw2);
+          changed++;
+          try { if (typeof hexo.load === 'function') await hexo.load(); } catch (e) { /* 已写入 */ }
+        }
+      }
       sendJson(res, 200, { ok: true, changed: changed });
       return;
     }
@@ -1006,10 +1037,12 @@ function renderPage(cur) {
         const imgRe = /<img\b[^>]*\bsrc=["']([^"']+)/gi;
         while ((mm = imgRe.exec(body))) pushImg(mm[1]);
 
+        const iw = fm.match(/^img_width:\s*(.+)$/m);
         return {
           file: f,
           title: clean(t && t[1]) || f.replace(/\.md$/, ''),
           password: clean(p && p[1]),
+          imgWidth: clean(iw && iw[1]),
           images: images,
         };
       })
@@ -1033,26 +1066,47 @@ function renderPage(cur) {
   }).join('');
 
   // 「正文图片大小」面板：按文章列出正文里的每张图 + 当前宽度
+  const WIDTHS = ['', '100', '85', '70', '60', '50'];
+  const shortName = (src) => {
+    const base = String(src).split('/').pop().split('?')[0] || '图片';
+    if (base.length <= 26) return base;
+    const dot = base.lastIndexOf('.');
+    const ext = dot > 0 ? base.slice(dot) : '';
+    return base.slice(0, 26 - ext.length - 1) + '…' + ext;
+  };
+  const wSel = (cls, cur, firstLabel) =>
+    '<select class="' + cls + '">' +
+    WIDTHS.map(
+      (v) =>
+        '<option value="' + v + '"' + (String(cur || '') === v ? ' selected' : '') + '>' +
+        (v ? v + '%' : firstLabel) + '</option>'
+    ).join('') +
+    '</select>';
+
   const imgRows = postList
     .filter((p) => p.images && p.images.length)
     .map((p) => {
       const rows = p.images
         .map((im) => {
-          const opts = ['', '85%', '70%', '60%', '50%']
-            .map((v) => '<option value="' + v + '"' + (String(im.w) === v ? ' selected' : '') + '>' + (v || '100%（默认）') + '</option>')
-            .join('');
+          const name = shortName(im.src);
           return (
-            '<div class="pi-row" data-src="' + esc(im.src) + '" style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #eef1f6">' +
-            '<img src="' + esc(im.src) + '" alt="" style="width:96px;height:56px;object-fit:cover;border-radius:8px;background:#eef1f6;flex:0 0 auto">' +
-            '<div style="flex:1;min-width:0;font-size:13px;color:#64748b;word-break:break-all">' + esc(im.src.split('/').pop()) + '</div>' +
-            '<select class="pi-w" style="padding:6px 8px;border-radius:8px;border:1px solid #d7dce6;background:#fff">' + opts + '</select>' +
+            '<div class="pi-row" data-src="' + esc(im.src) + '">' +
+            '<img class="pi-thumb" src="' + esc(im.src) + '" alt="" loading="lazy">' +
+            '<div class="pi-meta">' +
+            '<div class="pi-name" title="' + esc(im.src) + '">' + esc(name) + '</div>' +
+            '<div class="pi-sub">' + (im.w ? '单独设置 ' + esc(im.w) : '跟随全篇') + '</div>' +
+            '</div>' +
+            wSel('pi-w', im.w, '跟随全篇') +
             '</div>'
           );
         })
         .join('');
       return (
-        '<div class="pi-post" data-file="' + esc(p.file) + '" style="margin-top:16px">' +
-        '<div style="font-weight:600;font-size:14px;margin-bottom:2px">' + esc(p.title) + '</div>' +
+        '<div class="pi-post" data-file="' + esc(p.file) + '">' +
+        '<div class="pi-head">' +
+        '<div class="pi-title" title="' + esc(p.file) + '">' + esc(p.title) + '</div>' +
+        '<div class="pi-all"><span>整篇图片</span>' + wSel('pi-all-w', p.imgWidth, '跟随全站') + '</div>' +
+        '</div>' +
         rows +
         '</div>'
       );
@@ -1119,6 +1173,25 @@ function renderPage(cur) {
   .switches{display:flex;gap:18px;flex-wrap:wrap}
   .switches .chk{padding:4px 0}
   .warn{background:#fff8e6;border:1px solid #ffe3a3;color:#8a6d1f;font-size:12.5px;border-radius:9px;padding:9px 12px;line-height:1.7;margin-top:10px}
+  /* 正文图片面板 */
+  .pi-post{background:#fff;border:1px solid #e8ecf3;border-radius:12px;padding:12px 14px;margin-top:12px}
+  .pi-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #eef1f6}
+  .pi-title{flex:1 1 140px;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pi-all{display:flex;align-items:center;gap:6px;font-size:12px;color:#7b8698;flex:0 0 auto}
+  .pi-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f4f9;min-width:0}
+  .pi-row:last-child{border-bottom:0}
+  .pi-thumb{flex:0 0 76px;width:76px;height:48px;object-fit:cover;border-radius:8px;background:#eef1f6}
+  .pi-meta{flex:1 1 0;min-width:0;overflow:hidden}
+  .pi-name{font-size:12.5px;color:#4b5563;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pi-sub{font-size:11px;color:#9aa7bd;line-height:1.3;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pi-w{flex:0 0 auto;width:110px;max-width:38%;padding:6px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:13px}
+  .pi-all-w{width:104px;padding:5px 6px;border-radius:8px;border:1px solid #d7dce6;background:#fff;font-size:12.5px}
+  @media (max-width:560px){
+    .pi-post{padding:10px}
+    .pi-thumb{flex-basis:52px;width:52px;height:38px}
+    .pi-w{width:92px}
+    .pi-title{flex-basis:100%}
+  }
 </style>
 </head>
 <body>
@@ -1425,7 +1498,8 @@ function renderPage(cur) {
     <div class="panel" id="p-img">
       <div class="card">
         <h2>正文图片大小<span class="badge">不用改代码</span></h2>
-        <div class="desc">给每张图选个宽度，点下面「保存图片大小」，正文里的图片地址会自动带上参数。100% = 撑满正文宽度。</div>
+        <div class="desc">先看每篇文章右上角的「整篇图片」：选一个宽度就能管整篇的图，不用一张张调。想单独调某张，再改它自己那一行。</div>
+        <div class="warn">在 Pages CMS 里在线写文章时，文章表单里同样有「正文图片宽度」这一项，选一下就行，不用回本地改。这里只用做批量微调。</div>
         <div id="postImgList">${imgRows || '<div class="hint">文章正文里还没插入图片。</div>'}</div>
         <button type="button" id="postImgSave" style="margin-top:14px">保存图片大小</button>
         <div class="hint" id="postImgState" style="margin-top:8px"></div>
@@ -2153,13 +2227,18 @@ renderCm();
       Array.prototype.forEach.call(p.querySelectorAll('.pi-row'), function (r) {
         imgs.push({ src: r.getAttribute('data-src'), width: r.querySelector('.pi-w').value });
       });
-      if (imgs.length) jobs.push(post('/site/postimg', { file: p.getAttribute('data-file'), images: imgs }));
+      var allW = p.querySelector('.pi-all-w');
+      var body = { file: p.getAttribute('data-file'), images: imgs };
+      if (allW) body.imgWidth = allW.value;
+      jobs.push(post('/site/postimg', body));
     });
     state.textContent = '保存中…';
     btnSave.disabled = true;
     Promise.all(jobs)
-      .then(function () {
-        state.textContent = '已保存。本地预览刷新即可看到；线上需要点「保存并发布」。';
+      .then(function (res) {
+        var n = 0;
+        (res || []).forEach(function (r) { n += (r && r.changed) || 0; });
+        state.textContent = '已保存（' + n + ' 处改动）。本地预览刷新即可看到；线上需要点「保存并发布」。';
         setStatus('正文图片大小已更新', 'ok');
       })
       .catch(function (e) { state.textContent = '保存失败：' + e.message; })

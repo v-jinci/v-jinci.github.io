@@ -132,7 +132,9 @@ hexo.extend.filter.register('after_post_render', function (data) {
   if (!data || typeof data.content !== 'string') return data;
 
   const cfg = (hexo.theme.config && hexo.theme.config.wb_look) || {};
-  const defW = Number(cfg.post_img_width) || 100;
+  // 优先级：单张图片地址里的 ?w=  >  这篇文章 front-matter 的 img_width（Pages CMS 里选）  >  全站默认值
+  const own = Number(String(data.img_width || '').replace(/[^\d.]/g, ''));
+  const defW = own ? own : Number(cfg.post_img_width) || 100;
 
   data.content = applyImgWidth(data.content, defW);
 
