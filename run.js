@@ -741,6 +741,13 @@ async function publishViaGit() {
   }
 
   // 3. 看看动了哪些文件
+  // 防护：Tina 构建会生成 source/admin/.gitignore（忽略 index.html 和 assets/），
+  // 它会让 git 把后台的新 bundle 全部跳过不发布（线上 404），必须在 add 前删掉。
+  const adminGitignore = path.join(dir, 'source', 'admin', '.gitignore');
+  if (fs.existsSync(adminGitignore)) {
+    fs.rmSync(adminGitignore);
+    sub('已清理 source/admin/.gitignore（Tina 生成，会导致后台资源漏传）');
+  }
   runGit(['add', '-A'], dir);
   let st = runGit(['status', '--porcelain'], dir);
   let changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
