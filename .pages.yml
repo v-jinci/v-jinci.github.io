@@ -141,6 +141,10 @@ content:
         description: 只影响没有单独设过排版的图片；某一张想单独改，在图片地址后加 ?f=r（图片靠右）
 
       # ---------------- 转载 ----------------
+      - name: permalink
+        label: 自定义链接（一般不用改）
+        type: string
+        description: 锁定这篇文章的网址，防止改文件名后旧链接失效。不知道是什么就别动它
       - name: reprint_name
         label: 转载来源名称（转载别处文章才填）
         type: string

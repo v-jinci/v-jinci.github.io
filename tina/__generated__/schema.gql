@@ -104,6 +104,7 @@ type Posts implements Node & Document {
   password: String
   img_width: String
   img_float: String
+  permalink: String
   reprint_name: String
   reprint_url: String
   top_img: String
@@ -156,6 +157,7 @@ input PostsFilter {
   password: StringFilter
   img_width: StringFilter
   img_float: StringFilter
+  permalink: StringFilter
   reprint_name: StringFilter
   reprint_url: StringFilter
   top_img: StringFilter
@@ -208,6 +210,7 @@ input PostsMutation {
   password: String
   img_width: String
   img_float: String
+  permalink: String
   reprint_name: String
   reprint_url: String
   top_img: String

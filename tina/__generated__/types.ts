@@ -182,6 +182,7 @@ export type Posts = Node & Document & {
   password?: Maybe<Scalars['String']['output']>;
   img_width?: Maybe<Scalars['String']['output']>;
   img_float?: Maybe<Scalars['String']['output']>;
+  permalink?: Maybe<Scalars['String']['output']>;
   reprint_name?: Maybe<Scalars['String']['output']>;
   reprint_url?: Maybe<Scalars['String']['output']>;
   top_img?: Maybe<Scalars['String']['output']>;
@@ -234,6 +235,7 @@ export type PostsFilter = {
   password?: InputMaybe<StringFilter>;
   img_width?: InputMaybe<StringFilter>;
   img_float?: InputMaybe<StringFilter>;
+  permalink?: InputMaybe<StringFilter>;
   reprint_name?: InputMaybe<StringFilter>;
   reprint_url?: InputMaybe<StringFilter>;
   top_img?: InputMaybe<StringFilter>;
@@ -334,6 +336,7 @@ export type PostsMutation = {
   password?: InputMaybe<Scalars['String']['input']>;
   img_width?: InputMaybe<Scalars['String']['input']>;
   img_float?: InputMaybe<Scalars['String']['input']>;
+  permalink?: InputMaybe<Scalars['String']['input']>;
   reprint_name?: InputMaybe<Scalars['String']['input']>;
   reprint_url?: InputMaybe<Scalars['String']['input']>;
   top_img?: InputMaybe<Scalars['String']['input']>;
@@ -383,6 +386,7 @@ export type PostsFilter = {
   password?: StringFilter | null | undefined;
   img_width?: StringFilter | null | undefined;
   img_float?: StringFilter | null | undefined;
+  permalink?: StringFilter | null | undefined;
   reprint_name?: StringFilter | null | undefined;
   reprint_url?: StringFilter | null | undefined;
   top_img?: StringFilter | null | undefined;
@@ -391,14 +395,14 @@ export type PostsFilter = {
   body?: StringFilter | null | undefined;
 };
 
-export type PostsPartsFragment = { __typename: 'Posts', title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null };
+export type PostsPartsFragment = { __typename: 'Posts', title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null };
 
 export type PostsQueryVariables = Exact<{
   relativePath: string;
 }>;
 
 
-export type PostsQuery = { posts: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
+export type PostsQuery = { posts: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
 
 export type PostsConnectionQueryVariables = Exact<{
   before?: string | null | undefined;
@@ -410,7 +414,7 @@ export type PostsConnectionQueryVariables = Exact<{
 }>;
 
 
-export type PostsConnectionQuery = { postsConnection: { totalCount: number, pageInfo: { hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges: Array<{ cursor: string, node: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
+export type PostsConnectionQuery = { postsConnection: { totalCount: number, pageInfo: { hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges: Array<{ cursor: string, node: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
 
 export const PostsPartsFragmentDoc = gql`
     fragment PostsParts on Posts {
@@ -428,6 +432,7 @@ export const PostsPartsFragmentDoc = gql`
   password
   img_width
   img_float
+  permalink
   reprint_name
   reprint_url
   top_img

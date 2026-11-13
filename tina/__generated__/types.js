@@ -21,6 +21,7 @@ export const PostsPartsFragmentDoc = gql`
   password
   img_width
   img_float
+  permalink
   reprint_name
   reprint_url
   top_img

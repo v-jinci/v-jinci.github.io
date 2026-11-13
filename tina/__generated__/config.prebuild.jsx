@@ -75,6 +75,7 @@ var config_default = defineConfig({
               ]
             }
           },
+          { name: "permalink", label: "\u81EA\u5B9A\u4E49\u94FE\u63A5\uFF08\u4E00\u822C\u4E0D\u7528\u6539\uFF0C\u9501\u5B9A\u65E7\u6587\u7AE0\u7684\u7F51\u5740\uFF09", type: "string", required: false },
           { name: "reprint_name", label: "\u8F6C\u8F7D\u6765\u6E90\u540D\u79F0", type: "string", required: false },
           { name: "reprint_url", label: "\u8F6C\u8F7D\u539F\u6587\u94FE\u63A5", type: "string", required: false },
           // 老文章常见字段，保留防止被删

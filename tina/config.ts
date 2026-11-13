@@ -94,6 +94,7 @@ export default defineConfig({
             ],
           },
         },
+        { name: 'permalink', label: '自定义链接（一般不用改，锁定旧文章的网址）', type: 'string', required: false },
         { name: 'reprint_name', label: '转载来源名称', type: 'string', required: false },
         { name: 'reprint_url', label: '转载原文链接', type: 'string', required: false },
         // 老文章常见字段，保留防止被删

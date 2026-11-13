@@ -197,6 +197,7 @@ https://v-jinci.github.io
 
 **Tina 补充说明**：
 - 线上的 `/admin/` 是 Tina 的登录页（发布脚本会把 `source/admin/` 原样带上）；本地预览时 `/admin` 被旧插件占用属正常，看线上即可。
+- **文章文件名不要用中文**：TinaCloud 的接口打不开含中文文件名的文章（会报 `relativePath contains invalid characters`）。文件名用英文/数字，标题照样写中文，页面显示不受影响。旧文章已全部改成英文文件名，并用 `permalink` 字段锁住了原来的网址。
 - app.tina.io 点进项目后如果看不到内容列表，去项目的 **Branches** 页签添加 `hexo-src` 并设为默认分支。
 - 改过 `tina/config.ts` 的字段后要重新生成后台页面：运行 `npm run tina`（等于 `tinacms build`），再把 `public/admin/` 复制到 `source/admin/`。
 
