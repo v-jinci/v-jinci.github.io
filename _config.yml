@@ -34,6 +34,8 @@ skip_render:
   # Sveltia CMS 的后台页面（/cms）要原样复制，不能被 Hexo 当成模板处理
   # （否则 config.yml 会被转成 config.json，CMS 就找不到配置了）
   - 'cms/**'
+  # Tina CMS 的后台页面（/admin）同样要原样复制（里面是编译好的 JS/CSS）
+  - 'admin/**'
 
 # ---------- 写作 ----------
 new_post_name: :year-:month-:day-:title.md

@@ -22,9 +22,9 @@ export default defineConfig({
 
   branch: 'hexo-src',
 
-  // Tina 自带后台页面的构建位置（本地调试用，不影响线上）
+  // Tina 自带后台页面的发布位置：发布后打开 你的网址/admin 即可编辑
   build: {
-    outputFolder: 'tina-admin',
+    outputFolder: 'admin',
     publicFolder: 'public',
   },
 
