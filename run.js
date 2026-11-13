@@ -503,12 +503,36 @@ function loadPublishState() {
 
 function savePublishState(rels) {
   const fs = require('fs');
-  fs.writeFileSync(publishStatePath(), JSON.stringify({ updated: new Date().toISOString(), files: rels }, null, 2));
+  let removed = [];
+  try {
+    const d = JSON.parse(fs.readFileSync(publishStatePath(), 'utf8'));
+    if (Array.isArray(d.removed)) removed = d.removed;
+  } catch (e) {}
+  fs.writeFileSync(publishStatePath(), JSON.stringify({ updated: new Date().toISOString(), files: rels, removed: removed }, null, 2));
 }
 
-/** 发布时允许删除的文件 = 上次发布清单 ∪ 云端同步记录（两边「都见过」才算认得） */
+/** 本地已改名/删除、等待发布时从线上移除的文件 */
+function loadRemovedState() {
+  const fs = require('fs');
+  try {
+    const d = JSON.parse(fs.readFileSync(publishStatePath(), 'utf8'));
+    return Array.isArray(d.removed) ? d.removed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRemovedState(rels) {
+  const fs = require('fs');
+  const old = loadRemovedState();
+  const files = loadPublishState();
+  const merged = old.concat(rels.filter((r) => old.indexOf(r) === -1));
+  fs.writeFileSync(publishStatePath(), JSON.stringify({ updated: new Date().toISOString(), files: files, removed: merged }, null, 2));
+}
+
+/** 发布时允许删除的文件 = 上次发布清单 ∪ 云端同步记录 ∪ 已记录的改名/删除（两边「都见过」才算认得） */
 function knownPublishedFiles() {
-  return new Set(Object.keys(loadSyncState()).concat(loadPublishState()));
+  return new Set(Object.keys(loadSyncState()).concat(loadPublishState()).concat(loadRemovedState()));
 }
 
 /**
@@ -560,10 +584,13 @@ async function syncSource(opts) {
 
   const state = loadSyncState();
   const firstRun = Object.keys(state).length === 0;
+  const removedBefore = loadRemovedState();
+  const newlyRemoved = [];
   const nextState = {};
   const added = [];
   const updated = [];
   const localOnly = [];
+  const localRemoved = [];
   const conflicts = [];
 
   for (const ent of entries) {
@@ -584,6 +611,13 @@ async function syncSource(opts) {
     nextState[rel] = rSha;
 
     if (!fs.existsSync(lAbs)) {
+      // 上次同步时这个文件还在、现在本地没有了 → 说明是改名或主动删除，
+      // 不能拉回来（否则改名的文件会永远删不掉）。发布时会把它从线上移除。
+      if (state[rel] || removedBefore.indexOf(rel) !== -1) {
+        nextState[rel] = rSha;
+        newlyRemoved.push(rel);
+        continue;
+      }
       fs.mkdirSync(path.dirname(lAbs), { recursive: true });
       fs.writeFileSync(lAbs, rBuf);
       added.push(rel);
@@ -607,6 +641,13 @@ async function syncSource(opts) {
   }
 
   saveSyncState(nextState);
+  if (newlyRemoved.length) {
+    saveRemovedState(newlyRemoved);
+    if (!quiet) {
+      console.log('  本地改名/删除了 ' + newlyRemoved.length + ' 个文件（发布时将从线上移除）：');
+      newlyRemoved.slice(0, 8).forEach((f) => console.log('    - ' + f));
+    }
+  }
 
   const out = { added, updated, localOnly, conflicts, channel, firstRun };
   if (quiet) return out;
