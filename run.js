@@ -1026,7 +1026,8 @@ async function main() {
     // 重建 Tina 后台并自动打补丁、同步到发布目录（发布前或后台构建后用）
     const path = require('path');
     const { spawnSync } = require('child_process');
-    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'dist', 'index.js');
+    // 必须用 bin 垫片调用（dist/index.js 只定义不执行）
+    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'bin', 'tinacms');
     sub('正在构建 Tina 后台（约 1-2 分钟）…');
     const r = spawnSync(process.execPath, [cliBin, 'build', '--skip-cloud-checks', '--skip-indexing', '--skip-search-index', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
     if (r.status !== 0) { sub('后台构建失败'); process.exit(1); }
@@ -1036,7 +1037,8 @@ async function main() {
     // 边看边改：tinacms dev 代理 hexo server，左边编辑右边网页实时变；退出后自动重建后台
     const path = require('path');
     const { spawnSync } = require('child_process');
-    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'dist', 'index.js');
+    // 必须用 bin 垫片调用（dist/index.js 只定义不执行）
+    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'bin', 'tinacms');
     console.log('');
     sub('正在启动「边看边改」（首次要编译一小会儿，请等网址出现）…');
     sub('出现网址后按住 Ctrl 点击打开（编辑入口一般是 http://localhost:3000/admin）');
