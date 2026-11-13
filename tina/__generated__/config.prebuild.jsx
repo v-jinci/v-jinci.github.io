@@ -10,11 +10,12 @@ var config_default = defineConfig({
     outputFolder: "admin",
     publicFolder: "public"
   },
-  // 图片库：存在仓库的 source/img/，正文里引用为 /img/xxx.png
+  // 图片库：媒体文件提交到仓库的 source/img/，编辑器里显示为 /img/xxx.png
+  // （publicFolder = 网站静态根目录；mediaRoot 是相对于它的子目录）
   media: {
     tina: {
-      mediaRoot: "source/img",
-      publicFolder: "/img"
+      mediaRoot: "img",
+      publicFolder: "source"
     }
   },
   schema: {
