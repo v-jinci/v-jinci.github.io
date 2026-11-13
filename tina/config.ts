@@ -17,8 +17,8 @@ import { defineConfig } from 'tinacms'
 
 export default defineConfig({
   // ↓↓↓ 注册 TinaCloud 后把拿到的两个值填进引号里 ↓↓↓
-  clientId: '', // 例：'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-  token: '', // 例：'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  clientId: '14d79fd2-cdd2-45f0-84c3-36c8b89fcbde',
+  token: '63283ae37561ea645896c59302453fe5612d02a7',
 
   branch: 'hexo-src',
 

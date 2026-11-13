@@ -193,7 +193,9 @@ https://v-jinci.github.io
 | 编辑器 | 打开地址 | 登录方式 | 特点 |
 |---|---|---|---|
 | **Sveltia** | `https://你的域名/cms/` | 点「使用访问令牌登录」→ 粘贴 GitHub 令牌（生成地址 <https://github.com/settings/tokens>，勾选 `repo`） | 界面已中文、速度快、表单和 Pages CMS 基本一样；也可以点「使用本地仓库」直接编辑本地文件 |
-| **Tina** | <https://app.tina.io> | 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word；**第一次要在 tina.io 注册并把 clientId / token 填进 `tina/config.ts`**，步骤写在那个文件开头注释里 |
+| **Tina** | <https://app.tina.io> | 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word；clientId / token 已填好在 `tina/config.ts` |
+
+**Tina 的分支问题**：在 tina.io 添加项目时只让你选仓库、没有选分支，这是正常的——读写哪个分支由 `tina/config.ts` 里的 `branch: 'hexo-src'` 决定（已经设好了）。如果 app.tina.io 打开后提示找不到内容或一直转圈：去项目的 **Branches**（分支）页签点 **Add Branch** 添加 `hexo-src`，把它设为默认分支，刷新即可。
 
 排错：Sveltia 打不开时先确认 `/libs/sveltia/sveltia-cms.js` 能访问；配置在 `source/cms/config.yml`（`_config.yml` 里用 `skip_render` 保证它原样发布）。`/admin` 这个地址被旧后台占用了，所以 Sveltia 用的是 `/cms`。
 

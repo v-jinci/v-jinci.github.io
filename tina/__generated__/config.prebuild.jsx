@@ -2,10 +2,8 @@
 import { defineConfig } from "tinacms";
 var config_default = defineConfig({
   // ↓↓↓ 注册 TinaCloud 后把拿到的两个值填进引号里 ↓↓↓
-  clientId: "00000000-0000-0000-0000-000000000000",
-  // 例：'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-  token: "dummy-token-for-local-test",
-  // 例：'xxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+  clientId: "14d79fd2-cdd2-45f0-84c3-36c8b89fcbde",
+  token: "63283ae37561ea645896c59302453fe5612d02a7",
   branch: "hexo-src",
   // Tina 自带后台页面的构建位置（本地调试用，不影响线上）
   build: {
