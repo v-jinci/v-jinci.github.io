@@ -54,7 +54,9 @@ export default defineConfig({
           type: 'datetime',
           dateFormat: 'YYYY-MM-DD',
           timeFormat: 'HH:mm:ss',
-          format: 'YYYY-MM-DD HH:mm:ss',
+          // 注意：这里不能写 format: 'YYYY-MM-DD HH:mm:ss'！
+          // 本版本的 Tina 后台会把字符串 format 当函数调用，导致点开任何文章
+          // 都报 "u is not a function"。日期显示由 dateFormat/timeFormat 控制。
         },
         { name: 'description', label: '摘要（首页卡片的两行简介）', type: 'string', required: false },
         { name: 'tags', label: '标签', type: 'string', list: true, required: false },
