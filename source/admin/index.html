@@ -23,6 +23,59 @@
         }
       })()
     </script>
+    <script>
+      // 报错透镜：编辑器崩溃时把完整错误堆栈显示在屏幕上，方便截图排错
+      ;(function () {
+        if (window.__tinaErrLens) return
+        window.__tinaErrLens = true
+        function fmt(x) {
+          if (x instanceof Error) return (x.stack || (x.name + ': ' + x.message))
+          if (typeof x === 'string') return x
+          try { return JSON.stringify(x) } catch (e) { return String(x) }
+        }
+        function show(title, text) {
+          try {
+            var key = 'tina_err_lens'
+            var rec = { t: new Date().toLocaleString(), title: title, text: String(text).slice(0, 4000) }
+            localStorage.setItem(key, JSON.stringify(rec))
+            if (document.getElementById('__tinaErrOverlay')) return
+            var d = document.createElement('div')
+            d.id = '__tinaErrOverlay'
+            d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:55vh;overflow:auto;z-index:2147483647;background:#1e1e2e;color:#f5f5dc;font:12px/1.5 Consolas,monospace;padding:12px;border-top:3px solid #ff5555;white-space:pre-wrap;word-break:break-all;'
+            var b = document.createElement('button')
+            b.textContent = '复制报错'
+            b.style.cssText = 'position:absolute;top:6px;right:8px;background:#444;color:#fff;border:0;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;'
+            b.onclick = function () { try { navigator.clipboard.writeText(rec.title + '\n' + rec.text); b.textContent = '已复制 ✓' } catch (e) {} }
+            var x = document.createElement('button')
+            x.textContent = '×'
+            x.style.cssText = 'position:absolute;top:6px;right:80px;background:#666;color:#fff;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px;'
+            x.onclick = function () { d.remove() }
+            d.appendChild(b); d.appendChild(x)
+            var pre = document.createElement('div')
+            pre.textContent = '【' + title + '】' + rec.t + '\n' + rec.text
+            d.appendChild(pre)
+            ;(document.body || document.documentElement).appendChild(d)
+          } catch (e) {}
+        }
+        window.addEventListener('error', function (ev) {
+          var msg = ev && (ev.error ? fmt(ev.error) : ev.message)
+          if (msg) show('页面错误', msg + (ev.filename ? '\n文件: ' + ev.filename + ':' + ev.lineno + ':' + ev.colno : ''))
+        }, true)
+        window.addEventListener('unhandledrejection', function (ev) {
+          var msg = ev && ev.reason ? fmt(ev.reason) : 'unknown promise rejection'
+          show('未处理的Promise错误', msg)
+        })
+        var _ce = console.error
+        console.error = function () {
+          try {
+            var args = Array.prototype.slice.call(arguments)
+            var s = args.map(fmt).join(' | ')
+            if (/is not a function|is not defined|Cannot read|Minified/.test(s)) show('控制台报错', s)
+          } catch (e) {}
+          return _ce.apply(console, arguments)
+        }
+      })()
+    </script>
     <script type="module" crossorigin src="/admin/assets/index-N6necrpc.js"></script>
     <link rel="stylesheet" crossorigin href="/admin/assets/index-TBkdlV7b.css">
   </head>
