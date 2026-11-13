@@ -483,6 +483,35 @@ function saveSyncState(files) {
 }
 
 /**
+ * 已发布文件清单：记录上次发布时本地有哪些文件。
+ * 发布时若发现「线上有、本地没有」的文件，只有在这个清单（或云端同步记录）里
+ * 认得的才真正删除——防止改个名就误删掉不认识的线上文件。
+ */
+function publishStatePath() {
+  return require('path').join(hexo.base_dir, '.publish-state.json');
+}
+
+function loadPublishState() {
+  const fs = require('fs');
+  try {
+    const d = JSON.parse(fs.readFileSync(publishStatePath(), 'utf8'));
+    return Array.isArray(d.files) ? d.files : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function savePublishState(rels) {
+  const fs = require('fs');
+  fs.writeFileSync(publishStatePath(), JSON.stringify({ updated: new Date().toISOString(), files: rels }, null, 2));
+}
+
+/** 发布时允许删除的文件 = 上次发布清单 ∪ 云端同步记录（两边「都见过」才算认得） */
+function knownPublishedFiles() {
+  return new Set(Object.keys(loadSyncState()).concat(loadPublishState()));
+}
+
+/**
  * 把线上新增/更新的文章拉到本地。
  * 只在「本地这份没动过」时才覆盖；两边都改过就保留本地并提示。
  *
@@ -676,14 +705,29 @@ async function publishViaGit() {
   let changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
   let deleted = changed.filter((l) => l.startsWith('D'));
 
-  // 只增改、不删除：本地没有的文件，把线上那版恢复回来
+  // 删除规则：只删「认得」的（上次发布清单或云端同步记录里有的，= 改名/主动删除）；
+  // 不认识的线上文件仍然保留，防误删。
   if (deleted.length) {
     const paths = deleted.map((l) => l.replace(/^D\s+/, '').replace(/^"(.*)"$/, '$1'));
-    runGit(['restore', '--source=HEAD', '--staged', '--worktree', '--'].concat(paths), dir);
+    const known = knownPublishedFiles();
+    const keep = [];
+    const allow = [];
+    for (const p of paths) {
+      if (known.has(p)) allow.push(p);
+      else keep.push(p);
+    }
+    if (keep.length) {
+      runGit(['restore', '--source=HEAD', '--staged', '--worktree', '--'].concat(keep), dir);
+      sub('有 ' + keep.length + ' 个文件本地没有但发布清单里不认识，已按线上版本保留（防误删）：');
+      keep.slice(0, 8).forEach((f) => console.log('           保留 ' + f));
+    }
+    if (allow.length) {
+      sub('有 ' + allow.length + ' 个文件是改名/主动删除的（发布后将从线上移除）：');
+      allow.slice(0, 12).forEach((f) => console.log('           删除 ' + f));
+    }
     st = runGit(['status', '--porcelain'], dir);
     changed = st.out.split('\n').map((l) => l.trim()).filter(Boolean);
     deleted = changed.filter((l) => l.startsWith('D'));
-    sub('有 ' + paths.length + ' 个文件本地不在了，已按线上版本保留（发布不会删线上文件）');
   }
 
   if (changed.length === 0) {
@@ -710,6 +754,8 @@ async function publishViaGit() {
     throw e;
   }
   sub('上传成功（git 通道）');
+  // 记录本次发布的文件清单，下次改名/删除时作为「认得」的依据
+  savePublishState(localManagedFiles());
 }
 
 /** 走 api.github.com 的发布：只上传内容真的变了的文件，永不删除线上文件 */
@@ -741,8 +787,21 @@ async function publishViaApi() {
     upserts[rel] = buf;
   }
 
+  // 线上「认得」但本地没有的文件 → 一并删除（改名/主动删除的旧文件）
+  const known = knownPublishedFiles();
+  const localSet = new Set(files);
+  const deletes = Object.keys(t.map)
+    .filter((rel) => {
+      const managed = MANAGED_FILES.indexOf(rel) !== -1 || MANAGED_DIRS.some((d) => rel.indexOf(d + '/') === 0);
+      return managed && !localSet.has(rel) && known.has(rel);
+    });
+  if (deletes.length) {
+    sub('将同步移除 ' + deletes.length + ' 个已改名/删除的线上文件：');
+    deletes.slice(0, 12).forEach((f) => console.log('           -  ' + f));
+  }
+
   const n = Object.keys(upserts).length;
-  if (!n) {
+  if (!n && !deletes.length) {
     console.log('');
     sub('没有检测到任何改动 —— 不用发布。');
     return;
@@ -752,8 +811,9 @@ async function publishViaApi() {
   if (n > 12) console.log('           …还有 ' + (n - 12) + ' 个');
 
   const msg = 'publish from local: ' + new Date().toISOString().replace('T', ' ').slice(0, 19);
-  const r = await gh.apply({ branch: SRC_BRANCH, message: msg, upserts: upserts, deletes: [] });
+  const r = await gh.apply({ branch: SRC_BRANCH, message: msg, upserts: upserts, deletes: deletes });
   sub('上传成功（api 通道，提交 ' + String(r.sha).slice(0, 7) + '）');
+  savePublishState(localManagedFiles());
 }
 
 const cmd = (process.argv[2] || 'help').toLowerCase();
