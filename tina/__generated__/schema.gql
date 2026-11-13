@@ -110,7 +110,7 @@ type Posts implements Node & Document {
   top_img: String
   updated: String
   author: String
-  body: String
+  body: RichText
   id: ID!
   _sys: SystemInfo!
   _values: JSON!
@@ -143,6 +143,12 @@ input BooleanFilter {
   exists: Boolean
 }
 
+input RichTextFilter {
+  startsWith: String
+  eq: String
+  exists: Boolean
+}
+
 input PostsFilter {
   title: StringFilter
   date: DatetimeFilter
@@ -163,7 +169,7 @@ input PostsFilter {
   top_img: StringFilter
   updated: DatetimeFilter
   author: StringFilter
-  body: StringFilter
+  body: RichTextFilter
 }
 
 type PostsConnectionEdges {
@@ -216,7 +222,7 @@ input PostsMutation {
   top_img: String
   updated: String
   author: String
-  body: String
+  body: RichText
 }
 
 schema {

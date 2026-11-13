@@ -58,25 +58,19 @@
           } catch (e) {}
         }
         window.addEventListener('error', function (ev) {
-          var msg = ev && (ev.error ? fmt(ev.error) : ev.message)
-          if (msg) show('页面错误', msg + (ev.filename ? '\n文件: ' + ev.filename + ':' + ev.lineno + ':' + ev.colno : ''))
-        }, true)
+          show('页面报错', fmt(ev.error || ev.message))
+        })
         window.addEventListener('unhandledrejection', function (ev) {
-          var msg = ev && ev.reason ? fmt(ev.reason) : 'unknown promise rejection'
-          show('未处理的Promise错误', msg)
+          show('未处理的Promise报错', fmt(ev.reason))
         })
         var _ce = console.error
         console.error = function () {
-          try {
-            var args = Array.prototype.slice.call(arguments)
-            var s = args.map(fmt).join(' | ')
-            if (/is not a function|is not defined|Cannot read|Minified/.test(s)) show('控制台报错', s)
-          } catch (e) {}
+          try { show('控制台报错', Array.prototype.map.call(arguments, fmt).join('\n')) } catch (e) {}
           return _ce.apply(console, arguments)
         }
       })()
     </script>
-    <script type="module" crossorigin src="/admin/assets/index-B0nIbs9l.js"></script>
+    <script type="module" crossorigin src="/admin/assets/index-B7BdreFD.js"></script>
     <link rel="stylesheet" crossorigin href="/admin/assets/index-TBkdlV7b.css">
   </head>
   <body class="tina-tailwind">

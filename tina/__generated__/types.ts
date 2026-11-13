@@ -188,7 +188,7 @@ export type Posts = Node & Document & {
   top_img?: Maybe<Scalars['String']['output']>;
   updated?: Maybe<Scalars['String']['output']>;
   author?: Maybe<Scalars['String']['output']>;
-  body?: Maybe<Scalars['String']['output']>;
+  body?: Maybe<Scalars['RichText']['output']>;
   id: Scalars['ID']['output'];
   _sys: SystemInfo;
   _values: Scalars['JSON']['output'];
@@ -221,6 +221,12 @@ export type BooleanFilter = {
   exists?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+export type RichTextFilter = {
+  startsWith?: InputMaybe<Scalars['String']['input']>;
+  eq?: InputMaybe<Scalars['String']['input']>;
+  exists?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
 export type PostsFilter = {
   title?: InputMaybe<StringFilter>;
   date?: InputMaybe<DatetimeFilter>;
@@ -241,7 +247,7 @@ export type PostsFilter = {
   top_img?: InputMaybe<StringFilter>;
   updated?: InputMaybe<DatetimeFilter>;
   author?: InputMaybe<StringFilter>;
-  body?: InputMaybe<StringFilter>;
+  body?: InputMaybe<RichTextFilter>;
 };
 
 export type PostsConnectionEdges = {
@@ -342,7 +348,7 @@ export type PostsMutation = {
   top_img?: InputMaybe<Scalars['String']['input']>;
   updated?: InputMaybe<Scalars['String']['input']>;
   author?: InputMaybe<Scalars['String']['input']>;
-  body?: InputMaybe<Scalars['String']['input']>;
+  body?: InputMaybe<Scalars['RichText']['input']>;
 };
 
 export type StringFilter = {
@@ -372,6 +378,12 @@ export type BooleanFilter = {
   exists?: boolean | null | undefined;
 };
 
+export type RichTextFilter = {
+  startsWith?: string | null | undefined;
+  eq?: string | null | undefined;
+  exists?: boolean | null | undefined;
+};
+
 export type PostsFilter = {
   title?: StringFilter | null | undefined;
   date?: DatetimeFilter | null | undefined;
@@ -392,17 +404,17 @@ export type PostsFilter = {
   top_img?: StringFilter | null | undefined;
   updated?: DatetimeFilter | null | undefined;
   author?: StringFilter | null | undefined;
-  body?: StringFilter | null | undefined;
+  body?: RichTextFilter | null | undefined;
 };
 
-export type PostsPartsFragment = { __typename: 'Posts', title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null };
+export type PostsPartsFragment = { __typename: 'Posts', title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: TinaMarkdownContent | null };
 
 export type PostsQueryVariables = Exact<{
   relativePath: string;
 }>;
 
 
-export type PostsQuery = { posts: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
+export type PostsQuery = { posts: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: TinaMarkdownContent | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } };
 
 export type PostsConnectionQueryVariables = Exact<{
   before?: string | null | undefined;
@@ -414,7 +426,7 @@ export type PostsConnectionQueryVariables = Exact<{
 }>;
 
 
-export type PostsConnectionQuery = { postsConnection: { totalCount: number, pageInfo: { hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges: Array<{ cursor: string, node: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: string | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
+export type PostsConnectionQuery = { postsConnection: { totalCount: number, pageInfo: { hasPreviousPage: boolean, hasNextPage: boolean, startCursor: string, endCursor: string }, edges: Array<{ cursor: string, node: { __typename: 'Posts', id: string, title: string, date: string | null, description: string | null, tags: Array<string | null> | null, categories: Array<string | null> | null, cover: string | null, series: string | null, sticky: string | null, comments: boolean | null, toc: boolean | null, password: string | null, img_width: string | null, img_float: string | null, permalink: string | null, reprint_name: string | null, reprint_url: string | null, top_img: string | null, updated: string | null, author: string | null, body: TinaMarkdownContent | null, _sys: { filename: string, basename: string, hasReferences: boolean | null, breadcrumbs: Array<string>, path: string, relativePath: string, extension: string } } | null } | null> | null } };
 
 export const PostsPartsFragmentDoc = gql`
     fragment PostsParts on Posts {

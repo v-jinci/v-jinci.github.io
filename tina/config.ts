@@ -107,7 +107,7 @@ export default defineConfig({
         {
           name: 'body',
           label: '正文',
-          type: 'string',
+          type: 'rich-text',
           isBody: true,
           ui: {
             description:

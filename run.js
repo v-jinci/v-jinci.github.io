@@ -1043,6 +1043,20 @@ async function main() {
     console.log('');
     console.log('  GitHub 正在编译，约 1-2 分钟后刷新 https://v-jinci.github.io 就能看到。');
     console.log('  想看编译进度：https://github.com/v-jinci/v-jinci.github.io/actions');
+  } else if (cmd === 'publish-quick') {
+    // 快速通道：跳过本地预编译（适合刚编译过、只想补传文件的场景）
+    console.log('');
+    console.log('  发布路线：本地 → GitHub 仓库(hexo-src) → 云端自动编译 → 网站更新');
+    console.log('  （跳过本地预编译）');
+    beginSteps(3);
+    step('检查本机环境', '');
+    ensureGit();
+    step('上传到 GitHub', '先取回云端最新源码（防止手机写的文章被覆盖），再提交和推送');
+    await publishSource();
+    step('完成', '');
+    console.log('');
+    console.log('  GitHub 正在编译，约 1-2 分钟后刷新 https://v-jinci.github.io 就能看到。');
+    console.log('  想看编译进度：https://github.com/v-jinci/v-jinci.github.io/actions');
   } else if (cmd === 'publish-master') {
     // 备用通道：跳过 Actions，直接把成品推到 master（Actions 出故障时用）
     console.log('');
