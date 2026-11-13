@@ -1,15 +1,12 @@
 <!DOCTYPE html>
-<html lang="en" translate="no">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="google" content="notranslate" />
     <link rel="icon" href="/admin/assets/favicon-CCqH8YbW.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TinaCMS</title>
     <script>
-      // 防崩溃补丁：浏览器翻译插件（谷歌翻译 / 沉浸式翻译 / Edge 翻译等）会改写页面文字节点，
-      // 导致 React 报 "Failed to execute 'insertBefore'/'removeChild' on 'Node'" 而整页崩溃。
-      // 这是 React 官方 issue #11538 推荐的兜底补丁：让这两类 DOM 冲突静默降级，不再炸掉编辑器。
+      // 防崩溃补丁（React 官方 issue #11538）：翻译插件等改写 DOM 时静默降级，不炸编辑器
       ;(function () {
         if (typeof Node === 'undefined' || !Node.prototype || window.__tinaDomGuard) return
         window.__tinaDomGuard = true
@@ -28,7 +25,6 @@
             return _insertBefore.apply(this, arguments)
           } catch (e) {
             if (e && e.name === 'NotFoundError' && refNode && refNode.parentNode !== this) {
-              // 参考节点被翻译插件挪走了：退化为追加到末尾
               return this.appendChild(newNode)
             }
             throw e
@@ -36,7 +32,7 @@
         }
       })()
     </script>
-    <script type="module" crossorigin src="/admin/assets/index-BInzyMyq.js"></script>
+    <script type="module" crossorigin src="/admin/assets/index-DCZO0ijz.js"></script>
     <link rel="stylesheet" crossorigin href="/admin/assets/index-TBkdlV7b.css">
   </head>
   <body class="tina-tailwind">
