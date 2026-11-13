@@ -41,6 +41,7 @@ export default defineConfig({
     {
       name: 'posts',
       label: '文章',
+      description: '博客文章集合（改动此描述可触发 TinaCloud 重新索引）',
       path: 'source/_posts',
       format: 'md',
       frontmatter_format: 'yaml',

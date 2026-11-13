@@ -22,6 +22,7 @@ var config_default = defineConfig({
       {
         name: "posts",
         label: "\u6587\u7AE0",
+        description: "\u535A\u5BA2\u6587\u7AE0\u96C6\u5408\uFF08\u6539\u52A8\u6B64\u63CF\u8FF0\u53EF\u89E6\u53D1 TinaCloud \u91CD\u65B0\u7D22\u5F15\uFF09",
         path: "source/_posts",
         format: "md",
         frontmatter_format: "yaml",

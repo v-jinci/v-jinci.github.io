@@ -200,7 +200,11 @@ https://v-jinci.github.io
 - app.tina.io 点进项目后如果看不到内容列表，去项目的 **Branches** 页签添加 `hexo-src` 并设为默认分支。
 - 改过 `tina/config.ts` 的字段后要重新生成后台页面：运行 `npm run tina`（等于 `tinacms build`），再把 `public/admin/` 复制到 `source/admin/`。
 
-排错：Sveltia 打不开时先确认 `/libs/sveltia/sveltia-cms.js` 能访问；配置在 `source/cms/config.yml`（`_config.yml` 里用 `skip_render` 保证它原样发布）。`/admin` 这个地址被旧后台占用了，所以 Sveltia 用的是 `/cms`。
+排错：Sveltia 打不开时先确认 `/libs/sveltia/sveltia-cms.js` 能访问；配置在 `source/cms/config.yml`（`_config.yml` 里用 `skip_render` 保证它原样发布）。`/cms` 是 Sveltia 专用，`/admin` 是 Tina 专用，互不冲突。
+
+**Tina 报「Index version "0" no longer supported. Reindex your project」时**：TinaCloud 还没给 `hexo-src` 分支建好索引。两步解决：
+1. 发布一次（`1-发布到网站.bat`）——TinaCloud 检测到 `tina/tina-lock.json` 变更会自动重建索引，等 3~10 分钟再刷新 `/admin/`；
+2. 若仍报错，去 app.tina.io 打开项目 → **Branches（分支）** 页签 → **Add Branch** 添加 `hexo-src` 并设为默认分支，再等索引重建完成。
 
 
 ---
