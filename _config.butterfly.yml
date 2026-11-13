@@ -3,6 +3,25 @@
 #  想调整颜色/字体/布局，改这里即可
 # ==========================================================
 
+# ---- 第三方资源本地化（2026-11-14）----
+# 图标字体、评论、分享、副标题打字机这些原本都从 cdn.jsdelivr.net 取，
+# 国内网络经常直接连不上，手机上就表现为：
+#   顶部菜单只剩文字/空白、右下角按钮一排空白、评论区不出来、分享按钮空白。
+# 现在文件都放在 source/libs/ 里随站点一起发布，不再依赖外网 CDN。
+# 升级版本时：把新文件替换进 source/libs/ 对应目录，再改下面的 ?v= 数字。
+CDN:
+  internal_provider: local
+  third_party_provider: jsdelivr
+  version: true
+  option:
+    fontawesome: /libs/fontawesome/css/all.min.css?v=7.3.1
+    egjs_infinitegrid: /libs/infinitegrid.min.js?v=4.13.1
+    typed: /libs/typed.umd.js?v=3.0.0
+    waline_css: /libs/waline/waline.css?v=3.16.2
+    waline_js: /libs/waline/waline.js?v=3.16.2
+    sharejs: /libs/share/social-share.min.js?v=1.1.6
+    sharejs_css: /libs/share/share.min.css?v=1.1.6
+
 nav:
   logo:
   display_title: true

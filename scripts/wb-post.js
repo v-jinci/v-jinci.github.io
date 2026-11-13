@@ -274,9 +274,18 @@ function applyRichBlocks(html) {
     (m0, a1, img, a2, cap) => figBox(img, cap)
   );
 
-  /* ---- ⑤ 按钮：【按钮】+ 链接 ---- */
-  out = out.replace(/<p(\s[^>]*)?>\s*【按钮】\s*(<a\b[\s\S]*?<\/a>)\s*<\/p>/gi, (m0, attr, a) => {
-    return '<p class="wb-btn-row">' + addBtnClass(a) + '</p>';
+  /* ---- ⑤ 按钮：【按钮】+ 链接 ----
+   * 兼容富文本编辑器产出的两种样子：
+   *   <p>【按钮】<a href="…">文字</a></p>          ← Markdown 转出来的
+   *   <p><strong>【按钮】</strong>&nbsp;<a …>文字</a></p>  ← Pages CMS 里打空格/加粗的
+   * 只要这一段除去【按钮】和链接之外没有别的字，就当成按钮。 */
+  out = out.replace(/<p(\s[^>]*)?>([\s\S]*?)<\/p>/gi, (m0, attr, inner) => {
+    if (inner.indexOf('【按钮】') === -1) return m0;
+    const a = inner.match(/<a\b[\s\S]*?<\/a>/i);
+    if (!a) return m0;
+    const rest = plainText(inner.replace(a[0], '')).replace(/[\s\u00a0]/g, '');
+    if (rest !== '【按钮】') return m0;
+    return '<p class="wb-btn-row">' + addBtnClass(a[0]) + '</p>';
   });
 
   /* ---- ⑥ 表格：外面套一层，手机上可以横向滑 ---- */

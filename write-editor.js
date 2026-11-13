@@ -227,6 +227,12 @@ function renderPage() {
   .ed p{margin:12px 0}
   .ed ul,.ed ol{padding-left:26px;margin:12px 0}
   .ed blockquote{margin:14px 0;padding:10px 16px;border-left:4px solid #cbd5e1;background:#f8fafc;color:#4b5563;border-radius:0 8px 8px 0}
+  .ed blockquote.n-tip{background:#eff6ff;border-left-color:#3b82f6;color:#1e3a5f}
+  .ed blockquote.n-warn{background:#fffbeb;border-left-color:#f59e0b;color:#59430a}
+  .ed blockquote.n-key{background:#f5f3ff;border-left-color:#8b5cf6;color:#3b2f63}
+  .ed blockquote.n-danger{background:#fef2f2;border-left-color:#ef4444;color:#5e1d1d}
+  .ed blockquote.n-fold{background:#f1f5f9;border-left-color:#94a3b8;color:#3f4a5a}
+  .ed blockquote.n-quote{background:none;border:0;text-align:center;font-size:19px;color:#3b4252;padding:16px 8px}
   .ed pre{background:#1f2430;color:#e6ecff;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13.5px;line-height:1.6}
   .ed code{font-family:ui-monospace,Consolas,monospace;background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px;font-size:.92em}
   .ed pre code{background:none;color:inherit;padding:0}
@@ -340,6 +346,16 @@ function renderPage() {
     <button id="bLink" title="插入链接">🔗</button>
     <button id="bImg" title="插入图片">🖼 图片</button>
     <button id="bTable" title="插入表格">▦ 表格</button>
+    <button id="bBtn" title="插入按钮：填文字和网址，发布后变成圆角大按钮">🔘 按钮</button>
+    <select id="noteSel" title="插入提醒卡片：自动生成引用块并上色，不用记写法">
+      <option value="">💡 提示卡片</option>
+      <option value="tip">💡 提示（蓝色）</option>
+      <option value="warn">⚠️ 注意（黄色）</option>
+      <option value="key">📌 重点（紫色）</option>
+      <option value="danger">🚫 警告（红色）</option>
+      <option value="fold">📂 折叠展开</option>
+      <option value="quote">❝ 金句（居中大字）</option>
+    </select>
     <button id="bHr" title="分割线">—</button>
     <button id="bClear" title="清除格式">✕ 格式</button>
     <span class="sp" style="margin-left:auto"></span>
@@ -415,7 +431,7 @@ function renderPage() {
     var n = t.replace(/\\s/g, '').length;
     stat.textContent = n + ' 字';
   }
-  ed.addEventListener('input', recount);
+  ed.addEventListener('input', function () { recount(); paintNotes(); });
   src.addEventListener('input', recount);
 
   /* ---------- 工具条基础命令 ---------- */
@@ -434,6 +450,133 @@ function renderPage() {
     this.blur();
   });
   document.getElementById('bHr').addEventListener('click', function () { exec('insertHorizontalRule'); });
+  /* ---------- 提醒卡片：一键插入「引用块 + 提示：」，并在编辑区上色 ---------- */
+  var NOTE_KINDS = {
+    tip: { head: '提示：', body: '这里写要提醒读者的一句话。' },
+    warn: { head: '注意：', body: '这里写容易出错、需要小心的地方。' },
+    key: { head: '重点：', body: '这里写最想让读者记住的一句。' },
+    danger: { head: '警告：', body: '这里写千万别做的事。' },
+    fold: { head: '折叠：点这里展开', body: '点开之后才看到的内容写在这里。' },
+    quote: { head: '', body: '这里写一句想让人记住的短话（60 字以内）' }
+  };
+  var NOTE_CLS = ['n-tip', 'n-warn', 'n-key', 'n-danger', 'n-fold', 'n-quote'];
+
+  function closestBlock(node) {
+    var el = node && node.nodeType === 1 ? node : node ? node.parentNode : null;
+    while (el && el !== ed) {
+      if (/^(P|DIV|H[1-6]|BLOCKQUOTE|LI|PRE|FIGURE|SECTION)$/.test(el.tagName)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  // 把一段内容插到光标所在段落后面，并留下一行空段落给用户接着写
+  function attachBlock(box) {
+    var tail = document.createElement('p');
+    tail.appendChild(document.createElement('br'));
+    focusEd();
+    var sel = window.getSelection();
+    var host = null;
+    try {
+      if (sel && sel.rangeCount && ed.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+        host = closestBlock(sel.getRangeAt(0).startContainer);
+      }
+    } catch (e) {}
+    if (!host) host = closestBlock(ed.lastElementChild);
+
+    if (host && !String(host.textContent || '').trim() && host.tagName !== 'BLOCKQUOTE') {
+      // 光标停在一个空段落里：直接把这个空段落换掉
+      host.parentNode.insertBefore(box, host);
+      host.parentNode.insertBefore(tail, host);
+      host.parentNode.removeChild(host);
+    } else if (host) {
+      host.parentNode.insertBefore(tail, host.nextSibling);
+      host.parentNode.insertBefore(box, tail);
+    } else {
+      ed.appendChild(box);
+      ed.appendChild(tail);
+    }
+    return box;
+  }
+
+  function insertNote(kind) {
+    var k = NOTE_KINDS[kind];
+    if (!k) return;
+    var box = document.createElement('blockquote');
+    var first = document.createElement('p');
+    first.textContent = k.head + (kind === 'fold' ? '' : k.body);
+    box.appendChild(first);
+    if (kind === 'fold') {
+      var more = document.createElement('p');
+      more.textContent = k.body;
+      box.appendChild(more);
+    }
+    attachBlock(box);
+
+    // 选中占位文字，直接打字就替换掉
+    try {
+      var r = document.createRange();
+      r.selectNodeContents(first);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    } catch (e) {}
+
+    paintNotes();
+    recount();
+  }
+
+  // 按首行文字给引用块上色，让人一眼看到「提示：」就是蓝色卡片
+  function paintNotes() {
+    Array.prototype.forEach.call(ed.querySelectorAll('blockquote'), function (bq) {
+      NOTE_CLS.forEach(function (c) { bq.classList.remove(c); });
+      var t = String(bq.textContent || '').replace(/^\\s+/, '');
+      var cls = '';
+      if (/^(提示|小提示|小贴士|技巧|TIP)/i.test(t)) cls = 'n-tip';
+      else if (/^(注意|小心|NOTE)/i.test(t)) cls = 'n-warn';
+      else if (/^(重点|要点|划重点|KEY)/i.test(t)) cls = 'n-key';
+      else if (/^(警告|危险|重要|WARN)/i.test(t)) cls = 'n-danger';
+      else if (/^(折叠|收起|展开|点开看|FOLD)/i.test(t)) cls = 'n-fold';
+      else if (t.replace(/\\s/g, '').length <= 60 && !bq.querySelector('p + p')) cls = 'n-quote';
+      if (cls) bq.classList.add(cls);
+    });
+  }
+  document.getElementById('noteSel').addEventListener('change', function () {
+    if (this.value) insertNote(this.value);
+    this.value = '';
+    this.blur();
+  });
+
+  /* 按钮：文字 + 网址 → 发布后变成圆角按钮 */
+  document.getElementById('bBtn').addEventListener('click', function () {
+    var text = window.prompt('按钮上写什么字？（建议 2~8 个字）', '点这里看看');
+    if (text === null) return;
+    text = String(text).trim() || '点这里看看';
+    var url = window.prompt('点了按钮去哪？（网址，可省略 https://）', 'https://');
+    if (url === null) return;
+    url = String(url).trim();
+    if (!url) { toast('没填网址，按钮没插入'); return; }
+    if (!/^(https?:\\/\\/|\\/|mailto:)/i.test(url)) url = 'https://' + url;
+
+    var p = document.createElement('p');
+    p.appendChild(document.createTextNode('【按钮】'));
+    var a = document.createElement('a');
+    a.setAttribute('href', url);
+    a.textContent = text;
+    p.appendChild(a);
+    attachBlock(p);
+
+    try {
+      var r = document.createRange();
+      r.selectNodeContents(a);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    } catch (e) {}
+    toast('已插入：编辑区显示「【按钮】文字」是正常的，发布后才变成按钮');
+    recount();
+  });
+
   document.getElementById('bClear').addEventListener('click', function () {
     focusEd();
     try { document.execCommand('removeFormat'); } catch (e) {}
@@ -905,7 +1048,10 @@ function renderPage() {
         out.push(listMd(n, depth));
       } else if (tag === 'BLOCKQUOTE') {
         var inner = blockMd(n, depth);
-        out.push(inner.split('\\n').map(function (l) { return '> ' + l; }).join('\\n'));
+        // 空行写成「>」，否则多段引用会被拆成两个引用块
+        out.push(inner.split('\\n').map(function (l) {
+          return String(l).trim() ? '> ' + l : '>';
+        }).join('\\n'));
       } else if (tag === 'PRE') {
         var code = (n.innerText != null ? n.innerText : n.textContent) || '';
         out.push(BT + BT + BT + '\\n' + code.replace(/\\s+$/, '') + '\\n' + BT + BT + BT);
@@ -960,6 +1106,7 @@ function renderPage() {
       if (!j || !j.ok) throw new Error((j && j.error) || '渲染失败');
       ed.innerHTML = j.html || '';
       fixImages();
+      paintNotes();
     });
   }
   /* 渲染回来之后，把 hexo 老文章里 <img> 上的 ?w= 读成编辑器里的宽度/环绕 */
