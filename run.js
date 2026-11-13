@@ -1022,6 +1022,36 @@ async function main() {
     } else {
       console.log('  完成！本来就是最新的，没有东西要拉。');
     }
+  } else if (cmd === 'build-admin') {
+    // 重建 Tina 后台并自动打补丁、同步到发布目录（发布前或后台构建后用）
+    const path = require('path');
+    const { spawnSync } = require('child_process');
+    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'dist', 'index.js');
+    sub('正在构建 Tina 后台（约 1-2 分钟）…');
+    const r = spawnSync(process.execPath, [cliBin, 'build', '--skip-cloud-checks', '--skip-indexing', '--skip-search-index', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
+    if (r.status !== 0) { sub('后台构建失败'); process.exit(1); }
+    require('./scripts/admin-patch').applyAdminPatches(__dirname);
+    sub('后台构建完成（已自动打补丁并同步到发布目录）');
+  } else if (cmd === 'dev') {
+    // 边看边改：tinacms dev 代理 hexo server，左边编辑右边网页实时变；退出后自动重建后台
+    const path = require('path');
+    const { spawnSync } = require('child_process');
+    const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'dist', 'index.js');
+    console.log('');
+    sub('正在启动「边看边改」（首次要编译一小会儿，请等网址出现）…');
+    sub('出现网址后按住 Ctrl 点击打开（编辑入口一般是 http://localhost:3000/admin）');
+    sub('用完按 Ctrl+C 退出，脚本会自动恢复后台文件。');
+    console.log('');
+    const r = spawnSync(process.execPath, [cliBin, 'dev', '-c', 'npx hexo server', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
+    console.log('');
+    sub('预览已停止。正在重建后台（dev 会改写后台文件，必须恢复）…');
+    const b = spawnSync(process.execPath, [cliBin, 'build', '--skip-cloud-checks', '--skip-indexing', '--skip-search-index', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
+    if (b.status === 0) {
+      require('./scripts/admin-patch').applyAdminPatches(__dirname);
+      sub('已恢复。想上线改动就双击「1-发布到网站.bat」');
+    } else {
+      sub('后台自动重建失败，请回到对话里告诉 AI 来处理。');
+    }
   } else if (cmd === 'publish') {
     console.log('');
     console.log('  发布路线：本地 → GitHub 仓库(hexo-src) → 云端自动编译 → 网站更新');

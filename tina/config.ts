@@ -37,6 +37,12 @@ export default defineConfig({
     },
   },
 
+  // 云端后台顶栏显示「在新标签页预览网站」按钮
+  // （说明：本版本的云端后台不支持分屏实时预览，分屏「边看边改」用本地 7-边看边改.bat）
+  ui: {
+    previewUrl: ({ branch }) => ({ url: 'https://v-jinci.github.io/' }),
+  },
+
   schema: {
     collections: [
     {

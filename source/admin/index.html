@@ -5,24 +5,8 @@
     <link rel="icon" href="/admin/assets/favicon-CCqH8YbW.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TinaCMS</title>
-    <script>
-      // 防崩溃补丁（React 官方 issue #11538）：翻译插件等改写 DOM 时静默降级，不炸编辑器
-      ;(function () {
-        if (typeof Node === "undefined" || !Node.prototype || window.__tinaDomGuard) return
-        window.__tinaDomGuard = true
-        var _removeChild = Node.prototype.removeChild
-        Node.prototype.removeChild = function (child) {
-          try { return _removeChild.apply(this, arguments) } catch (e) { if (e && e.name === "NotFoundError") return child; throw e }
-        }
-        var _insertBefore = Node.prototype.insertBefore
-        Node.prototype.insertBefore = function (newNode, refNode) {
-          try { return _insertBefore.apply(this, arguments) } catch (e) {
-            if (e && e.name === "NotFoundError" && refNode && refNode.parentNode !== this) return this.appendChild(newNode)
-            throw e
-          }
-        }
-      })()
-    </script>
+    
+    
     <script>
       // 报错透镜：编辑器崩溃时把完整错误堆栈显示在屏幕上，方便截图排错
       ;(function () {
@@ -70,7 +54,25 @@
         }
       })()
     </script>
-    <script type="module" crossorigin src="/admin/assets/index-B7BdreFD.js"></script>
+<script>
+      // 防崩溃补丁（React 官方 issue #11538）：翻译插件等改写 DOM 时静默降级，不炸编辑器
+      ;(function () {
+        if (typeof Node === "undefined" || !Node.prototype || window.__tinaDomGuard) return
+        window.__tinaDomGuard = true
+        var _removeChild = Node.prototype.removeChild
+        Node.prototype.removeChild = function (child) {
+          try { return _removeChild.apply(this, arguments) } catch (e) { if (e && e.name === "NotFoundError") return child; throw e }
+        }
+        var _insertBefore = Node.prototype.insertBefore
+        Node.prototype.insertBefore = function (newNode, refNode) {
+          try { return _insertBefore.apply(this, arguments) } catch (e) {
+            if (e && e.name === "NotFoundError" && refNode && refNode.parentNode !== this) return this.appendChild(newNode)
+            throw e
+          }
+        }
+      })()
+    </script>
+<script type="module" crossorigin src="/admin/assets/index-g_HOKBgz.js"></script>
     <link rel="stylesheet" crossorigin href="/admin/assets/index-TBkdlV7b.css">
   </head>
   <body class="tina-tailwind">
