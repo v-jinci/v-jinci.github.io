@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>写文章 · Sveltia</title>
+  <style>
+    body{margin:0;font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f6f7fb;color:#1f2430}
+    #fallback{max-width:560px;margin:60px auto;padding:24px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,23,42,.08)}
+    #fallback h1{font-size:18px;margin:0 0 12px}
+    #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
+    #fallback a{color:#4a6cf7}
+  </style>
+</head>
+<body>
+  <div id="fallback">
+    <h1>Sveltia 正在加载…</h1>
+    <p>如果一直停在这一页，通常是脚本没加载成功。请确认 <code>/libs/sveltia/sveltia-cms.js</code> 能打开；
+       还不行就看下面的说明。</p>
+    <p><a href="/admin/config.yml">查看配置文件</a></p>
+  </div>
+  <script src="/libs/sveltia/sveltia-cms.js"></script>
+  <script>
+    // CMS 正常挂载后会接管整个 body，这里只做兜底提示
+    setTimeout(function () {
+      if (!document.querySelector('[class*="sveltia"], #sveltiacms, .sc-app')) {
+        var tip = document.getElementById('fallback');
+        if (tip) {
+          tip.querySelector('h1').textContent = '脚本已加载，但界面没起来';
+          tip.querySelector('p').innerHTML =
+            '多半是 <code>config.yml</code> 写错了（缩进/字段名）。按 F12 打开控制台看红色报错，' +
+            '或者把报错发我。';
+        }
+      }
+    }, 8000);
+  </script>
+</body>
+</html>

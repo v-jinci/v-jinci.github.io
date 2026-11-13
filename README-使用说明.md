@@ -186,6 +186,18 @@ https://v-jinci.github.io
 
 > 手机适合短篇和随手记；长文还是本地后台（`2-打开写作后台.bat`）或 Typora 更舒服。
 
+### 3.5 备用网页编辑器（2026-11-14 新增，与 Pages CMS 并存不冲突）
+
+两套都是直接改 GitHub 仓库里的文件，和 Pages CMS 三选一随便用：
+
+| 编辑器 | 打开地址 | 登录方式 | 特点 |
+|---|---|---|---|
+| **Sveltia** | `https://你的域名/cms/` | 点「使用访问令牌登录」→ 粘贴 GitHub 令牌（生成地址 <https://github.com/settings/tokens>，勾选 `repo`） | 界面已中文、速度快、表单和 Pages CMS 基本一样；也可以点「使用本地仓库」直接编辑本地文件 |
+| **Tina** | <https://app.tina.io> | 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word；**第一次要在 tina.io 注册并把 clientId / token 填进 `tina/config.ts`**，步骤写在那个文件开头注释里 |
+
+排错：Sveltia 打不开时先确认 `/libs/sveltia/sveltia-cms.js` 能访问；配置在 `source/cms/config.yml`（`_config.yml` 里用 `skip_render` 保证它原样发布）。`/admin` 这个地址被旧后台占用了，所以 Sveltia 用的是 `/cms`。
+
+
 ---
 
 ## 四、把云端的文章同步回本地

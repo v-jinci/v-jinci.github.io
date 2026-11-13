@@ -1,0 +1,22 @@
+fragment PostsParts on Posts {
+  __typename
+  title
+  date
+  description
+  tags
+  categories
+  cover
+  series
+  sticky
+  comments
+  toc
+  password
+  img_width
+  img_float
+  reprint_name
+  reprint_url
+  top_img
+  updated
+  author
+  body
+}
