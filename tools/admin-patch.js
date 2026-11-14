@@ -44,6 +44,9 @@ const ERR_LENS = `    <script>
         }
         function isBenign(text) {
           var s = String(text || '')
+          // 空内容 / undefined 的报错没有任何排查价值（多为登录前探测请求 401 的
+          // 附带噪音），弹出来只会吓到人，静默掉。
+          if (!s || s === 'undefined' || s === 'null') return true
           // Slate 编辑器内部「工具栏点击后重新聚焦正文」失败的已知无害报错：
           // 加粗/斜体等按钮的实际功能不受影响（每次点工具栏按钮 Slate 都会在内部
           // console.error 一次，功能照常）。出现时静默记录，不再弹红色面板。
