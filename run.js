@@ -1031,27 +1031,77 @@ async function main() {
     sub('正在构建 Tina 后台（约 1-2 分钟）…');
     const r = spawnSync(process.execPath, [cliBin, 'build', '--skip-cloud-checks', '--skip-indexing', '--skip-search-index', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
     if (r.status !== 0) { sub('后台构建失败'); process.exit(1); }
-    require('./scripts/admin-patch').applyAdminPatches(__dirname);
+    require('./tools/admin-patch').applyAdminPatches(__dirname);
     sub('后台构建完成（已自动打补丁并同步到发布目录）');
   } else if (cmd === 'dev') {
-    // 边看边改：tinacms dev 代理 hexo server，左边编辑右边网页实时变；退出后自动重建后台
+    // 边看边改：本地起 Tina 后台 + Hexo 站点，编辑后刷新查看；退出后自动重建后台
     const path = require('path');
-    const { spawnSync } = require('child_process');
+    const { spawnSync, execSync } = require('child_process');
     // 必须用 bin 垫片调用（dist/index.js 只定义不执行）
     const cliBin = path.join(__dirname, 'node_modules', '@tinacms', 'cli', 'bin', 'tinacms');
+
+    // 上次没用 Ctrl+C 正常退出时，4000/4001/9000 会被残留进程占着，导致这次起不来。
+    // 这里先把「占着这些端口的 node 进程」清掉（只动 node，不动别的程序）。
+    function freeDevPorts() {
+      if (process.platform !== 'win32') return;
+      let netstatOut = '';
+      try {
+        netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8' });
+      } catch (e) {
+        return;
+      }
+      const pids = new Set();
+      for (const p of [4000, 4001, 9000]) {
+        const re = new RegExp(':' + p + '\\s+[^\\r\\n]*LISTENING\\s+(\\d+)');
+        for (const line of netstatOut.split(/\r?\n/)) {
+          const m = line.match(re);
+          if (m) pids.add(m[1]);
+        }
+      }
+      for (const pid of pids) {
+        let name = '';
+        try {
+          const tl = execSync(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, { encoding: 'utf8' });
+          name = (tl.split(',')[1] || '').replace(/"/g, '').toLowerCase();
+        } catch (e) {}
+        if (name.startsWith('node')) {
+          try {
+            execSync(`taskkill /PID ${pid} /F`, { stdio: 'ignore' });
+            sub('已清理上次没关干净的本地服务（进程 ' + pid + '，端口被占用会导致这次起不来）');
+          } catch (e) {}
+        }
+      }
+    }
+    freeDevPorts();
+
     console.log('');
-    sub('正在启动「边看边改」（首次要编译一小会儿，请等网址出现）…');
-    sub('出现网址后按住 Ctrl 点击打开（编辑入口一般是 http://localhost:3000/admin）');
-    sub('左边是编辑表单，右边就是真实网页：左边改，右边立刻跟着变。');
+    sub('正在启动「边看边改」（首次要编译一小会儿，约 30~60 秒，别关窗口）…');
+    sub('等服务就绪后，浏览器会自动打开两个标签页：编辑后台 + 本地网站。');
+    sub('如果没自动打开，等窗口出现 “TinaCMS Dev Server is active” 后手动访问：');
+    sub('① 编辑后台：http://localhost:4001/admin/index.html');
+    sub('② 看效果：http://localhost:4000 （你的本地网站）');
+    sub('保存一篇文章后，网站那边刷新一下就变了（本地服务会自动重新生成）。');
     sub('注意：这里的改动只保存在本机，想上线还要再双击「1-发布到网站.bat」。');
-    sub('用完按 Ctrl+C 退出，脚本会自动恢复后台文件。');
+    sub('用完按 Ctrl+C 退出（不要直接关窗口），脚本会自动恢复后台文件。');
     console.log('');
+    // 起一个助手进程：等 4000/4001 真正开始监听后，自动打开浏览器
+    try {
+      require('child_process')
+        .spawn(
+          process.execPath,
+          [path.join(__dirname, 'tools', 'open-when-ready.js'), '4000', '4001', '--', 'http://localhost:4001/admin/index.html', 'http://localhost:4000'],
+          { detached: true, stdio: 'ignore', cwd: __dirname }
+        )
+        .unref();
+    } catch (e) {
+      /* 自动打开失败不影响主流程 */
+    }
     const r = spawnSync(process.execPath, [cliBin, 'dev', '-c', 'npx hexo server', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
     console.log('');
     sub('预览已停止。正在重建后台（dev 会改写后台文件，必须恢复）…');
     const b = spawnSync(process.execPath, [cliBin, 'build', '--skip-cloud-checks', '--skip-indexing', '--skip-search-index', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
     if (b.status === 0) {
-      require('./scripts/admin-patch').applyAdminPatches(__dirname);
+      require('./tools/admin-patch').applyAdminPatches(__dirname);
       sub('已恢复。想上线改动就双击「1-发布到网站.bat」');
     } else {
       sub('后台自动重建失败，请回到对话里告诉 AI 来处理。');
