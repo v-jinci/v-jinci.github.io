@@ -36,6 +36,15 @@ skip_render:
   - 'cms/**'
   # Tina CMS 的后台页面（/admin）同样要原样复制（里面是编译好的 JS/CSS）
   - 'admin/**'
+  # 第三方库（Font Awesome / Waline / Sveltia 等）必须原样复制：
+  # Sveltia 的几个分块里含类似 YAML 分隔符的字符串，会被 Hexo 当文章解析而失败，
+  # 导致文件在 public 里消失（线上 404，后台打不开）
+  - 'libs/**'
+
+# Hexo 默认忽略下划线开头的文件，但 Sveltia 的分块里有 _shared-module_*.js，
+# 缺了它们后台会打不开，所以显式包含进来
+include:
+  - 'libs/sveltia/chunks/assets/_shared-module_*.js'
 
 # ---------- 写作 ----------
 new_post_name: :year-:month-:day-:title.md

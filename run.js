@@ -1042,6 +1042,8 @@ async function main() {
     console.log('');
     sub('正在启动「边看边改」（首次要编译一小会儿，请等网址出现）…');
     sub('出现网址后按住 Ctrl 点击打开（编辑入口一般是 http://localhost:3000/admin）');
+    sub('左边是编辑表单，右边就是真实网页：左边改，右边立刻跟着变。');
+    sub('注意：这里的改动只保存在本机，想上线还要再双击「1-发布到网站.bat」。');
     sub('用完按 Ctrl+C 退出，脚本会自动恢复后台文件。');
     console.log('');
     const r = spawnSync(process.execPath, [cliBin, 'dev', '-c', 'npx hexo server', '--noTelemetry'], { stdio: 'inherit', cwd: __dirname });
