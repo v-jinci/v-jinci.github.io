@@ -1,0 +1,219 @@
+# ==========================================================
+#  Sveltia CMS 配置（第二套编辑器，和 Pages CMS 并存，互不影响）
+#  打开地址：https://你的域名/admin/
+#  登录方式：点「Sign In with Token」→ 粘贴 GitHub 令牌（不需要架服务器）
+#  令牌生成：https://github.com/settings/tokens → Generate new token (classic)
+#           勾选 repo 这一项，有效期随意，生成后复制粘贴进去
+#
+#  注意：分支必须是 hexo-src（这里放的是源码），master 是编译后的成品。
+#  字段和 .pages.yml 一一对应，改一个记得改另一个。
+# ==========================================================
+
+backend:
+  name: github
+  repo: v-jinci/v-jinci.github.io
+  branch: hexo-src
+
+# 站点信息（登录页底部显示，纯装饰）
+site_url: https://v-jinci.github.io
+display_url: https://v-jinci.github.io
+
+# 图片：上传进 source/img/，正文里写成 /img/xxx.png
+media_folder: source/img
+public_folder: /img
+
+# 中文界面（Sveltia 支持的语言标识）
+locale: zh_Hans
+
+collections:
+  # ---------------- 文章 ----------------
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    folder: source/_posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    # 新文章文件名带日期：2026-11-11-标题.md（重名也不会覆盖旧文）
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    sortable_fields: [date, title]
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+        hint: 显示在首页卡片和浏览器标签上
+
+      - label: 发布日期
+        name: date
+        widget: datetime
+        date_format: "YYYY-MM-DD"
+        time_format: "HH:mm:ss"
+        format: "YYYY-MM-DD HH:mm:ss"
+        hint: 决定首页排序和网址里的日期
+
+      - label: 摘要（首页卡片的两行简介）
+        name: description
+        widget: text
+        required: false
+        hint: 不填会自动截正文开头，常常是半句话，建议自己写一两句
+
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        hint: 想加几个就加几个，回车分隔（例：Hexo、折腾记录）
+
+      - label: 分类
+        name: categories
+        widget: list
+        required: false
+        hint: 一般只填一个（例：技术）
+
+      - label: 封面图（可不填）
+        name: cover
+        widget: image
+        required: false
+        hint: 首页卡片和「上一篇/下一篇」用这张图打底；建议横图 1200×675
+
+      # ---------- 排版与显示开关（都可以不填） ----------
+      - label: 系列 / 专栏
+        name: series
+        widget: string
+        required: false
+        hint: 填一个名字，同名文章会在文末自动生成「系列合集」目录
+
+      - label: 置顶
+        name: sticky
+        widget: select
+        required: false
+        default: "0"
+        options:
+          - label: 不置顶（默认）
+            value: "0"
+          - label: 置顶 1（最优先）
+            value: "1"
+          - label: 置顶 2
+            value: "2"
+          - label: 置顶 3
+            value: "3"
+
+      - label: 显示评论区
+        name: comments
+        widget: boolean
+        required: false
+        default: true
+
+      - label: 显示右侧目录
+        name: toc
+        widget: boolean
+        required: false
+        default: true
+
+      - label: 访问密码（留空＝公开）
+        name: password
+        widget: string
+        required: false
+        hint: 填了之后网页上要输密码才能看，正文在源码里也是加密的
+
+      - label: 正文图片宽度（只影响这一篇）
+        name: img_width
+        widget: string
+        required: false
+        hint: 填数字＝百分比，40 就是 40%；留空跟随全站默认
+
+      - label: 正文图片排版（文字在图的哪一侧）
+        name: img_float
+        widget: select
+        required: false
+        options:
+          - label: 自动（窄图左环绕，文字在右）
+            value: auto
+          - label: 左环绕 —— 图片在左，文字在右边
+            value: l
+          - label: 右环绕 —— 图片在右，文字在左边
+            value: r
+          - label: 居中 —— 图片单独一行
+            value: c
+
+      # ---------- 转载 ----------
+      - label: 自定义链接（一般不用改）
+        name: permalink
+        widget: string
+        required: false
+        hint: 锁定这篇文章的网址，防止旧链接失效；不知道是什么就别动它
+
+      - label: 转载来源名称
+        name: reprint_name
+        widget: string
+        required: false
+        hint: 转载别处文章才填，文末自动出「本文转载自 …」
+
+      - label: 转载原文链接
+        name: reprint_url
+        widget: string
+        required: false
+
+      # ---------- 老文章里常见的字段（保留，防止保存时被删） ----------
+      - label: 顶部大图 top_img（老字段）
+        name: top_img
+        widget: string
+        required: false
+        hint: 主题自带的文章顶部大图，一般不用改
+
+      - label: 更新时间 updated（老字段）
+        name: updated
+        widget: datetime
+        required: false
+        date_format: "YYYY-MM-DD HH:mm:ss"
+        time_format: "HH:mm:ss"
+        format: "YYYY-MM-DD HH:mm:ss"
+
+      - label: 作者 author（老字段）
+        name: author
+        widget: string
+        required: false
+
+      - label: 正文
+        name: body
+        widget: markdown
+        hint: >-
+          排版小抄：提示框＝引用块开头写「提示：/注意：/重点：/警告：」；
+          折叠＝引用块开头写「折叠：标题」；金句＝引用块里只写一句短话；
+          图注＝图片下一行写 *说明*；并排＝连着插两张图；
+          步骤＝有序列表第一句写「步骤：」；按钮＝【按钮】后面跟链接。
+
+  # ---------------- 独立页面 ----------------
+  - name: pages
+    label: 独立页面
+    files:
+      - label: 关于
+        name: about
+        file: source/about/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: markdown }
+
+      - label: 友链
+        name: link
+        file: source/link/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: markdown }
+
+      - label: 留言板
+        name: messageBoard
+        file: source/messageBoard/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文（留言板本身是空的，评论会渲染在下面）, name: body, widget: markdown }
+
+      - label: 编年史
+        name: history
+        file: source/history/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: markdown }

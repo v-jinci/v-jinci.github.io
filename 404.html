@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>404 · 玮's Blog</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{display:flex;align-items:center;justify-content:center;padding:24px;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+background:#0b1020;color:#fff;overflow:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;
+background:radial-gradient(60% 60% at 15% 10%,rgba(99,102,241,.55),transparent 60%),
+radial-gradient(55% 55% at 85% 20%,rgba(236,72,153,.42),transparent 62%),
+radial-gradient(70% 70% at 50% 110%,rgba(16,185,129,.4),transparent 60%)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;
+background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:46px 46px;
+mask-image:radial-gradient(70% 70% at 50% 40%,#000 40%,transparent 100%);
+-webkit-mask-image:radial-gradient(70% 70% at 50% 40%,#000 40%,transparent 100%)}
+.wb404{position:relative;z-index:2;text-align:center;max-width:620px;
+padding:44px 34px;border-radius:22px;background:rgba(14,20,38,.55);
+border:1px solid rgba(255,255,255,.14);box-shadow:0 24px 70px rgba(0,0,0,.45);
+backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.wb404 .code{font-size:clamp(64px,15vw,110px);font-weight:800;line-height:1;letter-spacing:.06em;
+background:linear-gradient(120deg,#a5b4fc,#f0abfc 45%,#6ee7b7);-webkit-background-clip:text;
+background-clip:text;color:transparent}
+.wb404 h1{margin:14px 0 0;font-size:clamp(20px,4vw,26px);font-weight:600}
+.wb404 p{margin:14px 0 0;color:rgba(255,255,255,.72);font-size:15px;line-height:1.9}
+.wb404 .btns{margin-top:26px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.wb404 a{display:inline-block;padding:11px 26px;border-radius:999px;font-size:15px;
+text-decoration:none;transition:transform .2s ease,background .2s ease}
+.wb404 a.main{background:linear-gradient(120deg,#6366f1,#a855f7);color:#fff;font-weight:600;
+box-shadow:0 10px 26px rgba(99,102,241,.4)}
+.wb404 a.ghost{color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06)}
+.wb404 a:hover{transform:translateY(-2px)}
+.wb404 .site{margin-top:22px;font-size:12px;letter-spacing:.14em;color:rgba(255,255,255,.4)}
+</style>
+</head>
+<body>
+<main class="wb404">
+<div class="code">404</div>
+<h1>这一页走丢了</h1>
+<p>地址可能拼错、文章可能挪了位置，也可能它从来就没存在过。</p>
+<div class="btns">
+<a class="main" href="/">回到首页</a>
+<a class="ghost" href="/messageBoard/">留言告诉我</a>
+</div>
+<div class="site">玮's Blog</div>
+</main>
+</body>
+</html>

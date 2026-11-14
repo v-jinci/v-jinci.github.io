@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/admin/assets/favicon-CCqH8YbW.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TinaCMS</title>
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    <script>
+      // 报错透镜：编辑器崩溃时把完整错误堆栈显示在屏幕上，方便截图排错
+      // （Slate 聚焦类的已知无害报错会静默忽略，不弹面板）
+      ;(function () {
+        if (window.__tinaErrLens) return
+        window.__tinaErrLens = true
+        function fmt(x) {
+          if (x instanceof Error) return (x.stack || (x.name + ': ' + x.message))
+          if (typeof x === 'string') return x
+          try { return JSON.stringify(x) } catch (e) { return String(x) }
+        }
+        function isBenign(text) {
+          var s = String(text || '')
+          // 空内容 / undefined 的报错没有任何排查价值（多为登录前探测请求 401 的
+          // 附带噪音），弹出来只会吓到人，静默掉。
+          if (!s || s === 'undefined' || s === 'null') return true
+          // Slate 编辑器内部「工具栏点击后重新聚焦正文」失败的已知无害报错：
+          // 加粗/斜体等按钮的实际功能不受影响（每次点工具栏按钮 Slate 都会在内部
+          // console.error 一次，功能照常）。出现时静默记录，不再弹红色面板。
+          if (s.indexOf('Cannot resolve a DOM node from Slate node') >= 0) return true
+          if (s.indexOf('Converting circular structure to JSON') >= 0 && s.indexOf('toDOMNode') >= 0) return true
+          // Tina 页面自带的「2 秒兜底检查」误报：bundle 较大时冷启动常超 2 秒，
+          // 界面随后会正常渲染出来，但检查已先 console.error('Failed to load assets')。
+          // 只要 #root 已渲染出内容，这条就是误报；真加载失败时 root 是空的，仍会报警。
+          if (s.indexOf('Failed to load assets') >= 0) {
+            try { var rt = document.getElementById('root'); if (rt && rt.children.length) return true } catch (e) {}
+          }
+          return false
+        }
+        function refocusEditor() {
+          try {
+            var ed = document.querySelector('[data-slate-editor="true"]')
+            if (ed && document.activeElement !== ed && !(ed.contains && ed.contains(document.activeElement))) ed.focus()
+          } catch (e) {}
+        }
+        function show(title, text) {
+          try {
+            if (isBenign(text)) {
+              try { localStorage.setItem('tina_err_lens_muted', String((parseInt(localStorage.getItem('tina_err_lens_muted') || '0', 10) || 0) + 1)) } catch (e) {}
+              refocusEditor()
+              return
+            }
+            var key = 'tina_err_lens'
+            var rec = { t: new Date().toLocaleString(), title: title, text: String(text).slice(0, 4000) }
+            localStorage.setItem(key, JSON.stringify(rec))
+            if (document.getElementById('__tinaErrOverlay')) return
+            var d = document.createElement('div')
+            d.id = '__tinaErrOverlay'
+            d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:55vh;overflow:auto;z-index:2147483647;background:#1e1e2e;color:#f5f5dc;font:12px/1.5 Consolas,monospace;padding:12px;border-top:3px solid #ff5555;white-space:pre-wrap;word-break:break-all;'
+            var b = document.createElement('button')
+            b.textContent = '复制报错'
+            b.style.cssText = 'position:absolute;top:6px;right:8px;background:#444;color:#fff;border:0;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;'
+            b.onclick = function () { try { navigator.clipboard.writeText(rec.title + '\n' + rec.text); b.textContent = '已复制 ✓' } catch (e) {} }
+            var x = document.createElement('button')
+            x.textContent = '×'
+            x.style.cssText = 'position:absolute;top:6px;right:80px;background:#666;color:#fff;border:0;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px;'
+            x.onclick = function () { d.remove() }
+            d.appendChild(b); d.appendChild(x)
+            var pre = document.createElement('div')
+            pre.textContent = '【' + title + '】' + rec.t + '\n' + rec.text
+            d.appendChild(pre)
+            ;(document.body || document.documentElement).appendChild(d)
+          } catch (e) {}
+        }
+        window.addEventListener('error', function (ev) {
+          show('页面报错', fmt(ev.error || ev.message))
+        })
+        window.addEventListener('unhandledrejection', function (ev) {
+          show('未处理的Promise报错', fmt(ev.reason))
+        })
+        var _ce = console.error
+        console.error = function () {
+          try { show('控制台报错', Array.prototype.map.call(arguments, fmt).join('\n')) } catch (e) {}
+          return _ce.apply(console, arguments)
+        }
+      })()
+    </script>
+<script>
+      // 防崩溃补丁（React 官方 issue #11538）：翻译插件等改写 DOM 时静默降级，不炸编辑器
+      ;(function () {
+        if (typeof Node === "undefined" || !Node.prototype || window.__tinaDomGuard) return
+        window.__tinaDomGuard = true
+        var _removeChild = Node.prototype.removeChild
+        Node.prototype.removeChild = function (child) {
+          try { return _removeChild.apply(this, arguments) } catch (e) { if (e && e.name === "NotFoundError") return child; throw e }
+        }
+        var _insertBefore = Node.prototype.insertBefore
+        Node.prototype.insertBefore = function (newNode, refNode) {
+          try { return _insertBefore.apply(this, arguments) } catch (e) {
+            if (e && e.name === "NotFoundError" && refNode && refNode.parentNode !== this) return this.appendChild(newNode)
+            throw e
+          }
+        }
+      })()
+    </script>
+<script type="module" crossorigin src="/admin/assets/index-g_HOKBgz.js"></script>
+    <link rel="stylesheet" crossorigin href="/admin/assets/index-TBkdlV7b.css">
+  </head>
+  <body class="tina-tailwind">
+    <div id="root"></div>
+    <script>
+      function handleLoadError() {
+        console.error('Failed to load assets')
+        // Assets have failed to load
+        document.getElementById('root').innerHTML =
+          '<style type="text/css">\
+        #no-assets-placeholder body {\
+          font-family: sans-serif;\
+          font-size: 16px;\
+          line-height: 1.4;\
+          color: #333;\
+          background-color: #f5f5f5;\
+        }\
+        #no-assets-placeholder {\
+          max-width: 600px;\
+          margin: 0 auto;\
+          padding: 40px;\
+          text-align: center;\
+          background-color: #fff;\
+          box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);\
+        }\
+        #no-assets-placeholder h1 {\
+          font-size: 24px;\
+          margin-bottom: 20px;\
+        }\
+        #no-assets-placeholder p {\
+          margin-bottom: 10px;\
+        }\
+        #no-assets-placeholder a {\
+          color: #0077cc;\
+          text-decoration: none;\
+        }\
+        #no-assets-placeholder a:hover {\
+          text-decoration: underline;\
+        }\
+        </style>\
+        <div id=\'no-assets-placeholder\'>\
+          <h1>Failed loading TinaCMS assets</h1>\
+          <p>\
+            Your TinaCMS configuration may be misconfigured, and we could not load\
+            the assets for this page.\
+          </p>\
+          <p>\
+            Please visit <a href="https://tina.io/docs/r/FAQ/#13-how-do-i-resolve-failed-loading-tinacms-assets-error">this doc</a> for help.\
+          </p>\
+        </div>'
+      }
+
+      // Check if #root has childen after 2 seconds
+      // If not, we assume that the assets have failed to load
+      setTimeout(() => {
+        if (!document.getElementById('root').children.length) {
+          handleLoadError()
+        }
+      }, 2000)
+    </script>
+  </body>
+</html>

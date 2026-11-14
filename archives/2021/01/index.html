@@ -1,0 +1,424 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>一月 2021 | 玮's Blog</title><meta name="author" content="玮"><meta name="copyright" content="玮"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="记录思考、学习与生活的个人博客">
+<meta property="og:type" content="website">
+<meta property="og:title" content="一月 2021">
+<meta property="og:url" content="https://v-jinci.github.io/archives/2021/01/index.html">
+<meta property="og:site_name" content="玮&#39;s Blog">
+<meta property="og:description" content="记录思考、学习与生活的个人博客">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://v-jinci.github.io/img/Avatar.png">
+<meta property="article:author" content="玮">
+<meta property="article:tag" content="玮,博客,日志,生活记录,读书笔记">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://v-jinci.github.io/img/Avatar.png"><script type="application/ld+json"></script><link rel="shortcut icon" href="/img/site-icon.ico"><link rel="canonical" href="https://v-jinci.github.io/archives/2021/01/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.7.2"><link rel="stylesheet" href="/libs/fontawesome/css/all.min.css?v=7.3.1"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        try {
+          const data = { value }
+
+          if (ttl != null) {
+            data.expiry = Date.now() + ttl * 86400000
+          }
+
+          localStorage.setItem(key, JSON.stringify(data))
+        } catch (e) {
+          console.error(e)
+        }
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return
+
+        try {
+          const data = JSON.parse(itemStr)
+
+          if (data.expiry && Date.now() > data.expiry) {
+            localStorage.removeItem(key)
+            return
+          }
+
+          return data.value
+        } catch {
+          localStorage.removeItem(key)
+        }
+      }
+    }
+
+    const scriptCache = new Map()
+    const cssCache = new Map()
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => {
+        if (scriptCache.has(url)) {
+          return scriptCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const script = document.createElement('script')
+
+          script.src = url
+          script.async = true
+
+          for (const key in attr) {
+            script.setAttribute(key, attr[key])
+          }
+
+          script.onload = resolve
+          script.onerror = reject
+
+          document.head.appendChild(script)
+        })
+
+        scriptCache.set(url, promise)
+
+        return promise
+      },
+      getCSS: (url, id) => {
+        if (cssCache.has(url)) {
+          return cssCache.get(url)
+        }
+
+        const promise = new Promise((resolve, reject) => {
+          const link = document.createElement('link')
+
+          link.rel = 'stylesheet'
+          link.href = url
+
+          if (id) {
+            link.id = id
+          }
+
+          link.onload = resolve
+          link.onerror = reject
+
+          document.head.appendChild(link)
+        })
+
+        cssCache.set(url, promise)
+
+        return promise
+      },
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+      const activateDarkMode = () => {
+        document.documentElement.dataset.theme = 'dark'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.dataset.theme = 'light'
+        if (metaThemeColor !== null) {
+          metaThemeColor.setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          const mediaQueryDark = window.matchMedia('(prefers-color-scheme: dark)')
+          const mediaQueryLight = window.matchMedia('(prefers-color-scheme: light)')
+
+          if (theme === undefined) {
+            if (mediaQueryLight.matches) activateLightMode()
+            else if (mediaQueryDark.matches) activateDarkMode()
+            else {
+              const hour = new Date().getHours()
+              const start = 6
+              const end = 18
+              const isNight =
+                start < end
+                    ? hour < start || hour >= end
+                    : hour >= start || hour < end
+              isNight ? activateDarkMode() : activateLightMode()
+            }
+            mediaQueryDark.addEventListener('change', e => {
+              if (saveToLocal.get('theme') === undefined) {
+                e.matches ? activateDarkMode() : activateLightMode()
+              }
+            })
+          } else {
+            theme === 'light' ? activateLightMode() : activateDarkMode()
+          }
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: {"path":"/search.xml","preload":true,"top_n_per_article":1,"unescape":false,"pagination":{"enable":false,"hitsPerPage":8},"languages":{"hits_empty":"未找到符合您查询的内容：${query}","hits_stats":"共找到 ${hits} 篇文章"}},
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false,"highlightFullpage":false,"highlightMacStyle":false},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: '/libs/infinitegrid.min.js?v=4.13.1',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: true,
+  },
+  autoDarkmode: true
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: '一月 2021',
+  isHighlightShrink: false,
+  isToc: false,
+  pageType: 'archive'
+}</script><style>.wl-addr{display:none!important}</style><style>
+/* ---- 文章底部「上一篇 / 下一篇」：图片打底 + 暗色遮罩，保证文字看得清 ---- */
+/* 背景图来自 wb_look.nav_bg（/site 后台可改），由 scripts/wb-look.js 注入成 CSS 变量 */
+#pagination.pagination-post a.pagination-related{position:relative;overflow:hidden;border-radius:14px;box-shadow:0 6px 20px rgba(15,23,42,.10)}
+#pagination.pagination-post a.pagination-related .cover{
+  background-image:var(--wb-nav-bg,url('/img/nav-cover.svg'))!important;
+  background-size:cover!important;background-position:center!important;background-color:transparent!important}
+#pagination.pagination-post a.pagination-related:nth-of-type(2) .cover{
+  background-image:var(--wb-nav-bg2,var(--wb-nav-bg,url('/img/nav-cover3.svg')))!important}
+#pagination.pagination-post a.pagination-related:hover .cover{opacity:1!important}
+#pagination.pagination-post a.pagination-related::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(120deg,rgba(8,15,28,.42),rgba(8,15,28,.16) 55%,rgba(8,15,28,.38))}
+/* 文字是绝对定位的，只抬层级、不改变定位方式，否则会跑到卡片顶部 */
+#pagination.pagination-post a.pagination-related .info .info-1,
+#pagination.pagination-post a.pagination-related .info .info-2{position:absolute;z-index:2}
+#pagination.pagination-post .info-item-1,
+#pagination.pagination-post .info-item-2{color:rgba(255,255,255,.96)!important;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+#pagination.pagination-post .info-1 .info-item-1{opacity:.72;letter-spacing:.08em}
+
+/* ---- 页脚：背景图 + 遮罩 + 白字 ---- */
+#footer{position:relative;background-size:cover;background-position:center;background-repeat:no-repeat}
+#footer::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(6,12,24,.4),rgba(6,12,24,.62))}
+#footer>*{position:relative;z-index:1}
+#footer,
+#footer a,
+#footer .footer-copyright,
+#footer .footer-other,
+#footer .footer-separator{color:rgba(255,255,255,.9)!important}
+#footer a:hover{color:#fff!important;text-decoration:underline}
+/* 深色模式下别压得太黑 */
+html[data-theme="dark"] #footer::before{background:linear-gradient(180deg,rgba(6,12,24,.45),rgba(6,12,24,.68))}
+
+/* ---- 正文图片排版：?w= 定大小，?f= 定环绕（由 scripts/wb-post.js 加类名） ---- */
+/* 图片靠左 / 靠右时，文字会自动绕到另一边，不再缩成半宽后右边一大片空白 */
+#article-container .wb-fig{border-radius:8px}
+#article-container .wb-fig-l{float:left}
+#article-container .wb-fig-r{float:right}
+#article-container .wb-fig-c{display:block}
+/* 浮动图片后面的标题另起一行，避免标题文字也绕着图走 */
+#article-container h1,#article-container h2,#article-container h3,
+#article-container h4,#article-container h5,#article-container h6{clear:both}
+/* 正文结束处收尾，图片再长也不会压到「上一篇/下一篇」和评论 */
+#article-container::after{content:"";display:block;clear:both}
+/* 手机上不环绕：一律整行居中，否则文字挤成一条 */
+@media (max-width:768px){
+  #article-container .wb-fig-l,#article-container .wb-fig-r{
+    float:none!important;display:block!important;width:100%!important;margin:10px auto!important}
+}
+
+/* ================= 正文写法包（由 scripts/wb-post.js 识别生成） =================
+   提示框：引用块开头写 提示：/ 注意：/ 重点：/ 警告：
+   折叠块：引用块开头写 折叠：标题   金句：引用块里只写一句短话
+   图注：图片下一行写 *说明*        并排：连着插 2~3 张图
+   步骤：有序列表第一项写 步骤：     按钮：【按钮】+ 链接
+   ================================================================== */
+
+/* ---- 提示框 ---- */
+#article-container .wb-note{margin:18px 0;padding:12px 15px;border-radius:12px;border:1px solid transparent;
+  border-left-width:4px;line-height:1.8}
+#article-container .wb-note-h{font-weight:700;font-size:13.5px;letter-spacing:.02em;margin-bottom:4px}
+#article-container .wb-note-b>*:first-child{margin-top:0}
+#article-container .wb-note-b>*:last-child{margin-bottom:0}
+#article-container .wb-note-b p{margin:4px 0}
+#article-container .wb-note-tip{background:rgba(56,189,248,.10);border-color:rgba(56,189,248,.30);border-left-color:#38bdf8}
+#article-container .wb-note-tip .wb-note-h{color:#0284c7}
+#article-container .wb-note-warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.32);border-left-color:#f59e0b}
+#article-container .wb-note-warn .wb-note-h{color:#b45309}
+#article-container .wb-note-key{background:rgba(99,102,241,.10);border-color:rgba(99,102,241,.28);border-left-color:#6366f1}
+#article-container .wb-note-key .wb-note-h{color:#4f46e5}
+#article-container .wb-note-danger{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.28);border-left-color:#ef4444}
+#article-container .wb-note-danger .wb-note-h{color:#dc2626}
+
+/* ---- 折叠块 ---- */
+#article-container details.wb-fold{margin:18px 0;padding:0 15px;border-radius:12px;
+  border:1px solid rgba(148,163,184,.28);background:rgba(148,163,184,.07)}
+#article-container details.wb-fold>*{max-width:100%}
+#article-container details.wb-fold>summary{cursor:pointer;padding:11px 0;font-weight:600;list-style:none;outline:none}
+#article-container details.wb-fold>summary::-webkit-details-marker{display:none}
+#article-container details.wb-fold>summary::before{content:"▸";display:inline-block;margin-right:8px;
+  color:#38bdf8;transition:transform .18s ease}
+#article-container details.wb-fold[open]>summary::before{transform:rotate(90deg)}
+#article-container details.wb-fold[open]>summary{border-bottom:1px dashed rgba(148,163,184,.32);margin-bottom:8px}
+#article-container details.wb-fold .wb-fold-body{padding:2px 0 8px}
+#article-container details.wb-fold .wb-fold-body>*:last-child{margin-bottom:0}
+
+/* ---- 金句 ---- */
+#article-container blockquote.wb-quote{margin:24px 0;padding:20px 22px;border:0;border-radius:16px;
+  background:linear-gradient(120deg,rgba(37,99,235,.08),rgba(6,182,212,.08));text-align:center;position:relative}
+#article-container blockquote.wb-quote::before{content:"“";position:absolute;left:12px;top:2px;
+  font-size:40px;line-height:1;color:rgba(56,189,248,.45);font-family:Georgia,serif}
+#article-container blockquote.wb-quote p{margin:0;font-size:17px;line-height:1.8;font-weight:600;color:inherit}
+
+/* ---- 图注（图片 + 小字说明） ---- */
+#article-container .wb-figbox{margin:16px auto;display:block;max-width:100%}
+#article-container .wb-figbox img{width:100%!important;max-width:100%;height:auto;display:block;
+  margin:0!important;float:none!important;border-radius:8px}
+#article-container .wb-figbox figcaption{margin-top:7px;text-align:center;font-size:12.5px;
+  line-height:1.6;color:#94a3b8}
+#article-container .wb-figbox--l{float:left;margin:6px 18px 14px 0}
+#article-container .wb-figbox--r{float:right;margin:6px 0 14px 18px}
+
+/* ---- 并排图片 ---- */
+#article-container .wb-cols{display:grid;gap:10px;margin:16px 0;clear:both}
+#article-container .wb-cols-2{grid-template-columns:1fr 1fr}
+#article-container .wb-cols-3{grid-template-columns:1fr 1fr 1fr}
+#article-container .wb-cols img{width:100%!important;height:auto;display:block;margin:0!important;
+  float:none!important;border-radius:8px}
+
+/* ---- 步骤条 ---- */
+#article-container ol.wb-steps{list-style:none;padding-left:4px;margin:18px 0;counter-reset:wbstep}
+#article-container ol.wb-steps>li{position:relative;padding-left:42px;margin:0 0 16px;counter-increment:wbstep}
+#article-container ol.wb-steps>li::before{content:counter(wbstep);position:absolute;left:0;top:2px;
+  width:26px;height:26px;border-radius:50%;color:#fff;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#2563eb,#06b6d4);box-shadow:0 4px 10px rgba(37,99,235,.28)}
+#article-container ol.wb-steps>li::after{content:"";position:absolute;left:12.5px;top:32px;bottom:-16px;
+  width:1px;background:rgba(148,163,184,.45)}
+#article-container ol.wb-steps>li:last-child{margin-bottom:0}
+#article-container ol.wb-steps>li:last-child::after{display:none}
+#article-container ol.wb-steps>li>p{margin:0}
+
+/* ---- 按钮链接 ---- */
+#article-container .wb-btn-row{margin:18px 0;text-align:center}
+#article-container a.wb-btn{display:inline-block;padding:9px 22px;border-radius:999px;font-size:14px;
+  font-weight:600;line-height:1.6;text-decoration:none!important;color:#fff!important;
+  background:linear-gradient(120deg,#2563eb,#06b6d4);box-shadow:0 6px 16px rgba(37,99,235,.25);
+  transition:transform .15s ease,box-shadow .15s ease}
+#article-container a.wb-btn:hover{transform:translateY(-1px);color:#fff!important;
+  box-shadow:0 10px 22px rgba(37,99,235,.32)}
+#article-container a.wb-btn::after{content:none!important}
+
+/* ---- 表格 ---- */
+#article-container .wb-table{overflow-x:auto;margin:18px 0;-webkit-overflow-scrolling:touch;border-radius:10px}
+#article-container .wb-table table{width:100%;min-width:420px;margin:0;border-collapse:collapse;font-size:14px}
+#article-container .wb-table th,#article-container .wb-table td{
+  padding:9px 13px;border:1px solid rgba(148,163,184,.28);text-align:left;vertical-align:top}
+#article-container .wb-table th{background:rgba(37,99,235,.09);font-weight:700;white-space:nowrap}
+#article-container .wb-table tbody tr:nth-child(even){background:rgba(148,163,184,.07)}
+
+/* ---- 转载来源 ---- */
+#article-container .wb-reprint{margin:22px 0 4px;padding:10px 14px;border-radius:10px;
+  background:rgba(148,163,184,.10);font-size:13px;line-height:1.7;color:#64748b}
+#article-container .wb-reprint a{color:#2563eb;text-decoration:none}
+#article-container .wb-reprint a:hover{text-decoration:underline}
+
+/* ---- 系列合集 ---- */
+#article-container .wb-series{margin:28px 0 0;padding:15px 17px;border-radius:14px;
+  background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.16)}
+#article-container .wb-series-t{font-weight:700;font-size:14px;margin-bottom:9px}
+#article-container .wb-series ul{margin:0;padding-left:20px}
+#article-container .wb-series li{margin:5px 0;font-size:13.5px;line-height:1.7}
+#article-container .wb-series-d{color:#94a3b8;font-size:12px;margin-left:6px}
+
+/* ---- 深色模式：底色和文字都换一套，别糊成一团 ---- */
+html[data-theme="dark"] #article-container .wb-note-tip{background:rgba(56,189,248,.14)}
+html[data-theme="dark"] #article-container .wb-note-tip .wb-note-h{color:#7dd3fc}
+html[data-theme="dark"] #article-container .wb-note-warn .wb-note-h{color:#fcd34d}
+html[data-theme="dark"] #article-container .wb-note-key .wb-note-h{color:#a5b4fc}
+html[data-theme="dark"] #article-container .wb-note-danger .wb-note-h{color:#fca5a5}
+html[data-theme="dark"] #article-container .wb-reprint{color:#94a3b8}
+html[data-theme="dark"] #article-container .wb-reprint a{color:#7dd3fc}
+html[data-theme="dark"] #article-container .wb-table th{background:rgba(56,189,248,.14)}
+html[data-theme="dark"] #article-container .wb-table tbody tr:nth-child(even){background:rgba(148,163,184,.10)}
+
+/* ---- 手机上：并排最多两列、浮动的图注也不环绕 ---- */
+@media (max-width:768px){
+  #article-container .wb-cols-3{grid-template-columns:1fr 1fr}
+  #article-container .wb-figbox--l,#article-container .wb-figbox--r{
+    float:none!important;width:100%!important;margin:16px auto!important}
+  #article-container blockquote.wb-quote p{font-size:15.5px}
+  #article-container ol.wb-steps>li{padding-left:38px}
+}
+</style>
+<meta name="generator" content="Hexo 7.3.0"><style id="wb-extra-css">#article-container img{cursor:zoom-in}.wb-zoom{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:3vh 3vw;background:rgba(5,9,18,.9);cursor:zoom-out;animation:wbfade .18s ease}.wb-zoom img{max-width:100%;max-height:94vh;border-radius:10px;box-shadow:0 18px 60px rgba(0,0,0,.55)}.wb-zoom .wb-zoom-tip{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:rgba(255,255,255,.6);font-size:12px}@keyframes wbfade{from{opacity:0}to{opacity:1}}.wb-uptime{display:block;width:fit-content;margin:12px auto 0;padding:4px 15px;border-radius:999px;font-size:13px;line-height:1.7;letter-spacing:.02em;color:rgba(255,255,255,.92);background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}</style><style>#page-header.wb-hero-on{background-image:none!important;background-color:#0a0f1c}#page-header .wb-hero{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none}#page-header .wb-hero::after{content:"";position:absolute;inset:0;background:rgba(6,12,24,0.2)}#page-header .wb-slide{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat;opacity:0;transition:opacity 1.4s ease;will-change:opacity}#page-header .wb-slide.on{opacity:1}#page-header .wb-hero-video{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .8s ease;background:transparent}#page-header .wb-hero-video.on{opacity:1}#page-header>#site-info,#page-header>#post-info,#page-header>#page-site-info,#page-header>#scroll-down{z-index:2}@media (prefers-reduced-motion:reduce){#page-header .wb-slide{transition:none}}</style><style>:root{--wb-nav-bg:url('/img/b9ac1696bc480b88622e8d45e9d4678ac80bcbc1-b548bedc.jpg?v=mwg1qj99')}#footer{background-image:url("/img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg?v=mwg1qj97")!important;background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important}.avatar-img{animation:none!important}#nav{opacity:1!important;transition:opacity .2s ease!important}#nav,#nav a,#nav span,#nav i{visibility:visible!important}#page-header[style*="background-image"]{background-color:#242a38}#page-header.wb-hero-on{background-color:#242a38}</style><link rel="icon" href="/img/site-icon.ico?v=1794639109102"><link rel="shortcut icon" href="/img/site-icon.ico?v=1794639109102"><link rel="apple-touch-icon" href="/img/site-icon.ico?v=1794639109102"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/Avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/history/"><i class="fa-fw fas fa-history"></i><span> 编年史</span></a></div><div class="menus_item"><a class="site-page" href="/messageBoard/"><i class="fa-fw far fa-comment-dots"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/downloads/"><i class="fa-fw fas fa-download"></i><span> 下载</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div></div></div><div class="page" id="body-wrap"><header class="not-home-page wb-hero-on" id="page-header" style="background-image: url(/img/V_bg.jpg);"><div class="wb-hero" aria-hidden="true"><div class="wb-slide on" style="background-image:url(/img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg?v=mwg1qj94)"></div><video class="wb-hero-video" autoplay muted loop playsinline disablepictureinpicture disableremoteplayback preload="auto" poster="/img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg?v=mwg1qj94"><source src="/media/mp4.mp4?v=mwg1qj9u" type="video/mp4"></video></div><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">玮's Blog</span></a></span><div id="menus"><div id="search-button"><span class="site-page social-icon search"><i class="fas fa-search fa-fw"></i><span> 搜索</span></span></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 归档</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/history/"><i class="fa-fw fas fa-history"></i><span> 编年史</span></a></div><div class="menus_item"><a class="site-page" href="/messageBoard/"><i class="fa-fw far fa-comment-dots"></i><span> 留言板</span></a></div><div class="menus_item"><a class="site-page" href="/downloads/"><i class="fa-fw fas fa-download"></i><span> 下载</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-user"></i><span> 关于</span></a></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="page-site-info"><h1 id="site-title">一月 2021</h1></div></header><main class="layout" id="content-inner"><div id="archive"><div class="article-sort-title">全部文章 - 1</div><div class="article-sort"><div class="article-sort-item year">2021</div><div class="article-sort-item no-article-cover"><div class="article-sort-item-info"><div class="article-sort-item-time"><i class="far fa-calendar-alt"></i><time class="post-meta-date-created" datetime="2021-01-01T02:00:00.000Z" title="发表于 2021-01-01 10:00:00">2021-01-01</time></div><a class="article-sort-item-title" href="/2021/01/01/2020%E5%B9%B4%E5%BA%A6%E6%80%BB%E7%BB%93/" title="2020年度总结">2020年度总结</a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/Avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">玮</div><div class="author-info-description">记录思考，慢慢成长。</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">8</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">3</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/v-jinci"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon wb-sb-copy" href="javascript:;" title="微信：RVV19981227（点一下复制）" data-copy="RVV19981227"><i class="fab fa-weixin"></i></a><a class="social-icon wb-sb-copy" href="javascript:;" title="QQ：599676700（点一下复制）" data-copy="599676700"><i class="fab fa-qq"></i></a><a class="social-icon" href="https://github.com/v-jinci" target="_blank" title="Github"><i class="fab fa-github" style="color: Github;"></i></a><a class="social-icon" href="mailto:599676700@qq.com" target="_blank" title="Email"><i class="fas fa-envelope"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">欢迎来到我的小站，随便逛逛～</div></div><div class="sticky_layout"><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/11/13/a/" title="a">a</a><time datetime="2026-11-13T20:01:00.000Z" title="发表于 2026-11-14 04:01:00">2026-11-14</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/11/13/%E7%94%B5%E9%A5%AD%E9%94%85/" title="电饭锅">电饭锅</a><time datetime="2026-11-12T16:51:00.000Z" title="发表于 2026-11-13 00:51:00">2026-11-13</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/11/12/2026-11-12/" title="122"><img src="/img/2024-01-07-_17-50-56.23_CachedImage_1920.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="122"/></a><div class="content"><a class="title" href="/2026/11/12/2026-11-12/" title="122">122</a><time datetime="2026-11-12T15:19:00.000Z" title="发表于 2026-11-12 23:19:00">2026-11-12</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/11/11/%E4%B8%80%E7%82%B9%E9%97%B2%E8%A8%80%E7%A2%8E%E8%AF%AD/" title="一点闲言碎语"><img src="/img/8fc41df2fd269ae8a9028e29686ac674.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="一点闲言碎语"/></a><div class="content"><a class="title" href="/2026/11/11/%E4%B8%80%E7%82%B9%E9%97%B2%E8%A8%80%E7%A2%8E%E8%AF%AD/" title="一点闲言碎语">一点闲言碎语</a><time datetime="2026-11-11T07:22:00.000Z" title="发表于 2026-11-11 15:22:00">2026-11-11</time></div></div><div class="aside-list-item no-cover"><div class="content"><a class="title" href="/2026/11/10/%E4%BD%A0%E5%A5%BD%EF%BC%8C%E4%B8%96%E7%95%8C/" title="你好，世界">你好，世界</a><time datetime="2026-11-10T11:00:00.000Z" title="发表于 2026-11-10 19:00:00">2026-11-10</time></div></div></div></div><div class="card-widget card-categories"><div class="item-headline"><i class="fas fa-folder-open"></i><span>分类</span></div>
+          <ul class="card-category-list" id="aside-cat-list">
+            <li class="card-category-list-item "><a class="card-category-list-link" href="/categories/%E5%B9%B4%E5%BA%A6%E6%80%BB%E7%BB%93/"><span class="card-category-list-name">年度总结</span><span class="card-category-list-count">2</span></a></li><li class="card-category-list-item "><a class="card-category-list-link" href="/categories/%E7%94%9F%E6%B4%BB/"><span class="card-category-list-name">生活</span><span class="card-category-list-count">2</span></a></li>
+          </ul></div><div class="card-widget card-tags"><div class="item-headline"><i class="fas fa-tags"></i><span>标签</span></div><div class="card-tag-cloud"><a href="/tags/%E7%94%9F%E6%B4%BB/" style="font-size: 1.1em; color: #999">生活</a> <a href="/tags/%E9%9A%8F%E7%AC%94/" style="font-size: 1.1em; color: #999">随笔</a> <a href="/tags/%E6%80%BB%E7%BB%93/" style="font-size: 1.5em; color: #99a9bf">总结</a></div></div><div class="card-widget card-archives">
+    <div class="item-headline"><i class="fas fa-archive"></i><span>归档</span></div>
+  
+    <ul class="card-archive-list">
+      
+        <li class="card-archive-list-item">
+          <a class="card-archive-list-link" href="/archives/2026/11/">
+            <span class="card-archive-list-date">
+              十一月 2026
+            </span>
+            <span class="card-archive-list-count">6</span>
+          </a>
+        </li>
+      
+        <li class="card-archive-list-item">
+          <a class="card-archive-list-link" href="/archives/2022/01/">
+            <span class="card-archive-list-date">
+              一月 2022
+            </span>
+            <span class="card-archive-list-count">1</span>
+          </a>
+        </li>
+      
+        <li class="card-archive-list-item">
+          <a class="card-archive-list-link" href="/archives/2021/01/">
+            <span class="card-archive-list-date">
+              一月 2021
+            </span>
+            <span class="card-archive-list-count">1</span>
+          </a>
+        </li>
+      
+    </ul>
+  </div><div class="card-widget card-webinfo"><div class="item-headline"><i class="fas fa-chart-line"></i><span>网站信息</span></div><div class="webinfo"><div class="webinfo-item"><div class="item-name">文章数目 :</div><div class="item-count">8</div></div><div class="webinfo-item"><div class="item-name">本站访客数 :</div><div class="item-count" id="busuanzi_value_site_uv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">本站总浏览量 :</div><div class="item-count" id="busuanzi_value_site_pv"><i class="fa-solid fa-spinner fa-spin"></i></div></div><div class="webinfo-item"><div class="item-name">最后更新时间 :</div><div class="item-count" id="last-push-date" data-lastPushDate="2026-11-14T06:51:48.964Z"><i class="fa-solid fa-spinner fa-spin"></i></div></div></div></div></div></div></main><footer id="footer" style="background-image: url(/img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg);"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2021 - 2026 By 玮</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></span></div><div class="footer_custom_text">有可能的就一定会发生 「 What can happen will happen 」</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.7.2"></script><script src="/js/main.js?v=5.7.2"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script><div id="local-search"><div class="search-dialog"><nav class="search-nav"><span class="search-dialog-title">搜索</span><i class="fas fa-spinner fa-pulse" id="loading-status" hidden="hidden"></i><button class="search-close-button"><i class="fas fa-times"></i></button></nav><div class="text-center" id="loading-database"><i class="fas fa-spinner fa-pulse"></i><span>  数据加载中</span></div><div class="local-search-input"><input placeholder="搜索文章…" type="text"/></div><hr/><div id="local-search-results"></div><div class="ais-Pagination" id="local-search-pagination" style="display:none;"><ul class="ais-Pagination-list"></ul></div><div id="local-search-stats"></div></div><div id="search-mask"></div><script src="/js/search/local-search.js?v=5.7.2"></script></div></div><script>(function(){document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest(".wb-sb-copy");if(!a)return;e.preventDefault();var t=a.getAttribute("data-copy")||"";if(!t)return;var mark=function(){var o=a.style.color;a.style.color="#10b981";a.setAttribute("title","已复制："+t);setTimeout(function(){a.style.color=o;},1200);};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(mark).catch(function(){});}else{var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");mark();}catch(err){}ta.remove();}});})();</script><script id="wb-extra-js">(function(){var box=null;function shut(){if(box){box.parentNode.removeChild(box);box=null;document.documentElement.style.overflow="";}}function show(src){shut();box=document.createElement("div");box.className="wb-zoom";var im=document.createElement("img");im.src=src;box.appendChild(im);var tip=document.createElement("div");tip.className="wb-zoom-tip";tip.textContent="点击任意位置关闭";box.appendChild(tip);document.body.appendChild(box);document.documentElement.style.overflow="hidden";box.addEventListener("click",shut);}document.addEventListener("keydown",function(e){if(e.key==="Escape"||e.keyCode===27)shut();});document.addEventListener("click",function(e){var t=e.target;if(!t||t.tagName!=="IMG")return;if(!t.closest||!t.closest("#article-container"))return;if(t.className&&String(t.className).indexOf("nozoom")>-1)return;var a=t.closest("a");if(a){var h=a.getAttribute("href")||"";if(h&&!/\.(png|jpe?g|gif|webp|svg|bmp)(\?|$)/i.test(h))return;}e.preventDefault();show(t.getAttribute("data-src")||t.currentSrc||t.src);},true);})();(function(){var s="2021-01-01",t="本站已运行 {days} 天";var d=new Date(String(s).replace(/-/g,"/")+" 00:00:00");if(isNaN(d.getTime()))return;var n=Math.floor((Date.now()-d.getTime())/86400000);if(n<1)n=1;var el=document.createElement("div");el.className="wb-uptime";el.textContent=t.replace(/\{days\}/g,n).replace(/\{since\}/g,s);var h=document.querySelector("#footer-wrap")||document.querySelector("#footer");if(h){h.insertBefore(el,h.firstChild);}else{var f=document.querySelector(".footer-copyright");if(f&&f.parentNode)f.parentNode.insertBefore(el,f);}})();</script><script>(function(){var box=document.querySelector("#page-header .wb-hero");if(!box)return;var v=box.querySelector(".wb-hero-video");var s=box.querySelectorAll(".wb-slide");function dropImg(){for(var i=0;i<s.length;i++){s[i].style.display="none";s[i].style.willChange="auto"}}function showImg(){for(var i=0;i<s.length;i++){s[i].style.display="";s[i].classList.add("on")}}function play(){var p=v.play&&v.play();if(p&&p.catch)p.catch(function(){})}if(v){v.addEventListener("playing",function(){v.classList.add("on");setTimeout(dropImg,900)});v.addEventListener("error",function(){v.classList.remove("on");v.style.display="none"});setTimeout(function(){if(!v.getVideoPlaybackQuality)return;var q=v.getVideoPlaybackQuality();var tot=q.totalVideoFrames||0;if(tot>150&&q.droppedVideoFrames/tot>0.3){try{v.pause()}catch(e){}v.classList.remove("on");v.style.display="none";showImg();}},7000);if(window.IntersectionObserver){new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){if(!document.hidden)play()}else{try{v.pause()}catch(err){}}});},{threshold:0.01}).observe(box);}document.addEventListener("visibilitychange",function(){if(document.hidden){try{v.pause()}catch(e){}}else{play()}});play();}if(s.length<2)return;if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches)return;var i=0,t=setInterval(function(){s[i].classList.remove("on");i=(i+1)%s.length;s[i].classList.add("on");},6000);document.addEventListener("visibilitychange",function(){if(document.hidden){clearInterval(t);}else{clearInterval(t);t=setInterval(function(){s[i].classList.remove("on");i=(i+1)%s.length;s[i].classList.add("on");},6000);}});})();</script></body></html>
