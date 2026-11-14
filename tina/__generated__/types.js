@@ -117,7 +117,7 @@ const generateRequester = (client) => {
 export const ExperimentalGetTinaClient = () => getSdk(
   generateRequester(
     createClient({
-      url: "https://content.tinajs.io/4.1/content/14d79fd2-cdd2-45f0-84c3-36c8b89fcbde/github/hexo-src",
+      url: "http://localhost:4001/graphql",
       queries
     })
   )
