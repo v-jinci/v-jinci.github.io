@@ -49,6 +49,12 @@ const ERR_LENS = `    <script>
           // console.error 一次，功能照常）。出现时静默记录，不再弹红色面板。
           if (s.indexOf('Cannot resolve a DOM node from Slate node') >= 0) return true
           if (s.indexOf('Converting circular structure to JSON') >= 0 && s.indexOf('toDOMNode') >= 0) return true
+          // Tina 页面自带的「2 秒兜底检查」误报：bundle 较大时冷启动常超 2 秒，
+          // 界面随后会正常渲染出来，但检查已先 console.error('Failed to load assets')。
+          // 只要 #root 已渲染出内容，这条就是误报；真加载失败时 root 是空的，仍会报警。
+          if (s.indexOf('Failed to load assets') >= 0) {
+            try { var rt = document.getElementById('root'); if (rt && rt.children.length) return true } catch (e) {}
+          }
           return false
         }
         function refocusEditor() {
