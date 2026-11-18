@@ -8,25 +8,16 @@ password: '1227'
 permalink: /2026/11/13/电饭锅/
 ---
 
-&#x20;是的啊vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv**vvvvvvvvv**vvvvvv*vvvv*vvvvvvv是的啊vvvvvvvv++vvvvvvvv++![](/img/7bbe144fe04b7da7529f8b1d8a1fe03db0a61f1c.webp)vvvv~~vvvvvvvvv~~vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊
-
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊
-
-1. vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是
+****
 
 ***
 
-> 提示：vvvvvvvvvv注意：vvvvvvvvvvv重点：ccc警告：vvvv折叠：vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是
+作者 苏轼
 
-```
-> 警告:vvvvvvvvvvvvvvvvvvvvvvvvvvvvvv是的啊vvvvvvvvvvvvvvvvvvvvvvv
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-```
+朗诵 胜哥
 
-> *警告：注意注意*
+三月七日，沙湖道中遇雨。雨具先去，同行皆狼狈，余独不觉，已而遂晴，故作此。
 
-*这是一张图纸说明*![](/img/Avatar.png)*\*说明\*这是一张图纸说明*
+莫听穿林打叶声，何妨吟啸且徐行。竹杖芒鞋轻胜马，谁怕？一蓑烟雨任平生。
 
-【按钮】[点这里看看](https://v-jinci.github.io)
-
- 
+料峭春风吹酒醒，微冷，山头斜照却相迎。回首向来萧瑟处，归去，也无风雨也无晴。
