@@ -1,8 +1,8 @@
 ---
 title: 友链
 date: 2026-11-10 19:00:00
+top_img: null
 type: link
-top_img:
 ---
 
 想交换友链的话，在[留言板](/messageBoard/)留个言，或者在 GitHub 上找我。
@@ -13,7 +13,7 @@ top_img:
 name: 玮's Blog
 link: https://v-jinci.github.io
 avatar: https://v-jinci.github.io/img/avatar.svg
-descr: V wants to be an explorer
+descr: What can happen will happen
 ```
 
 ## 朋友们
