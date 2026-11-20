@@ -202,12 +202,12 @@ https://v-jinci.github.io
 
 生成的是内联 HTML，**发布后的文章里效果正常**。2026-11-20 起已关掉 Sveltia 的「预览 HTML 清洗」（配置里每个正文字段都加了 `sanitize_preview: false`），所以**居中/颜色/字号在预览框里就能直接看到**，不用等发布；若个别样式预览没显示，以发布后的网站为准。（这三个按钮的注册脚本写在 `source/cms/index.html` 底部，改它要重新发布；清洗开关在 `source/cms/config.yml` 的正文 field 里。）
 
-**HTML 模式体验沙盒（2026-11-20 新增）**：`https://你的域名/cms-html/` 是一个和正式 `/cms/` 完全隔离的测试后台，正文用官方 `richtext + format: html`，工具栏自带「对齐」等按钮，可以体验原生 HTML 编辑模式。它只编辑一篇测试文章 `source/cms-html/demo.md`，随便改都不会影响 `source/_posts/` 里的正式文章。登录方式和 `/cms/` 一样（GitHub 令牌）。体验完确认不想切换的话，删掉 `source/cms-html/` 目录并发布即可移除。（注：本版本 Sveltia 0.265 的 `buttons` 配置不接受 `underline`，加了会报配置错误。）
+**HTML 模式体验沙盒（2026-11-20 新增，已升级到最新版）**：`https://你的域名/cms-html/` 是一个和正式 `/cms/` 完全隔离的测试后台，正文用官方 `richtext + format: html`，跑的是 **Sveltia 0.270 最新版**（独立程序在 `source/libs/sveltia-270/`，正式 `/cms/` 仍用 0.265，互不影响）。它只编辑一篇测试文章 `source/cms-html/demo.md`，随便改都不会影响 `source/_posts/` 里的正式文章。登录方式和 `/cms/` 一样（GitHub 令牌）。体验完确认不想切换的话，删掉 `source/cms-html/` 和 `source/libs/sveltia-270/` 两个目录并发布即可移除。
 
-  **这个版本 HTML 模式工具栏实际可用的按钮（共 14 个）**：加粗、斜体、删除线、行内代码、链接、标题 1~6 级、无序列表、有序列表、引用、**对齐（左/中/右）**。
-  - 「新窗口打开链接」不是独立按钮，是点「链接」后弹窗里的 `Open in New Tab` 勾选框。
-  - **没有**下划线按钮、任务清单按钮（bundle 里有代码但此版本配置未开放）。
-  - 文档里说的 underline/task-list 是更新版才支持，别被官方文档误导。
+**0.270 体验沙盒工具栏按钮（全功能共 17 个）**：加粗、斜体、**下划线**、删除线、行内代码、链接、标题 1~6 级、无序列表、有序列表、**任务清单**、引用、**对齐（左/中/右）**。
+- 对比旧版 0.265（正式 `/cms/` 用的，14 个按钮）：0.270 多出**下划线**和**任务清单**两个按钮，这就是官方说的"全功能"。
+- 两个版本的「链接」弹窗里都有 `Open in New Tab`（新窗口打开）勾选框，它不是独立按钮。
+- 想让正式 `/cms/` 也升到 0.270 全功能，跟我说一声即可（需评估自定义排版组件的兼容性）。
 
 | **Tina** | `https://你的域名/admin/` 或 <https://app.tina.io> | 打开 `/admin/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
 

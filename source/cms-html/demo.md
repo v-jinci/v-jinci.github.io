@@ -1,9 +1,9 @@
 ---
 title: HTML 模式体验文章
 ---
-<p>欢迎来到 <b>Sveltia 0.270 最新版</b>体验模式！这是<b>独立的测试文章</b>，随便改，不会影响你真正的 7 篇文章。</p>
+<p>欢迎来到 <strong>Sveltia 0.270 最新版</strong>体验模式！这是<strong>独立的测试文章</strong>，随便改，不会影响你真正的 7 篇文章。</p>
 <p style="text-align: center;">这一行是居中的，你现在看到的就是 HTML 模式生成的效果。</p>
 <p>工具栏实际按钮（0.270 全功能共 17 个）：加粗 / 斜体 / <u>下划线</u> / 删除线 / 行内代码 / 链接 / 标题1-6 / 无序列表 / 有序列表 / 任务清单 / 引用 / 对齐（左中右）。</p>
 <p>试试看：选中下面这行文字，点工具栏的对齐按钮居中；或勾选任务清单，体验新版全功能。</p>
 <p>这是一段用来体验对齐功能的示例文字，选中我试试。</p>
-<ul><li><input type="checkbox" disabled> 任务清单项一（0.270 新增按钮）</li><li>列表项二</li></ul>
+<ul class="contains-task-list"><li class="task-list-item"><input type="checkbox" disabled> 任务清单项一（0.270 新增按钮）</li><li>列表项二</li></ul>
