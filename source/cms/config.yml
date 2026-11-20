@@ -176,10 +176,11 @@ collections:
       - label: 正文
         name: body
         widget: markdown
+        sanitize_preview: false
         hint: >-
           工具栏「插入(Insert)」菜单里新增了三个排版按钮：段落对齐（居中/左/右）、
-          彩色文字、字号——点一下填好内容即可插入，做出 Word 式排版（预览里可能不显示效果，
-          发布到网站后正常）。
+          彩色文字、字号——点一下填好内容即可插入，做出 Word 式排版。
+          预览已开启 HTML 样式显示，居中/颜色/字号在预览里就能看到；若个别样式没显示，以发布后的网站为准。
           排版小抄：提示框＝引用块开头写「提示：/注意：/重点：/警告：」；
           折叠＝引用块开头写「折叠：标题」；金句＝引用块里只写一句短话；
           图注＝图片下一行写 *说明*；并排＝连着插两张图；
@@ -195,7 +196,7 @@ collections:
         format: yaml-frontmatter
         fields:
           - { label: 标题, name: title, widget: string }
-          - { label: 正文, name: body, widget: markdown }
+          - { label: 正文, name: body, widget: markdown, sanitize_preview: false }
 
       - label: 友链
         name: link
@@ -203,7 +204,7 @@ collections:
         format: yaml-frontmatter
         fields:
           - { label: 标题, name: title, widget: string }
-          - { label: 正文, name: body, widget: markdown }
+          - { label: 正文, name: body, widget: markdown, sanitize_preview: false }
 
       - label: 留言板
         name: messageBoard
@@ -211,7 +212,7 @@ collections:
         format: yaml-frontmatter
         fields:
           - { label: 标题, name: title, widget: string }
-          - { label: 正文（留言板本身是空的，评论会渲染在下面）, name: body, widget: markdown }
+          - { label: 正文（留言板本身是空的，评论会渲染在下面）, name: body, widget: markdown, sanitize_preview: false }
 
       - label: 编年史
         name: history
@@ -219,4 +220,4 @@ collections:
         format: yaml-frontmatter
         fields:
           - { label: 标题, name: title, widget: string }
-          - { label: 正文, name: body, widget: markdown }
+          - { label: 正文, name: body, widget: markdown, sanitize_preview: false }

@@ -193,7 +193,15 @@ https://v-jinci.github.io
 
 | 编辑器 | 打开地址 | 登录方式 | 特点 |
 |---|---|---|---|
-| **Sveltia** | `https://你的域名/cms/` | 点「使用访问令牌登录」→ 粘贴 GitHub 令牌（生成地址 <https://github.com/settings/tokens>，勾选 `repo`） | 界面已中文、速度快、表单和 Pages CMS 基本一样；也可以点「使用本地仓库」直接编辑本地文件 |
+| **Sveltia** | `https://你的域名/cms/` | 点「使用访问令牌登录」→ 粘贴 GitHub 令牌（生成地址 <https://github.com/settings/tokens>，勾选 `repo`） | 界面已中文、速度快、表单和 Pages CMS 基本一样；正文工具栏已加「居中/彩色字/字号」按钮（2026-11-20）；也可以点「使用本地仓库」直接编辑本地文件 |
+
+**Sveltia 的 Word 式排版按钮（2026-11-20 新增）**：打开文章编辑正文，工具栏点「插入(Insert)」菜单，会多出三个按钮：
+- **段落对齐（居中/左/右）**——选文字填进去，选居中即可
+- **彩色文字**——填文字选颜色
+- **字号（大/小）**——填文字选字号
+
+生成的是内联 HTML，**发布后的文章里效果正常**；但 Sveltia 自带的实时预览会清洗 HTML 里的 style，所以**预览框里可能看不到居中/颜色，别以为没生效**，保存发布即可。（这三个按钮的注册脚本写在 `source/cms/index.html` 底部，改它要重新发布。）
+
 | **Tina** | `https://你的域名/admin/` 或 <https://app.tina.io> | 打开 `/admin/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
 
 **Tina 补充说明**：
