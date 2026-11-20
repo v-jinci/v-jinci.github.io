@@ -187,7 +187,18 @@ https://v-jinci.github.io
 
 > 手机适合短篇和随手记；长文还是本地后台（`2-打开写作后台.bat`）或 Typora 更舒服。
 
-### 3.5 备用网页编辑器（2026-11-14 新增，与 Pages CMS 并存不冲突）
+### 3.5 备用网页编辑器（与 Pages CMS 并存不冲突）
+
+> **三套网页后台的分工（2026-11-20 调整，重要）**
+>
+> | 后台 | 地址 | 正文格式 | 定位 |
+> |---|---|---|---|
+> | **Sveltia HTML（新主力）** | `https://你的域名/admin/` | HTML 富文本（所见即所得） | ⭐ 以后主要用这个写文章 |
+> | Sveltia Markdown | `https://你的域名/cms/` | Markdown | 辅助，排版小抄里的手写语法在这里用 |
+> | Tina | `https://你的域名/tina/` | 富文本 | 辅助备份 |
+>
+> 三套都改 GitHub 仓库里同一批文章。⚠️ **正文格式不同，千万不要用两个后台保存同一篇文章**，否则正文会被互相覆盖。日常写作固定用 `/admin/` 即可。
+> `/admin/` 是 **Sveltia 0.270 最新版**：工具栏 17 个按钮 + 「插入」菜单 10 个一键组件（综合排版/对齐/彩色字/字号/提示卡片/按钮链接/图注/分割线/表格/站内链接），登录方式和 `/cms/` 一样（GitHub 令牌）。它和 `/cms-html/` 体验沙盒用的是同一个 0.270 程序（`source/libs/sveltia-270/`）。
 
 两套都是直接改 GitHub 仓库里的文件，和 Pages CMS 三选一随便用：
 
@@ -209,15 +220,15 @@ https://v-jinci.github.io
 - 两个版本的「链接」弹窗里都有 `Open in New Tab`（新窗口打开）勾选框，它不是独立按钮。
 - 想让正式 `/cms/` 也升到 0.270 全功能，跟我说一声即可（需评估自定义排版组件的兼容性）。
 
-| **Tina** | `https://你的域名/admin/` 或 <https://app.tina.io> | 打开 `/admin/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
+| **Tina（辅助）** | `https://你的域名/tina/` 或 <https://app.tina.io> | 打开 `/tina/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
 
 **Tina 补充说明**：
-- 线上的 `/admin/` 是 Tina 的登录页（发布脚本会把 `source/admin/` 原样带上）；本地预览时 `/admin` 被旧插件占用属正常，看线上即可。
+- 2026-11-20 起 Tina 已从 `/admin/` 迁到 **`/tina/`**（`/admin/` 让给了主力的 Sveltia HTML 后台）。发布脚本会把 `source/tina/` 原样带上。Tina 资源加载慢，首次打开约 10 秒才出登录页，中间闪一下 "Failed loading" 属正常，等一下即可；还不行就 `Ctrl+F5` 强刷。
 - **文章文件名不要用中文**：TinaCloud 的接口打不开含中文文件名的文章（会报 `relativePath contains invalid characters`）。文件名用英文/数字，标题照样写中文，页面显示不受影响。旧文章已全部改成英文文件名，并用 `permalink` 字段锁住了原来的网址。
 - app.tina.io 点进项目后如果看不到内容列表，去项目的 **Branches** 页签添加 `hexo-src` 并设为默认分支。
-- 改过 `tina/config.ts` 的字段后要重新生成后台页面：运行 `npm run tina`（等于 `tinacms build`），再把 `public/admin/` 复制到 `source/admin/`。
+- 改过 `tina/config.ts` 的字段后要重新生成后台页面：运行 `npm run tina`（等于 `tinacms build`），再把 `public/tina/` 复制到 `source/tina/`。注意 Tina 编译产物里会把 `BASE_URL` 写死成 `/tina/`，若重新构建后地址又变回 `/admin/`，需把 bundle 里的 `"/admin/"` 改成 `"/tina/"`。
 - 2026-11-14 起「正文」是**富文本编辑器**（带 Word 式工具栏：标题、加粗、图片、引用块等）。
-- **点工具栏按钮（加粗等）偶尔弹红色报错面板？** 那是 Tina 编辑器内部「重新聚焦正文」的一次无害内部报错：功能本身照常生效（字确实加粗了、文章没坏），只是每次点按钮它都会往控制台喊一声。后台页面里已装了「报错透镜」，这类报错会**自动忽略并顺手把光标放回正文**，不再打扰；如果旧面板还残留，按 `Ctrl+F5` 强刷一次 `/admin/` 即可（新版 2026-11-14 下午已上线）。
+- **点工具栏按钮（加粗等）偶尔弹红色报错面板？** 那是 Tina 编辑器内部「重新聚焦正文」的一次无害内部报错：功能本身照常生效（字确实加粗了、文章没坏），只是每次点按钮它都会往控制台喊一声。后台页面里已装了「报错透镜」，这类报错会**自动忽略并顺手把光标放回正文**，不再打扰；如果旧面板还残留，按 `Ctrl+F5` 强刷一次 `/tina/` 即可（新版 2026-11-14 下午已上线）。
 
 ### 3.6 边看边改（本地编辑 + 本地预览，2026-11-14 新增）
 
@@ -225,7 +236,7 @@ https://v-jinci.github.io
 
 | 打开这个 | 是什么 |
 | --- | --- |
-| <http://localhost:4001/admin/index.html> | 编辑后台（Tina，带富文本工具栏） |
+| <http://localhost:4001/tina/index.html> | 编辑后台（Tina，带富文本工具栏） |
 | <http://localhost:4000> | 你的本地网站（看效果） |
 
 用法：在后台点 **Enter Edit Mode** → 左侧选「文章」→ 点开一篇 → 改标题/正文 → 点 **Save** → 回到 `localhost:4000` **刷新一下**就是新效果。
