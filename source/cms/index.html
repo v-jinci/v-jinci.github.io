@@ -138,6 +138,64 @@
       }
     });
 
+    /* ---------- 3.5 综合排版（对齐 + 颜色 + 字号 + 加粗 一次搞定） ----------
+       单独的居中/颜色/字号三个按钮只能各插各的，无法叠加。
+       这个组件一个表单同时设置，生成一个同时带多种样式的 div，
+       发布后浏览器直接生效；文字内容里还能手写 <span> 做局部混色。 */
+    safeRegister({
+      id: 'wb-combo',
+      label: '综合排版（居中+颜色+字号+加粗）',
+      icon: 'format_paint',
+      fields: [
+        { name: 'text', label: '文字内容（可含 <span> 等 HTML 做局部混色）', widget: 'text' },
+        { name: 'align', label: '对齐', widget: 'select', default: 'center', options: [
+          { label: '居中', value: 'center' },
+          { label: '左对齐', value: 'left' },
+          { label: '右对齐', value: 'right' }
+        ] },
+        { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
+          { label: '红色', value: '#e60000' },
+          { label: '橙色', value: '#ea580c' },
+          { label: '绿色', value: '#16a34a' },
+          { label: '蓝色', value: '#2563eb' },
+          { label: '紫色', value: '#7c3aed' },
+          { label: '深灰', value: '#334155' }
+        ] },
+        { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
+          { label: '小字 14px', value: '14px' },
+          { label: '正文 16px', value: '16px' },
+          { label: '大字 20px', value: '20px' },
+          { label: '特大 26px', value: '26px' },
+          { label: '标题 32px', value: '32px' }
+        ] },
+        { name: 'bold', label: '加粗', widget: 'boolean', default: false }
+      ],
+      pattern: /<div style="text-align:\s*(left|center|right);\s*color:\s*(#[0-9a-fA-F]{3,6});\s*font-size:\s*([0-9]+px)(?:;\s*font-weight:\s*bold)?;?">([\s\S]*?)<\/div>/,
+      fromBlock: function (m) {
+        return {
+          align: m[1] || 'center',
+          color: m[2] || '#e60000',
+          size: m[3] || '20px',
+          bold: /font-weight:\s*bold/.test(m[0] || ''),
+          text: (m[4] || '').trim()
+        };
+      },
+      toBlock: function (d) {
+        var a = (d && d.align) || 'center';
+        var c = (d && d.color) || '#e60000';
+        var s = (d && d.size) || '20px';
+        var b = (d && d.bold) ? '; font-weight: bold' : '';
+        return '<div style="text-align: ' + a + '; color: ' + c + '; font-size: ' + s + b + '">' + ((d && d.text) || '') + '</div>';
+      },
+      toPreview: function (d) {
+        var a = (d && d.align) || 'center';
+        var c = (d && d.color) || '#e60000';
+        var s = (d && d.size) || '20px';
+        var b = (d && d.bold) ? '; font-weight: bold' : '';
+        return '<div style="text-align: ' + a + '; color: ' + c + '; font-size: ' + s + b + '">' + ((d && d.text) || '') + '</div>';
+      }
+    });
+
     /* ---------- 4. 提示卡片（提示/注意/重点/警告/折叠/金句） ----------
        主题规则：引用块第一行写「提示：/注意：/重点：/警告：」= 彩色卡片；
        「折叠：标题」+ 后续引用行 = 折叠块；引用块里只写一句短话 = 金句。 */
