@@ -36,8 +36,10 @@ skip_render:
   - 'cms/**'
   # HTML 模式体验沙盒（/cms-html），同样原样复制
   - 'cms-html/**'
-  # Tina CMS 的后台页面（/admin）同样要原样复制（里面是编译好的 JS/CSS）
+  # 主力 HTML 后台（/admin，Sveltia 0.270 富文本）原样复制
   - 'admin/**'
+  # Tina 后台（/tina，退居辅助）的编译产物，原样复制
+  - 'tina/**'
   # 第三方库（Font Awesome / Waline / Sveltia 等）必须原样复制：
   # Sveltia 的几个分块里含类似 YAML 分隔符的字符串，会被 Hexo 当文章解析而失败，
   # 导致文件在 public 里消失（线上 404，后台打不开）

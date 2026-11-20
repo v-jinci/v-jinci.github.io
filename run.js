@@ -30,9 +30,10 @@ function printLinks(title) {  console.log('');
   console.log('  ┌─────────────────────────────────────────────────────');
   console.log('  │  本地预览：   http://localhost:4000');
   console.log('  │  可视化写作： http://localhost:4000/write   （像 Word，推荐）');
+  console.log('  │  HTML后台：   http://localhost:4000/admin   （主力，Sveltia 富文本）');
+  console.log('  │  Markdown后台： http://localhost:4000/cms');
+  console.log('  │  Tina后台：   http://localhost:4000/tina');
   console.log('  │  站点信息：   http://localhost:4000/site');
-  console.log('  │  旧写作后台： http://localhost:4000/admin');
-  console.log('  │              账号 admin   密码 weiblog2026');
   console.log('  │');
   console.log('  │  按住 Ctrl 点上面的地址，就能在浏览器里打开');
   console.log('  │  想停止服务：在这个黑窗口按 Ctrl + C');
@@ -741,12 +742,12 @@ async function publishViaGit() {
   }
 
   // 3. 看看动了哪些文件
-  // 防护：Tina 构建会生成 source/admin/.gitignore（忽略 index.html 和 assets/），
+  // 防护：Tina 构建会生成 source/tina/.gitignore（忽略 index.html 和 assets/），
   // 它会让 git 把后台的新 bundle 全部跳过不发布（线上 404），必须在 add 前删掉。
-  const adminGitignore = path.join(dir, 'source', 'admin', '.gitignore');
+  const adminGitignore = path.join(dir, 'source', 'tina', '.gitignore');
   if (fs.existsSync(adminGitignore)) {
     fs.rmSync(adminGitignore);
-    sub('已清理 source/admin/.gitignore（Tina 生成，会导致后台资源漏传）');
+    sub('已清理 source/tina/.gitignore（Tina 生成，会导致后台资源漏传）');
   }
   runGit(['add', '-A'], dir);
   let st = runGit(['status', '--porcelain'], dir);
@@ -1078,7 +1079,7 @@ async function main() {
     sub('正在启动「边看边改」（首次要编译一小会儿，约 30~60 秒，别关窗口）…');
     sub('等服务就绪后，浏览器会自动打开两个标签页：编辑后台 + 本地网站。');
     sub('如果没自动打开，等窗口出现 “TinaCMS Dev Server is active” 后手动访问：');
-    sub('① 编辑后台：http://localhost:4001/admin/index.html');
+    sub('① 编辑后台：http://localhost:4001/tina/index.html');
     sub('② 看效果：http://localhost:4000 （你的本地网站）');
     sub('保存一篇文章后，网站那边刷新一下就变了（本地服务会自动重新生成）。');
     sub('注意：这里的改动只保存在本机，想上线还要再双击「1-发布到网站.bat」。');
@@ -1089,7 +1090,7 @@ async function main() {
       require('child_process')
         .spawn(
           process.execPath,
-          [path.join(__dirname, 'tools', 'open-when-ready.js'), '4000', '4001', '--', 'http://localhost:4001/admin/index.html', 'http://localhost:4000'],
+          [path.join(__dirname, 'tools', 'open-when-ready.js'), '4000', '4001', '--', 'http://localhost:4001/tina/index.html', 'http://localhost:4000'],
           { detached: true, stdio: 'ignore', cwd: __dirname }
         )
         .unref();

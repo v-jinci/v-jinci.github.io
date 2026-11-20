@@ -22,9 +22,10 @@ export default defineConfig({
 
   branch: 'hexo-src',
 
-  // Tina 自带后台页面的发布位置：发布后打开 你的网址/admin 即可编辑
+  // Tina 自带后台页面的发布位置：发布后打开 你的网址/tina 即可编辑
+  // （/admin 现在让给主力的 Sveltia HTML 后台，Tina 退居 /tina 辅助）
   build: {
-    outputFolder: 'admin',
+    outputFolder: 'tina',
     publicFolder: 'public',
   },
 

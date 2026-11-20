@@ -1,13 +1,14 @@
 /**
  * admin-patch.js — Tina 后台构建后的自动加固与同步
+ * （Tina 后台位于 /tina；/admin 是主力的 Sveltia HTML 后台，与本脚本无关）
  * （发布脚本和本地预览脚本共用）
  *
  * 做三件事：
- * 1. 给 public/admin/index.html 注入两段防护脚本：
+ * 1. 给 public/tina/index.html 注入两段防护脚本：
  *    - 防崩溃补丁：翻译插件等改写 DOM 时不炸编辑器（React issue #11538）
  *    - 报错透镜：编辑器崩溃时屏幕下方显示完整堆栈，方便排错
  * 2. 删掉 Tina 构建生成的 .gitignore（它会让发布时漏传后台文件）
- * 3. 把 public/admin 同步到 source/admin（发布目录）
+ * 3. 把 public/tina 同步到 source/tina（发布目录）
  */
 const fs = require('fs');
 const path = require('path');
@@ -111,9 +112,9 @@ const ERR_LENS = `    <script>
 
 function applyAdminPatches(baseDir) {
   const base = baseDir || process.cwd();
-  const htmlPath = path.join(base, 'public', 'admin', 'index.html');
+  const htmlPath = path.join(base, 'public', 'tina', 'index.html');
   if (!fs.existsSync(htmlPath)) {
-    console.log('  [admin-patch] public/admin/index.html 不存在，跳过');
+    console.log('  [admin-patch] public/tina/index.html 不存在，跳过');
     return false;
   }
   let html = fs.readFileSync(htmlPath, 'utf8');
@@ -133,13 +134,13 @@ function applyAdminPatches(baseDir) {
     changed = true;
   }
   // 确认入口 js 是本地路径
-  if (html.indexOf('src="/admin/assets/index-') < 0 && /src="index/.test(html)) {
-    console.log('  [admin-patch] 警告：入口脚本路径不是 /admin/assets/...，请检查构建配置');
+  if (html.indexOf('src="/tina/assets/index-') < 0 && /src="index/.test(html)) {
+    console.log('  [admin-patch] 警告：入口脚本路径不是 /tina/assets/...，请检查构建配置');
   }
   if (changed) fs.writeFileSync(htmlPath, html);
 
   // 删除 Tina 生成的 .gitignore（会让发布漏传文件）
-  for (const p of ['public/admin/.gitignore', 'source/admin/.gitignore']) {
+  for (const p of ['public/tina/.gitignore', 'source/tina/.gitignore']) {
     const gp = path.join(base, p);
     if (fs.existsSync(gp)) {
       fs.rmSync(gp);
@@ -147,15 +148,15 @@ function applyAdminPatches(baseDir) {
     }
   }
 
-  // 同步到发布目录 source/admin
-  const srcDir = path.join(base, 'source', 'admin');
-  const pubDir = path.join(base, 'public', 'admin');
-  // 防事故闸门：dev 模式会把 public/admin/index.html 改写成开发版（引用 localhost），
+  // 同步到发布目录 source/tina
+  const srcDir = path.join(base, 'source', 'tina');
+  const pubDir = path.join(base, 'public', 'tina');
+  // 防事故闸门：dev 模式会把 public/tina/index.html 改写成开发版（引用 localhost），
   // 这种文件一旦同步/发布，线上后台就会报 Failed loading TinaCMS assets。
   // 这里发现 dev 版就直接拒绝同步，避免事故外流。
   const pubIndex = path.join(pubDir, 'index.html');
-  if (fs.existsSync(pubIndex) && fs.readFileSync(pubIndex, 'utf8').includes('localhost:4001/admin/src/main.tsx')) {
-    console.error('  [admin-patch] ⚠️ public/admin/index.html 是「开发模式」版本（引用 localhost:4001），拒绝同步！');
+  if (fs.existsSync(pubIndex) && fs.readFileSync(pubIndex, 'utf8').includes('localhost:4001/tina/src/main.tsx')) {
+    console.error('  [admin-patch] ⚠️ public/tina/index.html 是「开发模式」版本（引用 localhost:4001），拒绝同步！');
     console.error('  [admin-patch] 这通常是 tinacms dev 未正常退出导致的。请执行 node run.js build-admin 重建后再试。');
     return false;
   }
@@ -164,16 +165,16 @@ function applyAdminPatches(baseDir) {
       fs.rmSync(srcDir, { recursive: true, force: true });
     } catch (e) {
       // 本机安全删除机制拦批量删除时，把旧目录改名挪进 .backup（不进发布清单）
-      const stash = path.join(base, '.backup', 'admin-stash-' + Date.now());
+      const stash = path.join(base, '.backup', 'tina-stash-' + Date.now());
       fs.mkdirSync(path.dirname(stash), { recursive: true });
       fs.renameSync(srcDir, stash);
-      console.log('  [admin-patch] 旧 source/admin 删除被拦，已挪到 ' + stash);
+      console.log('  [admin-patch] 旧 source/tina 删除被拦，已挪到 ' + stash);
     }
   }
   fs.cpSync(pubDir, srcDir, { recursive: true });
   const gi = path.join(srcDir, '.gitignore');
   if (fs.existsSync(gi)) fs.rmSync(gi);
-  console.log('  [admin-patch] 已同步 public/admin -> source/admin（含防崩溃补丁和报错透镜）');
+  console.log('  [admin-patch] 已同步 public/tina -> source/tina（含防崩溃补丁和报错透镜）');
   return true;
 }
 
