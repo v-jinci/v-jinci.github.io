@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>HTML 模式体验 · Sveltia</title>
+  <title>HTML 模式体验 · Sveltia 0.270（最新版全功能）</title>
   <style>
     body{margin:0;font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f6f7fb;color:#1f2430}
     #fallback{max-width:560px;margin:60px auto;padding:24px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,23,42,.08)}
@@ -17,12 +17,12 @@
 <body>
   <div id="fallback">
     <h1>Sveltia（HTML 体验模式）正在加载…</h1>
-    <p>这是和正式后台隔离的<b>体验沙盒</b>，正文用 <code>richtext + format: html</code>，工具栏带官方「对齐」按钮。随便改，只影响体验文章。</p>
-    <p>如果一直停在这一页，请确认 <code>/libs/sveltia/sveltia-cms.js</code> 能打开。</p>
+    <p>这是和正式后台隔离的<b>体验沙盒</b>（Sveltia 0.270 最新版）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮。随便改，只影响体验文章。</p>
+    <p>如果一直停在这一页，请确认 <code>/libs/sveltia-270/sveltia-cms.js</code> 能打开。</p>
   </div>
 
-  <!-- 复用现有 Sveltia 主程序，不额外加载自定义组件 -->
-  <script src="/libs/sveltia/sveltia-cms.js"></script>
+  <!-- 体验沙盒专用：Sveltia 0.270 最新版（正式 /cms/ 仍用 0.265，互不影响） -->
+  <script src="/libs/sveltia-270/sveltia-cms.js"></script>
   <script>
     (function () {
       try {

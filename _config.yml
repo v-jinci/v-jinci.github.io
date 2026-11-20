@@ -47,6 +47,7 @@ skip_render:
 # 缺了它们后台会打不开，所以显式包含进来
 include:
   - 'libs/sveltia/chunks/assets/_shared-module_*.js'
+  - 'libs/sveltia-270/chunks/assets/_shared-module_*.js'
 
 # ---------- 写作 ----------
 new_post_name: :year-:month-:day-:title.md

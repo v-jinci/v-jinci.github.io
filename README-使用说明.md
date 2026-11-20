@@ -204,6 +204,11 @@ https://v-jinci.github.io
 
 **HTML 模式体验沙盒（2026-11-20 新增）**：`https://你的域名/cms-html/` 是一个和正式 `/cms/` 完全隔离的测试后台，正文用官方 `richtext + format: html`，工具栏自带「对齐」等按钮，可以体验原生 HTML 编辑模式。它只编辑一篇测试文章 `source/cms-html/demo.md`，随便改都不会影响 `source/_posts/` 里的正式文章。登录方式和 `/cms/` 一样（GitHub 令牌）。体验完确认不想切换的话，删掉 `source/cms-html/` 目录并发布即可移除。（注：本版本 Sveltia 0.265 的 `buttons` 配置不接受 `underline`，加了会报配置错误。）
 
+  **这个版本 HTML 模式工具栏实际可用的按钮（共 14 个）**：加粗、斜体、删除线、行内代码、链接、标题 1~6 级、无序列表、有序列表、引用、**对齐（左/中/右）**。
+  - 「新窗口打开链接」不是独立按钮，是点「链接」后弹窗里的 `Open in New Tab` 勾选框。
+  - **没有**下划线按钮、任务清单按钮（bundle 里有代码但此版本配置未开放）。
+  - 文档里说的 underline/task-list 是更新版才支持，别被官方文档误导。
+
 | **Tina** | `https://你的域名/admin/` 或 <https://app.tina.io> | 打开 `/admin/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
 
 **Tina 补充说明**：
