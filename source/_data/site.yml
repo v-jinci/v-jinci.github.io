@@ -1,4 +1,14 @@
-# 由 http://localhost:4000/site 后台维护，一般不用手改
+# 站点设置：本地 http://localhost:4000/site 与远程 /admin 编辑的都是这一份
+# 保存后提交到 hexo-src，等自动部署完成就上线。
+
+# 站点文字：写了什么键就覆盖 _config.yml 的同名键（构建时由 scripts/wb-settings.js 应用）
+hexo:
+  title: "玮's Blog"
+  subtitle: "What can happen will happen"
+  description: "记录思考、学习与生活的个人博客"
+  keywords: "玮,博客,日志,生活记录,读书笔记"
+  author: "玮"
+  language: "zh-CN"
 
 mail: "599676700@qq.com"
 sections:

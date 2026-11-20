@@ -247,6 +247,95 @@ collections:
         file: source/_data/look.yml
         format: yaml
         fields:
+          # ---- 站点图片（对应 /site 的「外观图片」） ----
+          - { label: 首页 / 内页顶部大图（路径）, name: index_img, widget: string, required: false }
+          - { label: 文章页默认顶部大图, name: default_top_img, widget: string, required: false }
+          - { label: 浏览器标签小图标 favicon, name: favicon, widget: string, required: false }
+          - { label: 页脚背景图（留空＝纯色页脚）, name: footer_img, widget: string, required: false }
+          - label: 侧边栏头像
+            name: avatar
+            widget: object
+            fields:
+              - { label: 头像图片路径, name: img, widget: string, required: false }
+
+          # ---- 页脚（对应 /site 的「基本信息 → 页脚」） ----
+          - label: 页脚
+            name: footer
+            widget: object
+            fields:
+              - label: 版权信息
+                name: owner
+                widget: object
+                fields:
+                  - { label: 起始年份, name: since, widget: string, required: false }
+              - { label: 页脚附加文字, name: custom_text, widget: string, required: false }
+
+          # ---- 首页标语与打字机（对应 /site 的「基本信息 → 标语」） ----
+          - label: 首页标语
+            name: subtitle
+            widget: object
+            fields:
+              - { label: 轮播标语（一行一句，会逐字打出来）, name: sub, widget: list, required: false }
+              - label: 打字机参数
+                name: typed_option
+                widget: object
+                fields:
+                  - { label: 打字速度（毫秒/字，越小越快）, name: typeSpeed, widget: number, value_type: int, required: false }
+                  - { label: 删字速度（毫秒/字）, name: backSpeed, widget: number, value_type: int, required: false }
+                  - { label: 每句停多久（毫秒）, name: backDelay, widget: number, value_type: int, required: false }
+                  - { label: 一直循环, name: loop, widget: boolean, required: false }
+
+          # ---- 目录 / 摘要 / 首页排版（对应 /site 的「细节开关」） ----
+          - label: 文章目录
+            name: toc
+            widget: object
+            fields:
+              - { label: 文章右侧显示目录, name: post, widget: boolean, required: false }
+          - label: 首页摘要
+            name: index_post_content
+            widget: object
+            fields:
+              - { label: 摘要字数, name: length, widget: number, value_type: int, required: false }
+          - label: 首页文章排版
+            name: index_layout
+            widget: select
+            required: false
+            options:
+              - { label: 交错小卡片（当前）, value: 3 }
+              - { label: 图文大卡片 · 图在左, value: 1 }
+              - { label: 图文大卡片 · 图在右, value: 2 }
+              - { label: 瀑布流 A, value: 6 }
+              - { label: 瀑布流 B（更紧凑）, value: 7 }
+
+          # ---- 评论区（对应 /site 的「评论区」） ----
+          - label: 评论区
+            name: comments
+            widget: object
+            fields:
+              - label: 评论系统
+                name: use
+                widget: select
+                required: false
+                options:
+                  - { label: 开启（Waline）, value: Waline }
+                  - { label: 关闭，全站不显示评论, value: '' }
+          - label: Waline 评论服务
+            name: waline
+            widget: object
+            fields:
+              - { label: 服务地址, name: serverURL, widget: string, required: false, hint: 填固定的服务地址，别用带一长串随机字符的临时地址 }
+              - label: 访客留言
+                name: option
+                widget: object
+                fields:
+                  - label: 是否需要登录
+                    name: login
+                    widget: select
+                    required: false
+                    options:
+                      - { label: 不用登录，填昵称即可, value: disable }
+                      - { label: 必须登录, value: enable }
+
           - label: 外观
             name: wb_look
             widget: object
@@ -286,6 +375,8 @@ collections:
               - { label: 404 副标题, name: notfound_subtitle, widget: string, required: false }
               - { label: 404 说明文字, name: notfound_text, widget: text, required: false }
               - { label: 404 按钮文字, name: notfound_btn, widget: string, required: false }
+              - { label: 头像旋转特效, name: avatar_spin, widget: boolean, required: false }
+              - { label: 上传图片 / 视频时自动压缩, name: upload_shrink, widget: boolean, required: false }
 
           - label: 深色模式
             name: darkmode
@@ -307,6 +398,16 @@ collections:
               - { label: 启用侧边栏, name: enable, widget: boolean, required: false }
               - { label: 显示收起按钮, name: button, widget: boolean, required: false }
               - { label: 手机上也显示, name: mobile, widget: boolean, required: false }
+              - label: 作者卡片
+                name: card_author
+                widget: object
+                fields:
+                  - { label: 作者简介（头像下面一句）, name: description, widget: string, required: false }
+              - label: 公告卡片
+                name: card_announcement
+                widget: object
+                fields:
+                  - { label: 公告文字, name: content, widget: string, required: false }
 
           - label: '导航菜单（一行一条：名称: 链接 || 图标）'
             name: menu
@@ -323,6 +424,17 @@ collections:
         file: source/_data/site.yml
         format: yaml
         fields:
+          - label: 站点文字（对应 /site 的「基本信息 → 站点文字」，覆盖 _config.yml 同名键）
+            name: hexo
+            widget: object
+            fields:
+              - { label: 站点标题（浏览器标签 / 左上角）, name: title, widget: string, required: false }
+              - { label: 副标题（标题旁边那句）, name: subtitle, widget: string, required: false }
+              - { label: 站点描述（给搜索引擎）, name: description, widget: string, required: false }
+              - { label: 关键词（逗号分隔，给搜索引擎）, name: keywords, widget: string, required: false }
+              - { label: 作者名字, name: author, widget: string, required: false }
+              - { label: 语言, name: language, widget: string, required: false }
+
           - { label: 联系邮箱, name: mail, widget: string, required: false }
 
           - label: 页面密码（留空＝该页公开；填明文即可，构建时自动转成哈希）
@@ -346,5 +458,42 @@ collections:
               - { label: 图标类名（如 fab fa-github）, name: icon, widget: string, required: false }
               - { label: 内容（账号 / 号码 / 邮箱）, name: value, widget: string, required: false }
               - { label: 链接（留空＝点击弹窗显示）, name: href, widget: string, required: false }
-              - { label: 备注, name: remark, widget: string, required: false }
+              - { label: 二维码图片路径（弹窗里显示）, name: qr, widget: string, required: false }
+              - { label: 备注 / 提示文字, name: hint, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
+
+      # ---------------- 下载区（对应 /site 的「下载区」） ----------------
+      - label: 下载区文件
+        name: downloads
+        file: source/_data/downloads.yml
+        format: yaml
+        fields:
+          - label: 文件清单
+            name: downloads
+            widget: list
+            required: false
+            fields:
+              - { label: 名称, name: name, widget: string }
+              - { label: 说明, name: desc, widget: string, required: false }
+              - { label: 站内文件路径（如 /files/xxx.zip）, name: file, widget: string, required: false }
+              - { label: 或外部链接（网盘等，不占仓库体积）, name: url, widget: string, required: false }
+              - { label: 大小（留空＝自动显示）, name: size, widget: string, required: false }
+              - { label: 日期, name: date, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
+
+      # ---------------- 留言管理（对应 /site 的「留言管理」，备用方案） ----------------
+      - label: 留言管理（备用，不显示在留言板）
+        name: comments
+        file: source/_data/comments.yml
+        format: yaml
+        fields:
+          - label: 留言列表
+            name: comments
+            widget: list
+            required: false
+            fields:
+              - { label: 昵称, name: name, widget: string }
+              - { label: 日期, name: date, widget: string, required: false }
+              - { label: 内容, name: content, widget: text }
+              - { label: 回复, name: reply, widget: string, required: false }
               - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }

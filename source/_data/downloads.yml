@@ -1,4 +1,5 @@
-# 下载区清单：在 http://localhost:4000/site 的「下载区」里增删改
+# 下载区清单：本地 /site 与远程 /admin 都编辑这一份
 #
 # file: /files/xxx.zip      -> 文件放在 source/files/ 里，跟着仓库一起发布
 # url:  https://...          -> 外部链接（网盘等），不占仓库体积
+downloads: []

@@ -15,6 +15,10 @@
 (function () {
   'use strict';
 
+  // 数据归属：不蒜子按「页面域名（请求 Referer 的 host）」统计 site_pv / site_uv，
+  // page_pv 按完整 URL 统计。它不认仓库、不认代码、也不认账号 ——
+  // 只要页面挂在自己的域名下，拿到的就是这个域名自己累计的数字，
+  // 复制别人仓库不会继承别人的计数；换新域名则从 1 重新开始。
   var API = 'https://busuanzi.ibruce.info/busuanzi?jsonpCallback=wbBszCallback';
   var CACHE_KEY = 'wb-bsz-cache-v1';
   var TTL = 30 * 60 * 1000;
@@ -88,6 +92,15 @@
   }
 
   function start() {
+    // 本地预览（localhost / 127.0.0.1 / file://）不向线上计数接口发请求：
+    // 既不把本地调试的访问刷进正式数据，也不会出现「预览页显示别人的数字」。
+    // 正式域名（含以后绑定的自定义域名）照常按各自域名独立统计。
+    var host = String(location.hostname || '');
+    if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|::1)$/i.test(host) || location.protocol === 'file:') {
+      KEYS.forEach(function (k) { setText(k, '—'); });
+      return;
+    }
+
     var cached = readCache();
     if (cached && apply(cached)) return;   // 缓存命中：立刻显示，不再请求
 

@@ -52,11 +52,26 @@ function listToMap(list) {
 }
 
 hexo.extend.filter.register('before_generate', () => {
-  const file = path.join(hexo.base_dir, 'source', '_data', 'look.yml');
-  if (!fs.existsSync(file)) return;
-
   let yaml;
   try { yaml = require('js-yaml'); } catch (e) { return; }
+
+  // 站点文字：source/_data/site.yml 的 hexo 段覆盖 _config.yml 的同名键。
+  // 本地 /site 与远程 /admin 都写这一份，避免两个后台各写一份互相打架。
+  const siteFile = path.join(hexo.base_dir, 'source', '_data', 'site.yml');
+  if (fs.existsSync(siteFile) && hexo.config) {
+    try {
+      const sd = yaml.load(fs.readFileSync(siteFile, 'utf8'));
+      if (sd && isPlainObject(sd.hexo)) {
+        deepMerge(hexo.config, sd.hexo);
+        console.log('[wb-settings] 已应用站点文字：', Object.keys(sd.hexo).join(', '));
+      }
+    } catch (e) {
+      console.warn('[wb-settings] site.yml 解析失败，已忽略：', e.message);
+    }
+  }
+
+  const file = path.join(hexo.base_dir, 'source', '_data', 'look.yml');
+  if (!fs.existsSync(file)) return;
 
   let data;
   try {

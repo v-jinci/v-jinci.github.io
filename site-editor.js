@@ -357,15 +357,32 @@ const F_COMMENTS = ['source', '_data', 'comments.yml'];
 
 function loadSiteData(base) {
   const d = readYaml(path.join(base, ...F_SITE_DATA), {});
+  const h = d.hexo;
   return {
+    hexo: (h && typeof h === 'object' && !Array.isArray(h)) ? h : {},
     mail: d.mail || '',
     sections: d.sections || {},
     contacts: Array.isArray(d.contacts) ? d.contacts : null,
   };
 }
 
+const HEXO_TEXT_KEYS = ['title', 'subtitle', 'description', 'keywords', 'author', 'language'];
+
 function dumpSiteData(d) {
-  const out = ['# 由 http://localhost:4000/site 后台维护，一般不用手改', '', 'mail: ' + JSON.stringify(String(d.mail || ''))];
+  const out = [
+    '# 站点设置：本地 http://localhost:4000/site 与远程 /admin 编辑的都是这一份',
+    '# 保存后提交到 hexo-src，等自动部署完成就上线。',
+    '',
+    '# 站点文字：写了什么键就覆盖 _config.yml 的同名键（构建时由 scripts/wb-settings.js 应用）',
+  ];
+  const h = d.hexo || {};
+  const hLines = HEXO_TEXT_KEYS
+    .filter((k) => String(h[k] == null ? '' : h[k]) !== '')
+    .map((k) => '  ' + k + ': ' + JSON.stringify(String(h[k])));
+  out.push(hLines.length ? 'hexo:' : 'hexo: {}');
+  hLines.forEach((l) => out.push(l));
+  out.push('');
+  out.push('mail: ' + JSON.stringify(String(d.mail || '')));
   out.push('sections:');
   const keys = Object.keys(d.sections || {});
   if (!keys.length) out.push('  {}');
@@ -395,43 +412,54 @@ function dumpSiteData(d) {
 
 function loadDownloads(base) {
   const d = readYaml(path.join(base, ...F_DOWNLOADS), []);
-  return Array.isArray(d) ? d : [];
+  if (Array.isArray(d)) return d;                                  // 老格式：顶层数组
+  return (d && Array.isArray(d.downloads)) ? d.downloads : [];     // 新格式：downloads 键（远程后台用）
 }
 
 function dumpDownloads(list) {
   const out = [
-    '# 下载区清单：在 http://localhost:4000/site 的「下载区」里增删改',
+    '# 下载区清单：本地 /site 与远程 /admin 都编辑这一份',
     '#',
     '# file: /files/xxx.zip      -> 文件放在 source/files/ 里，跟着仓库一起发布',
     '# url:  https://...          -> 外部链接（网盘等），不占仓库体积',
+    'downloads:',
   ];
-  (Array.isArray(list) ? list : []).forEach((x) => {
-    if (!x || !String(x.name || '').trim()) return;
-    out.push('- name: ' + JSON.stringify(String(x.name).trim()));
-    if (String(x.desc || '').trim()) out.push('  desc: ' + JSON.stringify(String(x.desc).trim()));
-    out.push('  file: ' + JSON.stringify(String(x.file || '').trim()));
-    out.push('  url: ' + JSON.stringify(String(x.url || '').trim()));
-    out.push('  size: ' + JSON.stringify(String(x.size || '').trim()));
-    out.push('  date: ' + JSON.stringify(String(x.date || '').trim()));
-    if (x.hidden) out.push('  hidden: true');
+  const items = (Array.isArray(list) ? list : []).filter((x) => x && String(x.name || '').trim());
+  if (!items.length) out.push('  []');
+  items.forEach((x) => {
+    out.push('  - name: ' + JSON.stringify(String(x.name).trim()));
+    if (String(x.desc || '').trim()) out.push('    desc: ' + JSON.stringify(String(x.desc).trim()));
+    out.push('    file: ' + JSON.stringify(String(x.file || '').trim()));
+    out.push('    url: ' + JSON.stringify(String(x.url || '').trim()));
+    out.push('    size: ' + JSON.stringify(String(x.size || '').trim()));
+    out.push('    date: ' + JSON.stringify(String(x.date || '').trim()));
+    if (x.hidden) out.push('    hidden: true');
   });
   return out.join('\n') + '\n';
 }
 
 function loadComments(base) {
-  const list = readYaml(path.join(base, ...F_COMMENTS), []);
-  return Array.isArray(list) ? list : [];
+  const d = readYaml(path.join(base, ...F_COMMENTS), []);
+  if (Array.isArray(d)) return d;
+  return (d && Array.isArray(d.comments)) ? d.comments : [];
 }
 
 function dumpComments(list) {
-  const out = ['# 留言数据：在 http://localhost:4000/site 的「留言管理」里改，一般不用手写', '# hidden: true 是不显示，删掉这一行就是显示'];
-  (Array.isArray(list) ? list : []).forEach((c) => {
-    if (!c || !String(c.name || '').trim() || !String(c.content || '').trim()) return;
-    out.push('- name: ' + JSON.stringify(String(c.name).trim()));
-    out.push('  date: ' + JSON.stringify(String(c.date || '').trim()));
-    out.push('  content: ' + JSON.stringify(String(c.content)));
-    if (String(c.reply || '').trim()) out.push('  reply: ' + JSON.stringify(String(c.reply).trim()));
-    if (c.hidden) out.push('  hidden: true');
+  const out = [
+    '# 留言数据：本地 /site 与远程 /admin 都编辑这一份',
+    '# hidden: true 是不显示，删掉这一行就是显示',
+    'comments:',
+  ];
+  const items = (Array.isArray(list) ? list : []).filter(
+    (c) => c && String(c.name || '').trim() && String(c.content || '').trim()
+  );
+  if (!items.length) out.push('  []');
+  items.forEach((c) => {
+    out.push('  - name: ' + JSON.stringify(String(c.name).trim()));
+    out.push('    date: ' + JSON.stringify(String(c.date || '').trim()));
+    out.push('    content: ' + JSON.stringify(String(c.content)));
+    if (String(c.reply || '').trim()) out.push('    reply: ' + JSON.stringify(String(c.reply).trim()));
+    if (c.hidden) out.push('    hidden: true');
   });
   return out.join('\n') + '\n';
 }
@@ -505,7 +533,10 @@ function loadCurrent(base) {
   const siteFile = path.join(base, '_config.yml');
   const themeFile = path.join(base, 'source', '_data', 'look.yml');
   const themeDefault = path.join(base, 'node_modules', 'hexo-theme-butterfly', '_config.yml');
-  const site = readYaml(siteFile, {});
+  const siteData = loadSiteData(base);
+  // 站点文字以 site.yml 的 hexo 段为准（本地 /site 与远程 /admin 都写它），
+  // _config.yml 只作为没填时的兜底。
+  const site = Object.assign({}, readYaml(siteFile, {}), siteData.hexo || {});
   const mine = readYaml(themeFile, {});
   const def = fs.existsSync(themeDefault) ? readYaml(themeDefault, {}) : {};
   const theme = Object.assign({}, def, mine);
@@ -517,17 +548,33 @@ function loadCurrent(base) {
   theme.footer.owner = Object.assign({}, (def.footer || {}).owner || {}, (mine.footer || {}).owner || {});
   theme.subtitle.sub = (mine.subtitle && mine.subtitle.sub) || (def.subtitle && def.subtitle.sub) || [];
   theme.waline.option = Object.assign({}, (def.waline || {}).option || {}, (mine.waline || {}).option || {});
-  const menuRaw = mine.menu || def.menu || {};
-  const nav = Object.keys(menuRaw).map((name) => {
-    const v = String(menuRaw[name] || '');
+  // look.yml 里 menu / social 既可能写成列表（一行一条，远程后台用），
+  // 也可能写成主题原生的 map；统一转成 map 再给表单用，避免显示成 0/1/2 索引。
+  const toMap = (v) => {
+    if (Array.isArray(v)) {
+      const o = {};
+      v.forEach((line) => {
+        const s = String(line == null ? '' : line).trim();
+        if (!s) return;
+        const i = s.indexOf(':');
+        if (i <= 0) { o[s] = ''; return; }
+        o[s.slice(0, i).trim()] = s.slice(i + 1).trim();
+      });
+      return o;
+    }
+    return (v && typeof v === 'object') ? v : {};
+  };
+  const menuMap = toMap(mine.menu || def.menu);
+  const socialMap = toMap(mine.social || def.social);
+  const nav = Object.keys(menuMap).map((name) => {
+    const v = String(menuMap[name] || '');
     const idx = v.indexOf('||');
     return { name, path: (idx === -1 ? v : v.slice(0, idx)).trim(), icon: idx === -1 ? '' : v.slice(idx + 2).trim() };
   });
 
-  const siteData = loadSiteData(base);
   // 第一次打开「联系方式」时给个能直接用的起点（GitHub + 邮箱取自现有配置）
   if (!siteData.contacts) {
-    const githubUrl = String((mine.social || {})['fab fa-github'] || '').trim();
+    const githubUrl = String(socialMap['fab fa-github'] || '').split('||')[0].trim();
     siteData.contacts = [];
     if (githubUrl) {
       siteData.contacts.push({
@@ -550,7 +597,7 @@ function loadCurrent(base) {
     site,
     theme,
     nav,
-    social: mine.social || {},
+    social: socialMap,
     comments: loadComments(base),
     siteData,
     downloads: loadDownloads(base),
@@ -693,22 +740,18 @@ async function handle(hexo, req, res, options) {
       const navBgPath = pick('navBgFile', 'navBgPath', '上下篇背景');
       const footerBgPath = pick('footerBgFile', 'footerBgPath', '页脚背景');
 
-      /* --- _config.yml --- */
-      let siteRaw = readText(siteFile);
-      let siteNext = siteRaw;
+      /* --- 站点文字：写进 source/_data/site.yml 的 hexo 段 ---
+         本地 /site 与远程 /admin 读写同一份；构建时由 scripts/wb-settings.js
+         覆盖 hexo.config 的同名键。_config.yml 保持不动，避免两边各写一份打架。 */
+      const siteData = loadSiteData(base);
+      siteData.hexo = siteData.hexo || {};
       [
-        ['title', data.title],
-        ['subtitle', data.subtitle],
-        ['description', data.description],
-        ['keywords', data.keywords],
-        ['author', data.author],
-        ['language', data.language],
+        ['title', data.title], ['subtitle', data.subtitle], ['description', data.description],
+        ['keywords', data.keywords], ['author', data.author], ['language', data.language],
       ].forEach(([k, v]) => {
         if (v === undefined || v === null) return;
-        const r = setScalar(siteNext, [k], v);
-        if (r != null) siteNext = r;
+        siteData.hexo[k] = String(v);
       });
-      writeIfChanged(siteFile, siteRaw, siteNext, touched, '站点信息');
 
       /* --- _config.butterfly.yml --- */
       let thRaw = readText(themeFile);
@@ -818,7 +861,9 @@ async function handle(hexo, req, res, options) {
       // 社交链接整块重写
       if (data.github !== undefined || data.mail !== undefined) {
         const pairs = [];
-        if (String(data.github || '').trim()) pairs.push(['fab fa-github', String(data.github).trim() + ' || Github']);
+        // 只取 "||" 前面的真实链接，避免每次保存都把 " || Github" 累加一遍
+        const gh = String(data.github || '').split('||')[0].trim();
+        if (gh) pairs.push(['fab fa-github', gh + ' || Github']);
         if (String(data.mail || '').trim()) pairs.push(['fas fa-envelope', 'mailto:' + String(data.mail).trim() + ' || Email']);
         const r = setMapRaw(thNext, ['social'], pairs);
         if (r != null) thNext = r;
@@ -853,8 +898,7 @@ async function handle(hexo, req, res, options) {
         });
       }
 
-      /* --- site.yml：邮箱 + 页面密码 + 联系方式 --- */
-      const siteData = loadSiteData(base);
+      /* --- site.yml：邮箱 + 页面密码 + 联系方式（复用上面已加载的 siteData） --- */
       if (mail) siteData.mail = mail;
       if (Array.isArray(data.sections)) {
         siteData.sections = siteData.sections || {};
@@ -1070,7 +1114,7 @@ function renderPage(cur) {
   const subs = (theme.subtitle && theme.subtitle.sub) || [];
   const waline = theme.waline || {};
   const social = cur.social || {};
-  const github = social['fab fa-github'] || '';
+  const github = String(social['fab fa-github'] || '').split('||')[0].trim();
   // 文章列表（给「文章密码」用）：只读 front-matter，不动正文
   const postList = (function () {
     const dir = path.join(hexo.base_dir, 'source', '_posts');

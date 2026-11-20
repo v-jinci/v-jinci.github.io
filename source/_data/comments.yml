@@ -1,2 +1,3 @@
-# 留言数据：在 http://localhost:4000/site 的「留言管理」里改，一般不用手写
+# 留言数据：本地 /site 与远程 /admin 都编辑这一份
 # hidden: true 是不显示，删掉这一行就是显示
+comments: []
