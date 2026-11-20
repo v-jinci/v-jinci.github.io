@@ -36,6 +36,20 @@
     .wb-table-hl{border-collapse:collapse;width:100%;margin:8px 0}
     .wb-table-hl th,.wb-table-hl td{border:1px solid #cbd5e1;padding:6px 10px}
     .wb-table-hl th{background:#f1f5f9}
+
+    /* 撤销/恢复悬浮按钮：Sveltia 0.270 工具栏没有这两个按钮，
+       这里浮在正文编辑区旁边，用 Lexical 原生 historyUndo/historyRedo 命令。
+       注意：必须用 beforeinput 事件触发，合成 KeyboardEvent 不会生效。 */
+    #wb-history-dock{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:6px;
+      padding:6px;background:rgba(255,255,255,.96);border:1px solid #d8dee9;border-radius:12px;
+      box-shadow:0 4px 18px rgba(15,23,42,.18)}
+    #wb-history-dock button{font:600 13px/1 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+      padding:9px 13px;border:0;border-radius:8px;background:#4a6cf7;color:#fff;cursor:pointer;
+      box-shadow:0 1px 3px rgba(15,23,42,.15)}
+    #wb-history-dock button:hover{background:#3453d4}
+    #wb-history-dock button:disabled{background:#c3cad6;cursor:not-allowed}
+    #wb-history-dock .wb-hb-redo{background:#64748b}
+    #wb-history-dock .wb-hb-redo:hover{background:#475569}
   </style>
   <script>window.CMS_MANUAL_INIT = true;</script>
 </head>
@@ -44,6 +58,12 @@
     <h1>写作后台（HTML 富文本）正在加载…</h1>
     <p>这是主力的写作后台（Sveltia 0.270）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮，「插入」菜单里还有一批一键排版组件。登录后即可编辑正式文章，保存自动提交到 GitHub。</p>
     <p>如果一直停在这一页，请确认 <code>/libs/sveltia-270/sveltia-cms.js</code> 能打开。</p>
+  </div>
+
+  <!-- 撤销/恢复悬浮按钮（正文工具栏没有这两个，靠原生 history 命令实现） -->
+  <div id="wb-history-dock" title="撤销 / 恢复（也可直接用 Ctrl+Z / Ctrl+Y）">
+    <button type="button" id="wb-history-undo" title="撤销上一步（Ctrl+Z）">↶ 上一步</button>
+    <button type="button" id="wb-history-redo" class="wb-hb-redo" title="恢复下一步（Ctrl+Y）">↷ 下一步</button>
   </div>
 
   <!-- 体验沙盒专用：Sveltia 0.270 最新版（正式 /cms/ 仍用 0.265，互不影响） -->
@@ -475,6 +495,50 @@
         window.__wbHtmlDemoReady = false;
       }
       window.__wbHtmlComboLoaded = LOADED;
+
+      /* ---------- 撤销/恢复悬浮按钮 ----------
+         Lexical（Sveltia 富文本内核）原生支持 historyUndo / historyRedo，
+         但必须通过 beforeinput 事件触发（合成 KeyboardEvent 不会生效）。
+         这里在正文编辑器上派发这两个 inputType，等价于 Ctrl+Z / Ctrl+Y。 */
+      (function () {
+        var undoBtn = document.getElementById('wb-history-undo');
+        var redoBtn = document.getElementById('wb-history-redo');
+        function findEditor() {
+          var a = document.activeElement;
+          if (a && a.matches && a.matches('.lexical-root[contenteditable="true"]')) return a;
+          var list = document.querySelectorAll('.lexical-root[contenteditable="true"]');
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].getClientRects && list[i].getClientRects().length) return list[i];
+          }
+          return null;
+        }
+        function fire(type) {
+          var ed = findEditor();
+          if (!ed) { console.warn('[撤销/恢复] 未找到正文编辑器，请先点一下正文'); return false; }
+          try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+          var ev;
+          try {
+            ev = new InputEvent('beforeinput', {
+              inputType: type, bubbles: true, cancelable: true, composed: true, data: null
+            });
+          } catch (e) {
+            ev = document.createEvent('Event');
+            ev.initEvent('beforeinput', true, true);
+            try { Object.defineProperty(ev, 'inputType', { value: type }); } catch (e2) {}
+          }
+          return ed.dispatchEvent(ev);
+        }
+        if (undoBtn) {
+          undoBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+          undoBtn.addEventListener('click', function () { fire('historyUndo'); });
+        }
+        if (redoBtn) {
+          redoBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+          redoBtn.addEventListener('click', function () { fire('historyRedo'); });
+        }
+        window.__wbFireHistory = fire; // 便于自动化验证
+        window.__wbHistoryReady = true;
+      })();
     })();
   </script>
 
