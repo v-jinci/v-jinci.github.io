@@ -50,6 +50,13 @@
     #wb-history-dock button:disabled{background:#c3cad6;cursor:not-allowed}
     #wb-history-dock .wb-hb-redo{background:#64748b}
     #wb-history-dock .wb-hb-redo:hover{background:#475569}
+    /* 拖动手柄 + 复位按钮：避免悬浮条挡住正文 */
+    #wb-history-dock .wb-hb-handle{display:flex;align-items:center;padding:0 4px;
+      font:600 14px/1 sans-serif;color:#94a3b8;cursor:grab;user-select:none;touch-action:none}
+    #wb-history-dock .wb-hb-handle:active{cursor:grabbing}
+    #wb-history-dock .wb-hb-reset{background:#94a3b8;padding:9px 10px}
+    #wb-history-dock .wb-hb-reset:hover{background:#64748b}
+    #wb-history-dock.wb-hb-dragging{opacity:.92;box-shadow:0 8px 28px rgba(15,23,42,.28)}
   </style>
   <script>window.CMS_MANUAL_INIT = true;</script>
 </head>
@@ -62,9 +69,79 @@
 
   <!-- 撤销/恢复悬浮按钮（正文工具栏没有这两个，靠原生 history 命令实现） -->
   <div id="wb-history-dock" title="撤销 / 恢复（也可直接用 Ctrl+Z / Ctrl+Y）">
+    <span class="wb-hb-handle" id="wb-history-handle" title="拖动这里可以挪位置；双击手柄或点 ⟲ 复位">⠿</span>
     <button type="button" id="wb-history-undo" title="撤销上一步（Ctrl+Z）">↶ 上一步</button>
     <button type="button" id="wb-history-redo" class="wb-hb-redo" title="恢复下一步（Ctrl+Y）">↷ 下一步</button>
+    <button type="button" id="wb-history-reset" class="wb-hb-reset" title="复位到右下角">⟲</button>
   </div>
+
+  <!-- 悬浮条位置可拖动：拖手柄移动，自动记住位置，点 ⟲ 复位 -->
+  <script>
+    (function () {
+      var dock = document.getElementById('wb-history-dock');
+      var handle = document.getElementById('wb-history-handle');
+      var resetBtn = document.getElementById('wb-history-reset');
+      if (!dock || !handle) return;
+      var KEY = 'wb-history-dock-pos-v1';
+
+      function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+      function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+
+      function clamp(x, y) {
+        var w = dock.offsetWidth || 240, h = dock.offsetHeight || 44;
+        return {
+          x: Math.max(8, Math.min(x, window.innerWidth - w - 8)),
+          y: Math.max(8, Math.min(y, window.innerHeight - h - 8))
+        };
+      }
+      function place(x, y) {
+        var p = clamp(x, y);
+        dock.style.left = p.x + 'px';
+        dock.style.top = p.y + 'px';
+        dock.style.right = 'auto';
+        dock.style.bottom = 'auto';
+        return p;
+      }
+      function resetPos() {
+        dock.style.left = ''; dock.style.top = '';
+        dock.style.right = ''; dock.style.bottom = '';
+        save(null);
+      }
+
+      var saved = load();
+      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') place(saved.x, saved.y);
+
+      var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+      handle.addEventListener('pointerdown', function (e) {
+        dragging = true;
+        var r = dock.getBoundingClientRect();
+        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
+        dock.classList.add('wb-hb-dragging');
+        try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+        e.preventDefault();
+      });
+      handle.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        place(ox + (e.clientX - sx), oy + (e.clientY - sy));
+      });
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        dock.classList.remove('wb-hb-dragging');
+        var r = dock.getBoundingClientRect();
+        save(place(r.left, r.top));
+        try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+      handle.addEventListener('pointerup', endDrag);
+      handle.addEventListener('pointercancel', endDrag);
+      handle.addEventListener('dblclick', function (e) { e.preventDefault(); resetPos(); });
+      if (resetBtn) resetBtn.addEventListener('click', function () { resetPos(); });
+      window.addEventListener('resize', function () {
+        var r = dock.getBoundingClientRect();
+        if (dock.style.left) save(place(r.left, r.top));
+      });
+    })();
+  </script>
 
   <!-- 体验沙盒专用：Sveltia 0.270 最新版（正式 /cms/ 仍用 0.265，互不影响） -->
   <script src="/libs/sveltia-270/sveltia-cms.js"></script>

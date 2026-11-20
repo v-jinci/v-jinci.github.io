@@ -235,3 +235,116 @@ collections:
         fields:
           - { label: 标题, name: title, widget: string }
           - { label: 正文, name: body, widget: richtext, format: html }
+
+  # ---------------- 站点设置（出门在外也能改网页） ----------------
+  #  这里改的就是本机 http://localhost:4000/site 的那一套设置，
+  #  保存后提交到 hexo-src，等自动部署完成就上线了。
+  - name: settings
+    label: 站点设置
+    files:
+      - label: 外观与开关
+        name: look
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - label: 外观
+            name: wb_look
+            widget: object
+            fields:
+              - { label: 首页背景图（一行一张，可多张轮播）, name: hero_images, widget: list }
+              - { label: 首页背景视频（填了就用视频，图片只当封面）, name: hero_video, widget: string, required: false }
+              - { label: 轮播间隔（秒）, name: hero_interval, widget: number, value_type: int, required: false }
+              - label: 背景范围
+                name: hero_scope
+                widget: select
+                required: false
+                options:
+                  - { label: 全站都显示, value: all }
+                  - { label: 只在首页显示, value: home }
+              - { label: 遮罩深浅（0-60 百分比）, name: hero_overlay, widget: number, value_type: int, required: false }
+              - { label: 上一篇/下一篇卡片背景, name: nav_bg, widget: string, required: false }
+              - { label: 标语字号（0＝跟随主题）, name: sub_size, widget: number, value_type: int, required: false }
+              - { label: 标语字间距, name: sub_spacing, widget: number, value_type: int, required: false }
+              - { label: 标语颜色（留空＝跟随主题）, name: sub_color, widget: string, required: false }
+              - { label: 标语字重（0＝跟随主题）, name: sub_weight, widget: number, value_type: int, required: false }
+              - { label: 正文图片宽度（百分比）, name: post_img_width, widget: number, value_type: int, required: false }
+              - label: 正文图片排版
+                name: post_img_float
+                widget: select
+                required: false
+                options:
+                  - { label: 自动, value: auto }
+                  - { label: 左环绕, value: l }
+                  - { label: 右环绕, value: r }
+                  - { label: 居中单独一行, value: c }
+              - { label: 图片点击放大, name: img_zoom, widget: boolean, required: false }
+              - { label: 页脚显示「已运行多少天」, name: uptime_enable, widget: boolean, required: false }
+              - { label: 起始年份, name: uptime_since, widget: string, required: false }
+              - { label: '运行时长文字（{days} 会被替换成天数）', name: uptime_text, widget: string, required: false }
+              - { label: 自定义 404 页面, name: notfound_enable, widget: boolean, required: false }
+              - { label: 404 标题, name: notfound_title, widget: string, required: false }
+              - { label: 404 副标题, name: notfound_subtitle, widget: string, required: false }
+              - { label: 404 说明文字, name: notfound_text, widget: text, required: false }
+              - { label: 404 按钮文字, name: notfound_btn, widget: string, required: false }
+
+          - label: 深色模式
+            name: darkmode
+            widget: object
+            fields:
+              - { label: 启用深色模式, name: enable, widget: boolean, required: false }
+              - { label: 显示切换按钮, name: button, widget: boolean, required: false }
+              - { label: 跟随系统（1＝是）, name: autoChangeMode, widget: number, value_type: int, required: false }
+
+          - label: 阅读模式（文章页）
+            name: readmode
+            widget: boolean
+            required: false
+
+          - label: 侧边栏
+            name: aside
+            widget: object
+            fields:
+              - { label: 启用侧边栏, name: enable, widget: boolean, required: false }
+              - { label: 显示收起按钮, name: button, widget: boolean, required: false }
+              - { label: 手机上也显示, name: mobile, widget: boolean, required: false }
+
+          - label: '导航菜单（一行一条：名称: 链接 || 图标）'
+            name: menu
+            widget: list
+            required: false
+
+          - label: '社交链接（一行一条：图标类名: 链接 || 名字）'
+            name: social
+            widget: list
+            required: false
+
+      - label: 联系方式与页面密码
+        name: site
+        file: source/_data/site.yml
+        format: yaml
+        fields:
+          - { label: 联系邮箱, name: mail, widget: string, required: false }
+
+          - label: 页面密码（留空＝该页公开；填明文即可，构建时自动转成哈希）
+            name: sections
+            widget: object
+            fields:
+              - { label: 关于页, name: about, widget: string, required: false }
+              - { label: 友链页, name: link, widget: string, required: false }
+              - { label: 编年史, name: history, widget: string, required: false }
+              - { label: 留言板, name: messageBoard, widget: string, required: false }
+              - { label: 下载页, name: downloads, widget: string, required: false }
+              - { label: 归档页, name: archives, widget: string, required: false }
+              - { label: 标签页, name: tags, widget: string, required: false }
+              - { label: 分类页, name: categories, widget: string, required: false }
+
+          - label: 联系方式卡片（关于页显示）
+            name: contacts
+            widget: list
+            fields:
+              - { label: 名称, name: label, widget: string, required: false }
+              - { label: 图标类名（如 fab fa-github）, name: icon, widget: string, required: false }
+              - { label: 内容（账号 / 号码 / 邮箱）, name: value, widget: string, required: false }
+              - { label: 链接（留空＝点击弹窗显示）, name: href, widget: string, required: false }
+              - { label: 备注, name: remark, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }

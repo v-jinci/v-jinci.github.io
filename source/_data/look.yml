@@ -1,0 +1,400 @@
+# ==========================================================
+#  站点设置（本机 /site 与远程 /admin 编辑的就是这一份）
+#
+#  规则：这里写了什么键，就覆盖 _config.butterfly.yml 里的同名键；
+#        没写的键继续用原配置，不会丢。
+#
+#  menu / social 用列表写（一行一条），格式：名称: 链接 || 图标
+# ==========================================================
+CDN:
+  internal_provider: local
+  third_party_provider: jsdelivr
+  version: true
+  option:
+    fontawesome: /libs/fontawesome/css/all.min.css?v=7.3.1
+    egjs_infinitegrid: /libs/infinitegrid.min.js?v=4.13.1
+    typed: /libs/typed.umd.js?v=3.0.0
+    waline_css: /libs/waline/waline.css?v=3.16.2
+    waline_js: /libs/waline/waline.js?v=3.16.2
+    sharejs: /libs/share/social-share.min.js?v=1.1.6
+    sharejs_css: /libs/share/share.min.css?v=1.1.6
+nav:
+  logo: null
+  display_title: true
+  display_post_title: true
+  fixed: false
+menu:
+  - "首页: / || fas fa-home"
+  - "归档: /archives/ || fas fa-archive"
+  - "标签: /tags/ || fas fa-tags"
+  - "友链: /link/ || fas fa-link"
+  - "编年史: /history/ || fas fa-history"
+  - "留言板: /messageBoard/ || far fa-comment-dots"
+  - "下载: /downloads/ || fas fa-download"
+  - "关于: /about/ || fas fa-user"
+social:
+  - "fab fa-github: https://github.com/v-jinci || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github || Github"
+  - "fas fa-envelope: mailto:599676700@qq.com || Email"
+avatar:
+  img: /img/Avatar.png
+  effect: false
+favicon: /img/site-icon.ico
+disable_top_img: false
+default_top_img: /img/V_bg.jpg
+index_img: /img/V_bg.jpg
+subtitle:
+  enable: true
+  effect: true
+  typed_option:
+    typeSpeed: 150
+    backSpeed: 50
+    backDelay: 1500
+    startDelay: 300
+    loop: true
+  source: false
+  sub:
+    - 有可能的就一定会发生
+    - 吾不识青天高，黄地厚。
+    - 唯见月寒日暖，来煎人寿。
+    - 竹杖芒鞋轻胜马，谁怕？
+    - 一蓑烟雨任平生。
+index_post_content:
+  method: 3
+  length: 275
+toc:
+  post: true
+  page: false
+  number: true
+  expand: false
+  style_simple: false
+  scroll_percent: true
+post_copyright:
+  enable: true
+  decode: false
+  author_href: null
+  license: CC BY-NC-SA 4.0
+  license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+darkmode:
+  enable: true
+  button: true
+  autoChangeMode: 1
+readmode: true
+rightside_scroll_percent: true
+rightside_item_order:
+  enable: true
+  hide: readmode,translate
+  show: darkmode,toc,chat,comment,hideAside
+search:
+  use: local_search
+  placeholder: 搜索文章…
+  local_search:
+    preload: true
+    top_n_per_article: 1
+    unescape: false
+    CDN: null
+busuanzi:
+  enable: true
+  site_uv: true
+  site_pv: true
+  page_pv: true
+aside:
+  enable: true
+  hide: false
+  button: true
+  mobile: true
+  position: right
+  display:
+    archive: true
+    tag: true
+    category: true
+  card_author:
+    enable: true
+    description: 记录思考，慢慢成长。
+    button:
+      enable: true
+      icon: fab fa-github
+      text: Follow Me
+      link: https://github.com/v-jinci
+  card_announcement:
+    enable: true
+    content: 欢迎来到我的小站，随便逛逛～
+  card_recent_post:
+    enable: true
+    limit: 5
+    sort: date
+    sort_order: null
+  card_categories:
+    enable: true
+    limit: 8
+    sort: length
+    sort_order: null
+  card_tags:
+    enable: true
+    limit: 20
+    color: false
+    orderby: random
+    order: 1
+  card_archives:
+    enable: true
+    type: monthly
+    format: MMMM YYYY
+    order: -1
+  card_webinfo:
+    enable: true
+    post_count: true
+    last_push_date: true
+    sort_order: null
+    runtime_date: null
+  card_post_series:
+    enable: false
+footer:
+  nav: null
+  owner:
+    enable: true
+    since: 2021
+  copyright:
+    enable: true
+    version: false
+  custom_text: 有可能的就一定会发生 「 What can happen will happen 」
+footer_img: /img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg
+wb_look:
+  nav_bg: /img/b9ac1696bc480b88622e8d45e9d4678ac80bcbc1-b548bedc.jpg
+  hero_images:
+    - /img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg
+    - /img/457f3ea1d92b768fd9c5fdd125c884eb58cb405c.jpg
+    - /img/2024-01-07-_17-50-56.23_CachedImage_1920.jpg
+    - /img/bk_bg.jpg
+  hero_video: /media/mp4.mp4
+  hero_interval: 6
+  hero_scope: all
+  hero_overlay: 20
+  avatar_spin: false
+  post_img_width: 50
+  post_img_float: auto
+  upload_shrink: true
+  sub_size: 0
+  sub_spacing: 0
+  sub_color: ""
+  sub_weight: 0
+  img_zoom: true
+  uptime_enable: true
+  uptime_since: 2021-01-01T00:00:00.000Z
+  uptime_text: 本站已运行 {days} 天
+  notfound_enable: true
+  notfound_title: 404
+  notfound_subtitle: 这一页走丢了
+  notfound_text: 地址可能拼错、文章可能挪了位置，也可能它从来就没存在过。
+  notfound_btn: 回到首页
+index_layout: 3
+comments:
+  use: Waline
+  text: true
+  lazyload: true
+  count: false
+  card_post_count: false
+waline:
+  serverURL: https://weiblog-comments.netlify.app
+  bg: null
+  pageview: false
+  option:
+    lang: zh-CN
+    requiredMeta:
+      - nick
+    meta:
+      - nick
+      - mail
+      - link
+    pageSize: 10
+    commentSorting: latest
+    login: disable
+giscus:
+  repo: v-jinci/v-jinci.github.io
+  repo_id: R_kgDOLV2ueQ
+  category_id: DIC_kwDOLV2uec4DK0JX
+  light_theme: light
+  dark_theme: dark
+  js: https://giscus.app/client.js
+  option:
+    data-lang: zh-CN
+    data-strict: "1"
+    data-input-position: top
+    data-loading: lazy
+    data-reactions-enabled: "1"
+inject:
+  head:
+    - <style>.wl-addr{display:none!important}</style>
+    - |
+      <style>
+      /* ---- 文章底部「上一篇 / 下一篇」：图片打底 + 暗色遮罩，保证文字看得清 ---- */
+      /* 背景图来自 wb_look.nav_bg（/site 后台可改），由 scripts/wb-look.js 注入成 CSS 变量 */
+      #pagination.pagination-post a.pagination-related{position:relative;overflow:hidden;border-radius:14px;box-shadow:0 6px 20px rgba(15,23,42,.10)}
+      #pagination.pagination-post a.pagination-related .cover{
+        background-image:var(--wb-nav-bg,url('/img/nav-cover.svg'))!important;
+        background-size:cover!important;background-position:center!important;background-color:transparent!important}
+      #pagination.pagination-post a.pagination-related:nth-of-type(2) .cover{
+        background-image:var(--wb-nav-bg2,var(--wb-nav-bg,url('/img/nav-cover3.svg')))!important}
+      #pagination.pagination-post a.pagination-related:hover .cover{opacity:1!important}
+      #pagination.pagination-post a.pagination-related::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+        background:linear-gradient(120deg,rgba(8,15,28,.42),rgba(8,15,28,.16) 55%,rgba(8,15,28,.38))}
+      /* 文字是绝对定位的，只抬层级、不改变定位方式，否则会跑到卡片顶部 */
+      #pagination.pagination-post a.pagination-related .info .info-1,
+      #pagination.pagination-post a.pagination-related .info .info-2{position:absolute;z-index:2}
+      #pagination.pagination-post .info-item-1,
+      #pagination.pagination-post .info-item-2{color:rgba(255,255,255,.96)!important;text-shadow:0 1px 4px rgba(0,0,0,.5)}
+      #pagination.pagination-post .info-1 .info-item-1{opacity:.72;letter-spacing:.08em}
+
+      /* ---- 页脚：背景图 + 遮罩 + 白字 ---- */
+      #footer{position:relative;background-size:cover;background-position:center;background-repeat:no-repeat}
+      #footer::before{content:"";position:absolute;inset:0;pointer-events:none;
+        background:linear-gradient(180deg,rgba(6,12,24,.4),rgba(6,12,24,.62))}
+      #footer>*{position:relative;z-index:1}
+      #footer,
+      #footer a,
+      #footer .footer-copyright,
+      #footer .footer-other,
+      #footer .footer-separator{color:rgba(255,255,255,.9)!important}
+      #footer a:hover{color:#fff!important;text-decoration:underline}
+      /* 深色模式下别压得太黑 */
+      html[data-theme="dark"] #footer::before{background:linear-gradient(180deg,rgba(6,12,24,.45),rgba(6,12,24,.68))}
+
+      /* ---- 正文图片排版：?w= 定大小，?f= 定环绕（由 scripts/wb-post.js 加类名） ---- */
+      /* 图片靠左 / 靠右时，文字会自动绕到另一边，不再缩成半宽后右边一大片空白 */
+      #article-container .wb-fig{border-radius:8px}
+      #article-container .wb-fig-l{float:left}
+      #article-container .wb-fig-r{float:right}
+      #article-container .wb-fig-c{display:block}
+      /* 浮动图片后面的标题另起一行，避免标题文字也绕着图走 */
+      #article-container h1,#article-container h2,#article-container h3,
+      #article-container h4,#article-container h5,#article-container h6{clear:both}
+      /* 正文结束处收尾，图片再长也不会压到「上一篇/下一篇」和评论 */
+      #article-container::after{content:"";display:block;clear:both}
+      /* 手机上不环绕：一律整行居中，否则文字挤成一条 */
+      @media (max-width:768px){
+        #article-container .wb-fig-l,#article-container .wb-fig-r{
+          float:none!important;display:block!important;width:100%!important;margin:10px auto!important}
+      }
+
+      /* ================= 正文写法包（由 scripts/wb-post.js 识别生成） =================
+         提示框：引用块开头写 提示：/ 注意：/ 重点：/ 警告：
+         折叠块：引用块开头写 折叠：标题   金句：引用块里只写一句短话
+         图注：图片下一行写 *说明*        并排：连着插 2~3 张图
+         步骤：有序列表第一项写 步骤：     按钮：【按钮】+ 链接
+         ================================================================== */
+
+      /* ---- 提示框 ---- */
+      #article-container .wb-note{margin:18px 0;padding:12px 15px;border-radius:12px;border:1px solid transparent;
+        border-left-width:4px;line-height:1.8}
+      #article-container .wb-note-h{font-weight:700;font-size:13.5px;letter-spacing:.02em;margin-bottom:4px}
+      #article-container .wb-note-b>*:first-child{margin-top:0}
+      #article-container .wb-note-b>*:last-child{margin-bottom:0}
+      #article-container .wb-note-b p{margin:4px 0}
+      #article-container .wb-note-tip{background:rgba(56,189,248,.10);border-color:rgba(56,189,248,.30);border-left-color:#38bdf8}
+      #article-container .wb-note-tip .wb-note-h{color:#0284c7}
+      #article-container .wb-note-warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.32);border-left-color:#f59e0b}
+      #article-container .wb-note-warn .wb-note-h{color:#b45309}
+      #article-container .wb-note-key{background:rgba(99,102,241,.10);border-color:rgba(99,102,241,.28);border-left-color:#6366f1}
+      #article-container .wb-note-key .wb-note-h{color:#4f46e5}
+      #article-container .wb-note-danger{background:rgba(239,68,68,.10);border-color:rgba(239,68,68,.28);border-left-color:#ef4444}
+      #article-container .wb-note-danger .wb-note-h{color:#dc2626}
+
+      /* ---- 折叠块 ---- */
+      #article-container details.wb-fold{margin:18px 0;padding:0 15px;border-radius:12px;
+        border:1px solid rgba(148,163,184,.28);background:rgba(148,163,184,.07)}
+      #article-container details.wb-fold>*{max-width:100%}
+      #article-container details.wb-fold>summary{cursor:pointer;padding:11px 0;font-weight:600;list-style:none;outline:none}
+      #article-container details.wb-fold>summary::-webkit-details-marker{display:none}
+      #article-container details.wb-fold>summary::before{content:"▸";display:inline-block;margin-right:8px;
+        color:#38bdf8;transition:transform .18s ease}
+      #article-container details.wb-fold[open]>summary::before{transform:rotate(90deg)}
+      #article-container details.wb-fold[open]>summary{border-bottom:1px dashed rgba(148,163,184,.32);margin-bottom:8px}
+      #article-container details.wb-fold .wb-fold-body{padding:2px 0 8px}
+      #article-container details.wb-fold .wb-fold-body>*:last-child{margin-bottom:0}
+
+      /* ---- 金句 ---- */
+      #article-container blockquote.wb-quote{margin:24px 0;padding:20px 22px;border:0;border-radius:16px;
+        background:linear-gradient(120deg,rgba(37,99,235,.08),rgba(6,182,212,.08));text-align:center;position:relative}
+      #article-container blockquote.wb-quote::before{content:"“";position:absolute;left:12px;top:2px;
+        font-size:40px;line-height:1;color:rgba(56,189,248,.45);font-family:Georgia,serif}
+      #article-container blockquote.wb-quote p{margin:0;font-size:17px;line-height:1.8;font-weight:600;color:inherit}
+
+      /* ---- 图注（图片 + 小字说明） ---- */
+      #article-container .wb-figbox{margin:16px auto;display:block;max-width:100%}
+      #article-container .wb-figbox img{width:100%!important;max-width:100%;height:auto;display:block;
+        margin:0!important;float:none!important;border-radius:8px}
+      #article-container .wb-figbox figcaption{margin-top:7px;text-align:center;font-size:12.5px;
+        line-height:1.6;color:#94a3b8}
+      #article-container .wb-figbox--l{float:left;margin:6px 18px 14px 0}
+      #article-container .wb-figbox--r{float:right;margin:6px 0 14px 18px}
+
+      /* ---- 并排图片 ---- */
+      #article-container .wb-cols{display:grid;gap:10px;margin:16px 0;clear:both}
+      #article-container .wb-cols-2{grid-template-columns:1fr 1fr}
+      #article-container .wb-cols-3{grid-template-columns:1fr 1fr 1fr}
+      #article-container .wb-cols img{width:100%!important;height:auto;display:block;margin:0!important;
+        float:none!important;border-radius:8px}
+
+      /* ---- 步骤条 ---- */
+      #article-container ol.wb-steps{list-style:none;padding-left:4px;margin:18px 0;counter-reset:wbstep}
+      #article-container ol.wb-steps>li{position:relative;padding-left:42px;margin:0 0 16px;counter-increment:wbstep}
+      #article-container ol.wb-steps>li::before{content:counter(wbstep);position:absolute;left:0;top:2px;
+        width:26px;height:26px;border-radius:50%;color:#fff;font-size:13px;font-weight:700;
+        display:flex;align-items:center;justify-content:center;
+        background:linear-gradient(135deg,#2563eb,#06b6d4);box-shadow:0 4px 10px rgba(37,99,235,.28)}
+      #article-container ol.wb-steps>li::after{content:"";position:absolute;left:12.5px;top:32px;bottom:-16px;
+        width:1px;background:rgba(148,163,184,.45)}
+      #article-container ol.wb-steps>li:last-child{margin-bottom:0}
+      #article-container ol.wb-steps>li:last-child::after{display:none}
+      #article-container ol.wb-steps>li>p{margin:0}
+
+      /* ---- 按钮链接 ---- */
+      #article-container .wb-btn-row{margin:18px 0;text-align:center}
+      #article-container a.wb-btn{display:inline-block;padding:9px 22px;border-radius:999px;font-size:14px;
+        font-weight:600;line-height:1.6;text-decoration:none!important;color:#fff!important;
+        background:linear-gradient(120deg,#2563eb,#06b6d4);box-shadow:0 6px 16px rgba(37,99,235,.25);
+        transition:transform .15s ease,box-shadow .15s ease}
+      #article-container a.wb-btn:hover{transform:translateY(-1px);color:#fff!important;
+        box-shadow:0 10px 22px rgba(37,99,235,.32)}
+      #article-container a.wb-btn::after{content:none!important}
+
+      /* ---- 表格 ---- */
+      #article-container .wb-table{overflow-x:auto;margin:18px 0;-webkit-overflow-scrolling:touch;border-radius:10px}
+      #article-container .wb-table table{width:100%;min-width:420px;margin:0;border-collapse:collapse;font-size:14px}
+      #article-container .wb-table th,#article-container .wb-table td{
+        padding:9px 13px;border:1px solid rgba(148,163,184,.28);text-align:left;vertical-align:top}
+      #article-container .wb-table th{background:rgba(37,99,235,.09);font-weight:700;white-space:nowrap}
+      #article-container .wb-table tbody tr:nth-child(even){background:rgba(148,163,184,.07)}
+
+      /* ---- 转载来源 ---- */
+      #article-container .wb-reprint{margin:22px 0 4px;padding:10px 14px;border-radius:10px;
+        background:rgba(148,163,184,.10);font-size:13px;line-height:1.7;color:#64748b}
+      #article-container .wb-reprint a{color:#2563eb;text-decoration:none}
+      #article-container .wb-reprint a:hover{text-decoration:underline}
+
+      /* ---- 系列合集 ---- */
+      #article-container .wb-series{margin:28px 0 0;padding:15px 17px;border-radius:14px;
+        background:rgba(37,99,235,.06);border:1px solid rgba(37,99,235,.16)}
+      #article-container .wb-series-t{font-weight:700;font-size:14px;margin-bottom:9px}
+      #article-container .wb-series ul{margin:0;padding-left:20px}
+      #article-container .wb-series li{margin:5px 0;font-size:13.5px;line-height:1.7}
+      #article-container .wb-series-d{color:#94a3b8;font-size:12px;margin-left:6px}
+
+      /* ---- 深色模式：底色和文字都换一套，别糊成一团 ---- */
+      html[data-theme="dark"] #article-container .wb-note-tip{background:rgba(56,189,248,.14)}
+      html[data-theme="dark"] #article-container .wb-note-tip .wb-note-h{color:#7dd3fc}
+      html[data-theme="dark"] #article-container .wb-note-warn .wb-note-h{color:#fcd34d}
+      html[data-theme="dark"] #article-container .wb-note-key .wb-note-h{color:#a5b4fc}
+      html[data-theme="dark"] #article-container .wb-note-danger .wb-note-h{color:#fca5a5}
+      html[data-theme="dark"] #article-container .wb-reprint{color:#94a3b8}
+      html[data-theme="dark"] #article-container .wb-reprint a{color:#7dd3fc}
+      html[data-theme="dark"] #article-container .wb-table th{background:rgba(56,189,248,.14)}
+      html[data-theme="dark"] #article-container .wb-table tbody tr:nth-child(even){background:rgba(148,163,184,.10)}
+
+      /* ---- 手机上：并排最多两列、浮动的图注也不环绕 ---- */
+      @media (max-width:768px){
+        #article-container .wb-cols-3{grid-template-columns:1fr 1fr}
+        #article-container .wb-figbox--l,#article-container .wb-figbox--r{
+          float:none!important;width:100%!important;margin:16px auto!important}
+        #article-container blockquote.wb-quote p{font-size:15.5px}
+        #article-container ol.wb-steps>li{padding-left:38px}
+      }
+      </style>

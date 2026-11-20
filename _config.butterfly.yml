@@ -107,6 +107,12 @@ darkmode:
 
 readmode: true
 rightside_scroll_percent: true
+# 右下角功能区：show 里的按钮直接显示（手机上最下面那列就是它们），
+# hide 里的收在齿轮按钮里。深色模式放 show，手机上才一眼能点到。
+rightside_item_order:
+  enable: true
+  hide: 'readmode,translate'
+  show: 'darkmode,toc,chat,comment,hideAside'
 
 # 本地搜索（不用联网、不用配置任何服务）
 search:
@@ -120,7 +126,10 @@ search:
 
 # 关闭第三方统计（需要时再开）
 busuanzi:
-  enable: false
+  enable: true
+  site_uv: true
+  site_pv: true
+  page_pv: true
 
 # 侧边栏卡片
 aside:

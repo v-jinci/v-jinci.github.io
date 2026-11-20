@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 function loadSite(baseDir) {
   const file = path.join(baseDir, 'source', '_data', 'site.yml');
@@ -132,8 +133,13 @@ hexo.extend.filter.register('after_render:html', function (str, data) {
   const key = keyOf(data && data.path);
   if (!key) return str;
   const site = loadSite(hexo.base_dir);
-  const hash = String(((site.sections || {})[key]) || '').toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(hash)) return str;
+  const raw = String(((site.sections || {})[key]) || '').trim();
+  if (!raw) return str;
+  // 存的是 64 位 SHA-256 就直接用；存的是明文就在构建时现算一次哈希，
+  // 这样远程后台（/admin）里直接填明文密码也能用。
+  const hash = /^[a-f0-9]{64}$/i.test(raw)
+    ? raw.toLowerCase()
+    : crypto.createHash('sha256').update(raw, 'utf8').digest('hex');
 
   const head = STYLE.replace('KEYVAL', JSON.stringify(key)).replace('HASHVAL', JSON.stringify(hash));
   if (str.indexOf('</head>') !== -1) str = str.replace('</head>', head + '</head>');

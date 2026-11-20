@@ -503,7 +503,7 @@ const PAGE_SECTIONS = [
 
 function loadCurrent(base) {
   const siteFile = path.join(base, '_config.yml');
-  const themeFile = path.join(base, '_config.butterfly.yml');
+  const themeFile = path.join(base, 'source', '_data', 'look.yml');
   const themeDefault = path.join(base, 'node_modules', 'hexo-theme-butterfly', '_config.yml');
   const site = readYaml(siteFile, {});
   const mine = readYaml(themeFile, {});
@@ -671,7 +671,7 @@ async function handle(hexo, req, res, options) {
       const data = JSON.parse(raw || '{}');
       const touched = [];
       const siteFile = path.join(base, '_config.yml');
-      const themeFile = path.join(base, '_config.butterfly.yml');
+      const themeFile = path.join(base, 'source', '_data', 'look.yml');
 
       /* --- 图片先落地 --- */
       const pick = (fileKey, pathKey, label) => {

@@ -1,9 +1,15 @@
-@font-face {
-  font-family: "iconfont";
-  src: url("../fonts/iconfont.woff2") format("woff2"), url("../fonts/iconfont.woff") format("woff"), url("../fonts/iconfont.ttf") format("truetype");
-}
+/* ==========================================================
+ *  分享按钮样式（自托管版）
+ *
+ *  为什么改写：原来的 share.min.css 依赖 iconfont 字体文件
+ *  （/libs/fonts/iconfont.woff2 等），而仓库里根本没有这几个字体文件，
+ *  线上请求 404 → 图标位置一片空白（用户看到的"图标加载不出来"）。
+ *
+ *  现在改用本站已经自托管的 Font Awesome 7（/libs/fontawesome/），
+ *  不再依赖任何外部字体，图标立刻可见。
+ * ========================================================== */
 .social-share {
-  font-family: "iconfont" !important;
+  font-family: "Font Awesome 7 Brands", "Font Awesome 7 Free", sans-serif !important;
   font-size: 16px;
   font-style: normal;
   -webkit-font-smoothing: antialiased;
@@ -11,37 +17,45 @@
   -moz-osx-font-smoothing: grayscale;
 }
 .social-share * {
-  font-family: "iconfont" !important;
+  font-family: inherit !important;
 }
 .social-share .icon-qq:before {
-  content: "\e882";
+  content: "\f1d6";
 }
 .social-share .icon-weibo:before {
-  content: "\e884";
+  content: "\f18a";
 }
 .social-share .icon-wechat:before {
-  content: "\e604";
+  content: "\f1d7";
 }
 .social-share .icon-heart:before {
-  content: "\e69d";
+  content: "\f004";
+  font-family: "Font Awesome 7 Free" !important;
 }
 .social-share .icon-like:before {
-  content: "\e602";
+  content: "\f005";
+  font-family: "Font Awesome 7 Free" !important;
 }
 .social-share .icon-qzone:before {
-  content: "\e603";
+  content: "\f1d6";
+}
+.social-share .icon-zhihu:before {
+  content: "\f63f";
 }
 .social-share .icon-linkedin:before {
-  content: "\e8d5";
+  content: "\f0e1";
 }
 .social-share .icon-facebook:before {
-  content: "\e6a1";
+  content: "\f39e";
 }
 .social-share .icon-x:before {
-  content: "\e75c";
+  content: "\e61b";
 }
 .social-share .icon-twitter:before {
-  content: "\e883";
+  content: "\f099";
+}
+.social-share .icon-github:before {
+  content: "\f09b";
 }
 .social-share a {
   position: relative;
@@ -55,7 +69,7 @@
   display: inline-block;
   width: 32px;
   height: 32px;
-  font-size: 20px;
+  font-size: 18px;
   border-radius: 50%;
   line-height: 32px;
   border: 1px solid #666;
