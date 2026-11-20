@@ -11,13 +11,38 @@
     #fallback h1{font-size:18px;margin:0 0 12px}
     #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
     #fallback a{color:#4a6cf7}
+
+    /* ============================================================
+       富文本预览兜底样式
+       关键：Sveltia 0.270 的 HTML 转换器在渲染预览时会清洗 style，
+       白名单里有 color / text-align / font-weight，但没有 font-size，
+       所以 inline 的 font-size 在「编辑区预览」里会失效。
+       解决：组件同时写入 class，由这里用 !important 兜底显示；
+       同时 inline 的 font-size 仍保留，保证保存到文件 / 发布后正常。
+       ============================================================ */
+    .wb-fs-14{font-size:14px!important}
+    .wb-fs-16{font-size:16px!important}
+    .wb-fs-20{font-size:20px!important}
+    .wb-fs-26{font-size:26px!important}
+    .wb-fs-32{font-size:32px!important}
+    [data-wb-combo],[data-wb-align],[data-wb-size],[data-wb-color]{margin:6px 0}
+    .wb-callout-hl{border-left:4px solid #2563eb;padding:8px 14px;background:#eff6ff;border-radius:6px;margin:8px 0}
+    .wb-callout-hl[data-wb-callout="注意"]{border-color:#d97706;background:#fffbeb}
+    .wb-callout-hl[data-wb-callout="重点"]{border-color:#7c3aed;background:#f5f3ff}
+    .wb-callout-hl[data-wb-callout="警告"]{border-color:#dc2626;background:#fef2f2}
+    .wb-callout-hl[data-wb-callout="金句"]{border-color:#94a3b8;background:#f8fafc;text-align:center;font-size:1.2em;color:#64748b}
+    .wb-btn-hl{display:inline-block;padding:8px 20px;border-radius:9999px;background:#4a6cf7;color:#fff!important;text-decoration:none}
+    .wb-cap-hl{display:block;text-align:center;font-size:.85em;color:#94a3b8;margin:4px 0}
+    .wb-table-hl{border-collapse:collapse;width:100%;margin:8px 0}
+    .wb-table-hl th,.wb-table-hl td{border:1px solid #cbd5e1;padding:6px 10px}
+    .wb-table-hl th{background:#f1f5f9}
   </style>
   <script>window.CMS_MANUAL_INIT = true;</script>
 </head>
 <body>
   <div id="fallback">
     <h1>Sveltia（HTML 体验模式）正在加载…</h1>
-    <p>这是和正式后台隔离的<b>体验沙盒</b>（Sveltia 0.270 最新版）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮。随便改，只影响体验文章。</p>
+    <p>这是和正式后台隔离的<b>体验沙盒</b>（Sveltia 0.270 最新版）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮，插入菜单里还有一批一键排版组件。随便改，只影响体验文章。</p>
     <p>如果一直停在这一页，请确认 <code>/libs/sveltia-270/sveltia-cms.js</code> 能打开。</p>
   </div>
 
@@ -32,104 +57,349 @@
           return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
         });
       }
-
+      // 把 20px 这样的值转成 class 后缀 20
+      function sizeSuffix(s) {
+        return String(s || '20px').replace(/[^0-9]/g, '') || '20';
+      }
+      function sizeClass(s) { return 'wb-fs-' + sizeSuffix(s); }
+      function sizeFromClass(el) {
+        var m = String(el.getAttribute('class') || '').match(/wb-fs-(\d+)/);
+        return m ? m[1] + 'px' : '';
+      }
       // 解析 style 里的某个属性
       function styleVal(el, prop) {
         var s = (el.getAttribute('style') || '').toLowerCase();
         var m = s.match(new RegExp('(?:^|;)\\s*' + prop + '\\s*:\\s*([^;]+)'));
         return m ? m[1].trim() : '';
       }
-
-      // 生成带 data-wb-combo 标记的 div —— htmlSelector 靠它回读
-      function buildDom(d) {
-        d = d || {};
-        var align = d.align || 'center';
-        var color = d.color || '#e60000';
-        var size = d.size || '20px';
-        var bold = !!d.bold;
-        var text = d.text || '要排版的文字';
-        var el = document.createElement('div');
-        el.setAttribute('data-wb-combo', '1');
-        el.setAttribute('style',
-          'text-align:' + align + ';color:' + color + ';font-size:' + size + (bold ? ';font-weight:bold' : '') + ';');
-        // text 允许内嵌简单 HTML（如 <span>），但基本用法就是纯文本
-        var tpl = document.createElement('template');
-        tpl.innerHTML = text;
-        el.appendChild(tpl.content);
+      // 用 template 安全地装入文字（允许内嵌简单 HTML）
+      function setHtml(el, text) {
+        var t = document.createElement('template');
+        t.innerHTML = text || '';
+        el.appendChild(t.content);
         return el;
       }
+      function el(tag, attrs, html) {
+        var e = document.createElement(tag);
+        Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+        if (html != null) setHtml(e, html);
+        return e;
+      }
+      var COLORS = [
+        { label: '红色', value: '#e60000' }, { label: '橙色', value: '#ea580c' },
+        { label: '绿色', value: '#16a34a' }, { label: '蓝色', value: '#2563eb' },
+        { label: '紫色', value: '#7c3aed' }, { label: '深灰', value: '#334155' }
+      ];
+      var SIZES = [
+        { label: '小字 14px', value: '14px' }, { label: '正文 16px', value: '16px' },
+        { label: '大字 20px', value: '20px' }, { label: '特大 26px', value: '26px' },
+        { label: '标题 32px', value: '32px' }
+      ];
+      var ALIGNS = [
+        { label: '居中', value: 'center' }, { label: '左对齐', value: 'left' }, { label: '右对齐', value: 'right' }
+      ];
+      var POSTS = [
+        { label: '你好，世界', value: '/2026/11/10/你好，世界/' },
+        { label: '一点闲言碎语', value: '/2026/11/11/一点闲言碎语/' },
+        { label: '测试', value: '/2026/11/18/测试/' }
+      ];
 
-      function register() {
+      function safeReg(def) {
         try {
-          if (typeof window.CMS === 'undefined' || typeof window.CMS.registerEditorComponent !== 'function') {
-            return false;
-          }
-          var def = {
-            id: 'wb-combo-html',
-            label: '🎨 综合排版（居中+颜色+字号+加粗）',
-            icon: 'format_paint',
-            // pattern 必填（0.270 校验要求），HTML 模式下实际用 htmlSelector 回读
-            pattern: /<div[^>]*data-wb-combo="1"[^>]*>[\s\S]*?<\/div>/,
-            fields: [
-              { name: 'text', label: '文字内容', widget: 'string' },
-              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: [
-                { label: '居中', value: 'center' },
-                { label: '左对齐', value: 'left' },
-                { label: '右对齐', value: 'right' }
-              ] },
-              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
-                { label: '红色', value: '#e60000' },
-                { label: '橙色', value: '#ea580c' },
-                { label: '绿色', value: '#16a34a' },
-                { label: '蓝色', value: '#2563eb' },
-                { label: '紫色', value: '#7c3aed' },
-                { label: '深灰', value: '#334155' }
-              ] },
-              { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
-                { label: '小字 14px', value: '14px' },
-                { label: '正文 16px', value: '16px' },
-                { label: '大字 20px', value: '20px' },
-                { label: '特大 26px', value: '26px' },
-                { label: '标题 32px', value: '32px' }
-              ] },
-              { name: 'bold', label: '加粗', widget: 'boolean', default: false }
-            ],
-            // 给 Markdown 编辑器用的（兼容兜底）
-            toBlock: function (d) { return buildDom(d).outerHTML; },
-            fromBlock: function () { return {}; },
-            toPreview: function (d) { return buildDom(d).outerHTML; },
-            // 给 HTML 富文本模式用的三件套
-            htmlSelector: 'div[data-wb-combo="1"]',
-            fromBlockHTML: function (el) {
-              var align = styleVal(el, 'text-align') || 'center';
-              var color = styleVal(el, 'color') || '#e60000';
-              var size = styleVal(el, 'font-size') || '20px';
-              var bold = /font-weight\s*:\s*(bold|[6-9]00)/i.test(el.getAttribute('style') || '');
-              var text = el.innerHTML || '';
-              return { text: text, align: align, color: color, size: size, bold: bold };
-            },
-            toBlockHTML: function (d) { return buildDom(d); }
-          };
           window.CMS.registerEditorComponent(def);
           LOADED.push(def.id);
-          window.__wbHtmlComboReady = true;
           return true;
         } catch (e) {
-          window.__wbHtmlComboError = String(e && e.message || e);
-          console.error('[wb-combo-html 注册失败]', e);
+          window.__wbHtmlErrors = (window.__wbHtmlErrors || []).concat(def.id + ': ' + (e && e.message || e));
+          console.error('[组件注册失败] ' + def.id, e);
           return false;
         }
       }
 
+      function registerAll() {
+        if (typeof window.CMS === 'undefined' || typeof window.CMS.registerEditorComponent !== 'function') return false;
+        try {
+
+          /* ---- 1. 综合排版（对齐+颜色+字号+加粗）：字号 class+inline 双写 ---- */
+          safeReg({
+            id: 'wb-combo-html',
+            label: '🎨 综合排版（居中+颜色+字号+加粗）',
+            icon: 'format_paint',
+            pattern: /<div[^>]*data-wb-combo[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'text', label: '文字内容（可含 <span> 局部混色）', widget: 'string' },
+              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: ALIGNS },
+              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: COLORS },
+              { name: 'size', label: '字号', widget: 'select', default: '20px', options: SIZES },
+              { name: 'bold', label: '加粗', widget: 'boolean', default: false }
+            ],
+            toBlock: function (d) { return buildCombo(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCombo(d).outerHTML; },
+            htmlSelector: 'div[data-wb-combo]',
+            fromBlockHTML: function (node) {
+              return {
+                align: styleVal(node, 'text-align') || 'center',
+                color: styleVal(node, 'color') || '#e60000',
+                size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px',
+                bold: /font-weight\s*:\s*(bold|[6-9]00)/i.test(node.getAttribute('style') || ''),
+                text: node.innerHTML || ''
+              };
+            },
+            toBlockHTML: function (d) { return buildCombo(d); }
+          });
+
+          /* ---- 2. 段落对齐 ---- */
+          safeReg({
+            id: 'wb-align-html', label: '段落对齐（居中/左/右）', icon: 'format_align_center',
+            pattern: /<div[^>]*data-wb-align[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: ALIGNS }
+            ],
+            toBlock: function (d) { return buildAlign(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildAlign(d).outerHTML; },
+            htmlSelector: 'div[data-wb-align]',
+            fromBlockHTML: function (n) {
+              return { align: styleVal(n, 'text-align') || 'center', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildAlign(d); }
+          });
+
+          /* ---- 3. 彩色文字 ---- */
+          safeReg({
+            id: 'wb-color-html', label: '彩色文字', icon: 'format_color_text',
+            pattern: /<span[^>]*data-wb-color[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: COLORS }
+            ],
+            toBlock: function (d) { return buildColor(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildColor(d).outerHTML; },
+            htmlSelector: 'span[data-wb-color]',
+            fromBlockHTML: function (n) {
+              return { color: styleVal(n, 'color') || '#e60000', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildColor(d); }
+          });
+
+          /* ---- 4. 字号（class 兜底，修好"调了没反应"）---- */
+          safeReg({
+            id: 'wb-size-html', label: '字号（大/小）', icon: 'format_size',
+            pattern: /<span[^>]*data-wb-size[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'size', label: '字号', widget: 'select', default: '20px', options: SIZES }
+            ],
+            toBlock: function (d) { return buildSize(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildSize(d).outerHTML; },
+            htmlSelector: 'span[data-wb-size]',
+            fromBlockHTML: function (n) {
+              return { size: styleVal(n, 'font-size') || sizeFromClass(n) || '20px', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildSize(d); }
+          });
+
+          /* ---- 5. 提示卡片（提示/注意/重点/警告/折叠/金句）---- */
+          safeReg({
+            id: 'wb-callout-html', label: '💡 提示卡片（提示/注意/重点/警告/折叠/金句）', icon: 'lightbulb',
+            pattern: /<blockquote[^>]*data-wb-callout[^>]*>[\s\S]*?<\/blockquote>/,
+            fields: [
+              { name: 'type', label: '卡片类型', widget: 'select', default: '提示', options: [
+                { label: '💡 提示', value: '提示' }, { label: '⚠️ 注意', value: '注意' },
+                { label: '📌 重点', value: '重点' }, { label: '🚫 警告', value: '警告' },
+                { label: '💬 金句', value: '金句' }
+              ] },
+              { name: 'content', label: '内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return buildCallout(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCallout(d).outerHTML; },
+            htmlSelector: 'blockquote[data-wb-callout]',
+            fromBlockHTML: function (n) {
+              return { type: n.getAttribute('data-wb-callout') || '提示', content: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildCallout(d); }
+          });
+
+          /* ---- 6. 按钮链接 ---- */
+          safeReg({
+            id: 'wb-button-html', label: '🔘 按钮链接（圆角大按钮）', icon: 'smart_button',
+            pattern: /<a[^>]*data-wb-button[^>]*>[\s\S]*?<\/a>/,
+            fields: [
+              { name: 'text', label: '按钮文字', widget: 'string', default: '点这里' },
+              { name: 'url', label: '链接网址', widget: 'string', default: 'https://' }
+            ],
+            toBlock: function (d) { return buildButton(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildButton(d).outerHTML; },
+            htmlSelector: 'a[data-wb-button]',
+            fromBlockHTML: function (n) {
+              return { text: n.innerHTML || '', url: n.getAttribute('href') || 'https://' };
+            },
+            toBlockHTML: function (d) { return buildButton(d); }
+          });
+
+          /* ---- 7. 图注 ---- */
+          safeReg({
+            id: 'wb-caption-html', label: '🖼 图注（图片下方小字）', icon: 'image',
+            pattern: /<em[^>]*data-wb-caption[^>]*>[\s\S]*?<\/em>/,
+            fields: [ { name: 'text', label: '图注文字', widget: 'string' } ],
+            toBlock: function (d) { return buildCaption(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCaption(d).outerHTML; },
+            htmlSelector: 'em[data-wb-caption]',
+            fromBlockHTML: function (n) { return { text: n.innerHTML || '' }; },
+            toBlockHTML: function (d) { return buildCaption(d); }
+          });
+
+          /* ---- 8. 分割线 ---- */
+          safeReg({
+            id: 'wb-hr-html', label: '➖ 分割线', icon: 'remove',
+            pattern: /<hr[^>]*data-wb-hr[^>]*>/,
+            fields: [ { name: 'note', label: '备注（可不填）', widget: 'string', required: false } ],
+            toBlock: function () { return '<hr data-wb-hr="1">'; },
+            fromBlock: function () { return { note: '' }; },
+            toPreview: function () { return '<hr>'; },
+            htmlSelector: 'hr[data-wb-hr]',
+            fromBlockHTML: function () { return { note: '' }; },
+            toBlockHTML: function () { return el('hr', { 'data-wb-hr': '1' }); }
+          });
+
+          /* ---- 9. 表格 ---- */
+          safeReg({
+            id: 'wb-table-html', label: '📊 表格（填行列自动生成）', icon: 'grid_on',
+            pattern: /<table[^>]*data-wb-table[^>]*>[\s\S]*?<\/table>/,
+            fields: [
+              { name: 'cols', label: '列数（2-6）', widget: 'select', default: '3', options: [
+                { label: '2 列', value: '2' }, { label: '3 列', value: '3' }, { label: '4 列', value: '4' },
+                { label: '5 列', value: '5' }, { label: '6 列', value: '6' }
+              ] },
+              { name: 'rows', label: '数据行数（1-10）', widget: 'select', default: '2', options: [
+                { label: '1 行', value: '1' }, { label: '2 行', value: '2' }, { label: '3 行', value: '3' },
+                { label: '4 行', value: '4' }, { label: '5 行', value: '5' }
+              ] }
+            ],
+            toBlock: function (d) { return buildTable(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildTable(d).outerHTML; },
+            htmlSelector: 'table[data-wb-table]',
+            fromBlockHTML: function (n) {
+              return { cols: n.getAttribute('data-wb-cols') || '3', rows: n.getAttribute('data-wb-rows') || '2' };
+            },
+            toBlockHTML: function (d) { return buildTable(d); }
+          });
+
+          /* ---- 10. 站内文章链接 ---- */
+          safeReg({
+            id: 'wb-postlink-html', label: '🔗 插入站内文章链接', icon: 'link',
+            pattern: /<a[^>]*data-wb-postlink[^>]*>[\s\S]*?<\/a>/,
+            fields: [
+              { name: 'post', label: '选择文章', widget: 'select', default: POSTS[0].value, options: POSTS },
+              { name: 'text', label: '显示文字（留空＝文章标题）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildPostLink(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildPostLink(d).outerHTML; },
+            htmlSelector: 'a[data-wb-postlink]',
+            fromBlockHTML: function (n) {
+              return { post: n.getAttribute('href') || POSTS[0].value, text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildPostLink(d); }
+          });
+
+          window.__wbHtmlComboReady = true;
+          return true;
+        } catch (e) {
+          window.__wbHtmlComboError = String(e && e.message || e);
+          console.error('[组件注册总入口失败]', e);
+          return false;
+        }
+      }
+
+      /* ---------- 各组件的 DOM 构造（inline + class 双写） ---------- */
+      function buildCombo(d) {
+        d = d || {};
+        var align = d.align || 'center', color = d.color || '#e60000', size = d.size || '20px';
+        var e = el('div', {
+          'data-wb-combo': '1',
+          'class': sizeClass(size),
+          'style': 'text-align:' + align + ';color:' + color + ';font-size:' + size + (d.bold ? ';font-weight:bold' : '') + ';'
+        });
+        return setHtml(e, d.text || '要排版的文字');
+      }
+      function buildAlign(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-align': '1', 'style': 'text-align:' + (d.align || 'center') + ';' });
+        return setHtml(e, d.text || '居中文字');
+      }
+      function buildColor(d) {
+        d = d || {};
+        var e = el('span', { 'data-wb-color': '1', 'style': 'color:' + (d.color || '#e60000') + ';' });
+        return setHtml(e, d.text || '彩色文字');
+      }
+      function buildSize(d) {
+        d = d || {};
+        var s = d.size || '20px';
+        var e = el('span', { 'data-wb-size': '1', 'class': sizeClass(s), 'style': 'font-size:' + s + ';' });
+        return setHtml(e, d.text || '不同字号的文字');
+      }
+      function buildCallout(d) {
+        d = d || {};
+        var type = d.type || '提示';
+        var mark = { '提示': '💡 提示：', '注意': '⚠️ 注意：', '重点': '📌 重点：', '警告': '🚫 警告：', '金句': '💬 ' }[type] || '提示：';
+        var e = el('blockquote', { 'data-wb-callout': type, 'class': 'wb-callout-hl' });
+        return setHtml(e, esc(mark) + (d.content || ''));
+      }
+      function buildButton(d) {
+        d = d || {};
+        return el('a', { 'data-wb-button': '1', 'class': 'wb-btn-hl', 'href': d.url || 'https://', 'target': '_blank', 'rel': 'noopener noreferrer' }, esc(d.text || '点这里'));
+      }
+      function buildCaption(d) {
+        d = d || {};
+        return el('em', { 'data-wb-caption': '1', 'class': 'wb-cap-hl' }, esc(d.text || '图注说明'));
+      }
+      function buildTable(d) {
+        d = d || {};
+        var cols = Math.max(2, Math.min(6, parseInt(d.cols, 10) || 3));
+        var rows = Math.max(1, Math.min(5, parseInt(d.rows, 10) || 2));
+        var t = el('table', { 'data-wb-table': '1', 'class': 'wb-table-hl', 'data-wb-cols': String(cols), 'data-wb-rows': String(rows) });
+        var thead = document.createElement('thead'), hr = document.createElement('tr');
+        var tbody = document.createElement('tbody');
+        for (var c = 1; c <= cols; c++) {
+          var th = document.createElement('th'); th.textContent = '列' + c; hr.appendChild(th);
+        }
+        thead.appendChild(hr); t.appendChild(thead);
+        for (var r = 0; r < rows; r++) {
+          var tr = document.createElement('tr');
+          for (var k = 0; k < cols; k++) { var td = document.createElement('td'); td.textContent = ' '; tr.appendChild(td); }
+          tbody.appendChild(tr);
+        }
+        t.appendChild(tbody);
+        return t;
+      }
+      function buildPostLink(d) {
+        d = d || {};
+        var url = d.post || POSTS[0].value, label = d.text || '';
+        if (!label) {
+          for (var i = 0; i < POSTS.length; i++) if (POSTS[i].value === url) { label = POSTS[i].label; break; }
+          if (!label) label = url;
+        }
+        return el('a', { 'data-wb-postlink': '1', 'href': url }, esc(label));
+      }
+
       // CMS 可能是先占位后赋值，用 setter 钩住，赋值那一刻立刻注册
       var _cms = window.CMS;
-      if (!register()) {
+      if (!registerAll()) {
         Object.defineProperty(window, 'CMS', {
           configurable: true,
           get: function () { return _cms; },
           set: function (v) {
             _cms = v;
-            try { if (v) register(); } catch (e) {}
+            try { if (v) registerAll(); } catch (e) {}
           }
         });
       }
