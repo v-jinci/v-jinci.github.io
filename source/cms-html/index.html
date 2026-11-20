@@ -25,6 +25,115 @@
   <script src="/libs/sveltia-270/sveltia-cms.js"></script>
   <script>
     (function () {
+      var LOADED = [];
+
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+
+      // 解析 style 里的某个属性
+      function styleVal(el, prop) {
+        var s = (el.getAttribute('style') || '').toLowerCase();
+        var m = s.match(new RegExp('(?:^|;)\\s*' + prop + '\\s*:\\s*([^;]+)'));
+        return m ? m[1].trim() : '';
+      }
+
+      // 生成带 data-wb-combo 标记的 div —— htmlSelector 靠它回读
+      function buildDom(d) {
+        d = d || {};
+        var align = d.align || 'center';
+        var color = d.color || '#e60000';
+        var size = d.size || '20px';
+        var bold = !!d.bold;
+        var text = d.text || '要排版的文字';
+        var el = document.createElement('div');
+        el.setAttribute('data-wb-combo', '1');
+        el.setAttribute('style',
+          'text-align:' + align + ';color:' + color + ';font-size:' + size + (bold ? ';font-weight:bold' : '') + ';');
+        // text 允许内嵌简单 HTML（如 <span>），但基本用法就是纯文本
+        var tpl = document.createElement('template');
+        tpl.innerHTML = text;
+        el.appendChild(tpl.content);
+        return el;
+      }
+
+      function register() {
+        try {
+          if (typeof window.CMS === 'undefined' || typeof window.CMS.registerEditorComponent !== 'function') {
+            return false;
+          }
+          var def = {
+            id: 'wb-combo-html',
+            label: '🎨 综合排版（居中+颜色+字号+加粗）',
+            icon: 'format_paint',
+            // pattern 必填（0.270 校验要求），HTML 模式下实际用 htmlSelector 回读
+            pattern: /<div[^>]*data-wb-combo="1"[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: [
+                { label: '居中', value: 'center' },
+                { label: '左对齐', value: 'left' },
+                { label: '右对齐', value: 'right' }
+              ] },
+              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
+                { label: '红色', value: '#e60000' },
+                { label: '橙色', value: '#ea580c' },
+                { label: '绿色', value: '#16a34a' },
+                { label: '蓝色', value: '#2563eb' },
+                { label: '紫色', value: '#7c3aed' },
+                { label: '深灰', value: '#334155' }
+              ] },
+              { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
+                { label: '小字 14px', value: '14px' },
+                { label: '正文 16px', value: '16px' },
+                { label: '大字 20px', value: '20px' },
+                { label: '特大 26px', value: '26px' },
+                { label: '标题 32px', value: '32px' }
+              ] },
+              { name: 'bold', label: '加粗', widget: 'boolean', default: false }
+            ],
+            // 给 Markdown 编辑器用的（兼容兜底）
+            toBlock: function (d) { return buildDom(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildDom(d).outerHTML; },
+            // 给 HTML 富文本模式用的三件套
+            htmlSelector: 'div[data-wb-combo="1"]',
+            fromBlockHTML: function (el) {
+              var align = styleVal(el, 'text-align') || 'center';
+              var color = styleVal(el, 'color') || '#e60000';
+              var size = styleVal(el, 'font-size') || '20px';
+              var bold = /font-weight\s*:\s*(bold|[6-9]00)/i.test(el.getAttribute('style') || '');
+              var text = el.innerHTML || '';
+              return { text: text, align: align, color: color, size: size, bold: bold };
+            },
+            toBlockHTML: function (d) { return buildDom(d); }
+          };
+          window.CMS.registerEditorComponent(def);
+          LOADED.push(def.id);
+          window.__wbHtmlComboReady = true;
+          return true;
+        } catch (e) {
+          window.__wbHtmlComboError = String(e && e.message || e);
+          console.error('[wb-combo-html 注册失败]', e);
+          return false;
+        }
+      }
+
+      // CMS 可能是先占位后赋值，用 setter 钩住，赋值那一刻立刻注册
+      var _cms = window.CMS;
+      if (!register()) {
+        Object.defineProperty(window, 'CMS', {
+          configurable: true,
+          get: function () { return _cms; },
+          set: function (v) {
+            _cms = v;
+            try { if (v) register(); } catch (e) {}
+          }
+        });
+      }
+
       try {
         if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
           throw new Error('CMS 对象未就绪');
@@ -35,6 +144,7 @@
         console.error('[CMS 启动失败]', e);
         window.__wbHtmlDemoReady = false;
       }
+      window.__wbHtmlComboLoaded = LOADED;
     })();
   </script>
 
