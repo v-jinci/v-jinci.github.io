@@ -200,7 +200,7 @@ https://v-jinci.github.io
 - **彩色文字**——填文字选颜色
 - **字号（大/小）**——填文字选字号
 
-生成的是内联 HTML，**发布后的文章里效果正常**；但 Sveltia 自带的实时预览会清洗 HTML 里的 style，所以**预览框里可能看不到居中/颜色，别以为没生效**，保存发布即可。（这三个按钮的注册脚本写在 `source/cms/index.html` 底部，改它要重新发布。）
+生成的是内联 HTML，**发布后的文章里效果正常**。2026-11-20 起已关掉 Sveltia 的「预览 HTML 清洗」（配置里每个正文字段都加了 `sanitize_preview: false`），所以**居中/颜色/字号在预览框里就能直接看到**，不用等发布；若个别样式预览没显示，以发布后的网站为准。（这三个按钮的注册脚本写在 `source/cms/index.html` 底部，改它要重新发布；清洗开关在 `source/cms/config.yml` 的正文 field 里。）
 
 | **Tina** | `https://你的域名/admin/` 或 <https://app.tina.io> | 打开 `/admin/` → 点橙色 **Log in** → 用 GitHub 账号登录 TinaCloud | 编辑手感最像 Word（表单式编辑）；clientId / token 已填好在 `tina/config.ts` |
 

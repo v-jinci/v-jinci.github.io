@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>HTML 模式体验 · Sveltia</title>
+  <style>
+    body{margin:0;font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f6f7fb;color:#1f2430}
+    #fallback{max-width:560px;margin:60px auto;padding:24px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,23,42,.08)}
+    #fallback h1{font-size:18px;margin:0 0 12px}
+    #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
+    #fallback a{color:#4a6cf7}
+  </style>
+  <script>window.CMS_MANUAL_INIT = true;</script>
+</head>
+<body>
+  <div id="fallback">
+    <h1>Sveltia（HTML 体验模式）正在加载…</h1>
+    <p>这是和正式后台隔离的<b>体验沙盒</b>，正文用 <code>richtext + format: html</code>，工具栏带官方「对齐」按钮。随便改，只影响体验文章。</p>
+    <p>如果一直停在这一页，请确认 <code>/libs/sveltia/sveltia-cms.js</code> 能打开。</p>
+  </div>
+
+  <!-- 复用现有 Sveltia 主程序，不额外加载自定义组件 -->
+  <script src="/libs/sveltia/sveltia-cms.js"></script>
+  <script>
+    (function () {
+      try {
+        if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+          throw new Error('CMS 对象未就绪');
+        }
+        window.CMS.init();
+        window.__wbHtmlDemoReady = true;
+      } catch (e) {
+        console.error('[CMS 启动失败]', e);
+        window.__wbHtmlDemoReady = false;
+      }
+    })();
+  </script>
+
+  <script>
+    setTimeout(function () {
+      if (!document.querySelector('[class*="sveltia"], #sveltiacms, .sc-app')) {
+        var tip = document.getElementById('fallback');
+        if (tip) {
+          tip.querySelector('h1').textContent = '脚本已加载，但界面没起来';
+          tip.querySelector('p').innerHTML =
+            '多半是体验配置写错了，按 F12 看控制台红色报错，或者把报错发我。';
+        }
+      }
+    }, 8000);
+  </script>
+</body>
+</html>

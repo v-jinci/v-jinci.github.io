@@ -1,0 +1,51 @@
+# ==========================================================
+#  Sveltia CMS —— HTML 模式体验沙盒（与正式 /cms/ 完全隔离）
+#  打开：https://v-jinci.github.io/cms-html/
+#  正文用 richtext + format: html，工具栏带官方「对齐」按钮。
+#  这里只编辑 source/cms-html/demo.md 这一篇测试文章，
+#  不会碰到 source/_posts/ 里的正式文章。随便改、随时可删。
+# ==========================================================
+
+backend:
+  name: github
+  repo: v-jinci/v-jinci.github.io
+  branch: hexo-src
+
+site_url: https://v-jinci.github.io
+display_url: https://v-jinci.github.io
+
+# 体验文章的图片也传进 source/img，跟正式后台共用图库
+media_folder: source/img
+public_folder: /img
+
+collections:
+  - name: html_demo
+    label: HTML 模式体验（测试区）
+    files:
+      - label: 体验文章（随便改）
+        name: demo
+        file: source/cms-html/demo.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - label: 正文（HTML 模式）
+            name: body
+            widget: richtext
+            format: html
+            # 显式列出按钮：默认不启用 align / task-list，这里把官方对齐按钮加进来
+            # 注意：本版本 buttons 不接受 underline（会报配置错误），故不列
+            buttons:
+              - bold
+              - italic
+              - strikethrough
+              - code
+              - link
+              - heading-two
+              - heading-three
+              - bulleted-list
+              - numbered-list
+              - quote
+              - align
+            hint: >-
+              这是官方 HTML 编辑模式：选中一段文字，点工具栏的对齐按钮（左/中/右）即可居中，
+              和 Word 一样。点开右上角的「源码/Raw」模式可以看到生成的 HTML。
