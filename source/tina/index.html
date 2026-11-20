@@ -167,13 +167,14 @@
         </div>'
       }
 
-      // Check if #root has childen after 2 seconds
+      // Check if #root has children after 15 seconds (was 2s — too aggressive for
+      // large bundle + slow TinaCloud API; produced false "Failed loading" on GH Pages)
       // If not, we assume that the assets have failed to load
       setTimeout(() => {
         if (!document.getElementById('root').children.length) {
           handleLoadError()
         }
-      }, 2000)
+      }, 15000)
     </script>
   </body>
 </html>
