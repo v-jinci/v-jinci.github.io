@@ -12,6 +12,8 @@
     #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
     #fallback a{color:#4a6cf7}
   </style>
+  <!-- 手动初始化：等自定义排版组件注册完再启动 CMS（注册脚本在页面底部） -->
+  <script>window.CMS_MANUAL_INIT = true;</script>
 </head>
 <body>
   <div id="fallback">
@@ -20,7 +22,134 @@
        还不行就看下面的说明。</p>
     <p><a href="/admin/config.yml">查看配置文件</a></p>
   </div>
+
+  <!-- Sveltia 主程序（保持在 body 末尾加载，确保 DOM 就绪） -->
   <script src="/libs/sveltia/sveltia-cms.js"></script>
+
+  <script>
+  /* ==========================================================================
+     自定义排版组件：段落对齐(居中/左/右)、彩色文字、字号
+     --------------------------------------------------------------------------
+     用法：写正文时在工具栏「插入(Insert)」菜单里点对应按钮 → 填好内容 → 插入。
+     生成的是内联 HTML（Hexo 的 Markdown 渲染器会原样保留并生效）。
+     注意：Sveltia 自带预览会清洗 HTML 里的 style，预览里可能看不到效果，
+     但发布到网站后是正常的。
+     ========================================================================== */
+  (function () {
+    function safeRegister(def) {
+      try {
+        window.CMS.registerEditorComponent(def);
+      } catch (e) {
+        console.error('[排版组件注册失败] ' + (def && def.id), e);
+      }
+    }
+
+    // 1) 段落对齐（居中 / 左 / 右）
+    safeRegister({
+      id: 'wb-align',
+      label: '段落对齐（居中/左/右）',
+      icon: 'format_align_center',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'text' },
+        { name: 'align', label: '对齐方式', widget: 'select', default: 'center', options: [
+          { label: '居中', value: 'center' },
+          { label: '左对齐', value: 'left' },
+          { label: '右对齐', value: 'right' }
+        ] }
+      ],
+      pattern: /^<div style="text-align:\s*(?:left|center|right);?">([\s\S]*?)<\/div>$/m,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var am = html.match(/text-align:\s*(left|center|right)/);
+        return { align: am ? am[1] : 'center', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var a = (d && d.align) || 'center';
+        return '<div style="text-align: ' + a + '">' + ((d && d.text) || '') + '</div>';
+      },
+      toPreview: function (d) {
+        var a = (d && d.align) || 'center';
+        return '<div style="text-align: ' + a + '">' + ((d && d.text) || '') + '</div>';
+      }
+    });
+
+    // 2) 彩色文字
+    safeRegister({
+      id: 'wb-color',
+      label: '彩色文字',
+      icon: 'format_color_text',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'string' },
+        { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
+          { label: '红色', value: '#e60000' },
+          { label: '橙色', value: '#ea580c' },
+          { label: '绿色', value: '#16a34a' },
+          { label: '蓝色', value: '#2563eb' },
+          { label: '紫色', value: '#7c3aed' },
+          { label: '深灰', value: '#334155' }
+        ] }
+      ],
+      pattern: /<span style="color:\s*#[0-9a-fA-F]{3,6};?">([\s\S]*?)<\/span>/,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var cm = html.match(/color:\s*(#[0-9a-fA-F]{3,6})/);
+        return { color: cm ? cm[1] : '#e60000', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var c = (d && d.color) || '#e60000';
+        return '<span style="color: ' + c + '">' + ((d && d.text) || '') + '</span>';
+      },
+      toPreview: function (d) {
+        var c = (d && d.color) || '#e60000';
+        return '<span style="color: ' + c + '">' + ((d && d.text) || '') + '</span>';
+      }
+    });
+
+    // 3) 字号
+    safeRegister({
+      id: 'wb-size',
+      label: '字号（大/小）',
+      icon: 'format_size',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'string' },
+        { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
+          { label: '小字 14px', value: '14px' },
+          { label: '正文 16px', value: '16px' },
+          { label: '大字 20px', value: '20px' },
+          { label: '特大 26px', value: '26px' },
+          { label: '标题 32px', value: '32px' }
+        ] }
+      ],
+      pattern: /<span style="font-size:\s*[0-9]+px;?">([\s\S]*?)<\/span>/,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var sm = html.match(/font-size:\s*([0-9]+px)/);
+        return { size: sm ? sm[1] : '20px', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var s = (d && d.size) || '20px';
+        return '<span style="font-size: ' + s + '">' + ((d && d.text) || '') + '</span>';
+      },
+      toPreview: function (d) {
+        var s = (d && d.size) || '20px';
+        return '<span style="font-size: ' + s + '">' + ((d && d.text) || '') + '</span>';
+      }
+    });
+
+    // 无论注册是否成功，都必须启动 CMS，保证后台能打开。
+    try {
+      if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+        throw new Error('CMS 对象未就绪');
+      }
+      window.CMS.init();
+      window.__wbCmsComponentsReady = true;
+    } catch (e) {
+      console.error('[CMS 启动失败]', e);
+      window.__wbCmsComponentsReady = false;
+    }
+  })();
+  </script>
+
   <script>
     // CMS 正常挂载后会接管整个 body，这里只做兜底提示
     setTimeout(function () {
@@ -29,7 +158,8 @@
         if (tip) {
           tip.querySelector('h1').textContent = '脚本已加载，但界面没起来';
           tip.querySelector('p').innerHTML =
-            '多半是 <code>config.yml</code> 写错了（缩进/字段名）。按 F12 打开控制台看红色报错，' +
+            '多半是 <code>config.yml</code> 写错了（缩进/字段名），' +
+            '或者自定义排版脚本报错。按 F12 打开控制台看红色报错，' +
             '或者把报错发我。';
         }
       }

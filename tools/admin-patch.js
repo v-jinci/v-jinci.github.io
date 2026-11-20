@@ -150,6 +150,15 @@ function applyAdminPatches(baseDir) {
   // 同步到发布目录 source/admin
   const srcDir = path.join(base, 'source', 'admin');
   const pubDir = path.join(base, 'public', 'admin');
+  // 防事故闸门：dev 模式会把 public/admin/index.html 改写成开发版（引用 localhost），
+  // 这种文件一旦同步/发布，线上后台就会报 Failed loading TinaCMS assets。
+  // 这里发现 dev 版就直接拒绝同步，避免事故外流。
+  const pubIndex = path.join(pubDir, 'index.html');
+  if (fs.existsSync(pubIndex) && fs.readFileSync(pubIndex, 'utf8').includes('localhost:4001/admin/src/main.tsx')) {
+    console.error('  [admin-patch] ⚠️ public/admin/index.html 是「开发模式」版本（引用 localhost:4001），拒绝同步！');
+    console.error('  [admin-patch] 这通常是 tinacms dev 未正常退出导致的。请执行 node run.js build-admin 重建后再试。');
+    return false;
+  }
   if (fs.existsSync(srcDir)) {
     try {
       fs.rmSync(srcDir, { recursive: true, force: true });
