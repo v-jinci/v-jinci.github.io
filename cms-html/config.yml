@@ -1,0 +1,59 @@
+# ==========================================================
+#  Sveltia CMS —— HTML 模式体验沙盒（与正式 /cms/ 完全隔离）
+#  打开：https://v-jinci.github.io/cms-html/
+#  正文用 richtext + format: html，Sveltia 0.270 最新版全功能，
+#  工具栏带官方「对齐 / 下划线 / 任务清单」等全部 17 个按钮。
+#  这里只编辑 source/cms-html/demo.md 这一篇测试文章，
+#  不会碰到 source/_posts/ 里的正式文章。随便改、随时可删。
+# ==========================================================
+
+backend:
+  name: github
+  repo: v-jinci/v-jinci.github.io
+  branch: hexo-src
+
+site_url: https://v-jinci.github.io
+display_url: https://v-jinci.github.io
+
+# 体验文章的图片也传进 source/img，跟正式后台共用图库
+media_folder: source/img
+public_folder: /img
+
+collections:
+  - name: html_demo
+    label: HTML 模式体验（测试区）
+    files:
+      - label: 体验文章（随便改）
+        name: demo
+        file: source/cms-html/demo.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - label: 正文（HTML 模式）
+            name: body
+            widget: richtext
+            format: html
+            # 0.270 全功能：显式列出全部 17 个按钮（含 0.265 没有的 underline / task-list）
+            buttons:
+              - bold
+              - italic
+              - underline
+              - strikethrough
+              - code
+              - link
+              - heading-one
+              - heading-two
+              - heading-three
+              - heading-four
+              - heading-five
+              - heading-six
+              - bulleted-list
+              - numbered-list
+              - task-list
+              - quote
+              - align
+            hint: >-
+              这是 Sveltia 0.270 最新版 HTML 模式，工具栏有全部 17 个按钮：
+              加粗/斜体/下划线/删除线/行内代码/链接、标题1-6、有序/无序/任务清单、引用、对齐（左中右）。
+              选中文字点对齐即可居中，和 Word 一样。点「链接」弹窗里有新窗口打开选项。
+              点右上角「源码/Raw」能看到生成的 HTML。
