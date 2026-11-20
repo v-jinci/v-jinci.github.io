@@ -28,12 +28,14 @@
 
   <script>
   /* ==========================================================================
-     自定义排版组件：段落对齐(居中/左/右)、彩色文字、字号
+     自定义排版组件（正文工具栏「插入(Insert)」菜单）
      --------------------------------------------------------------------------
-     用法：写正文时在工具栏「插入(Insert)」菜单里点对应按钮 → 填好内容 → 插入。
-     生成的是内联 HTML（Hexo 的 Markdown 渲染器会原样保留并生效）。
-     注意：Sveltia 自带预览会清洗 HTML 里的 style，预览里可能看不到效果，
-     但发布到网站后是正常的。
+     原有 3 个 Word 式内联样式：段落对齐 / 彩色文字 / 字号
+     新增 6 个写作助手：提示卡片 / 按钮链接 / 图注 / 分割线 / 表格 / 文章内链
+     --------------------------------------------------------------------------
+     原理：每个组件 = 一个带字段的表单，填好后由 toBlock() 生成一段 Markdown
+     文本插进正文。全部是标准 Markdown / 主题识别的写法，不含富文本 HTML，
+     所以和现有文章、Butterfly 主题完全兼容，也不会触发 0.270 那种严格校验。
      ========================================================================== */
   (function () {
     function safeRegister(def) {
@@ -44,7 +46,7 @@
       }
     }
 
-    // 1) 段落对齐（居中 / 左 / 右）
+    /* ---------- 1. 段落对齐（居中 / 左 / 右） ---------- */
     safeRegister({
       id: 'wb-align',
       label: '段落对齐（居中/左/右）',
@@ -73,7 +75,7 @@
       }
     });
 
-    // 2) 彩色文字
+    /* ---------- 2. 彩色文字 ---------- */
     safeRegister({
       id: 'wb-color',
       label: '彩色文字',
@@ -105,7 +107,7 @@
       }
     });
 
-    // 3) 字号
+    /* ---------- 3. 字号 ---------- */
     safeRegister({
       id: 'wb-size',
       label: '字号（大/小）',
@@ -133,6 +135,223 @@
       toPreview: function (d) {
         var s = (d && d.size) || '20px';
         return '<span style="font-size: ' + s + '">' + ((d && d.text) || '') + '</span>';
+      }
+    });
+
+    /* ---------- 4. 提示卡片（提示/注意/重点/警告/折叠/金句） ----------
+       主题规则：引用块第一行写「提示：/注意：/重点：/警告：」= 彩色卡片；
+       「折叠：标题」+ 后续引用行 = 折叠块；引用块里只写一句短话 = 金句。 */
+    safeRegister({
+      id: 'wb-callout',
+      label: '💡 提示卡片（提示/注意/重点/警告/折叠/金句）',
+      icon: 'lightbulb',
+      fields: [
+        { name: 'type', label: '卡片类型', widget: 'select', default: '提示', options: [
+          { label: '💡 提示（蓝色）', value: '提示' },
+          { label: '⚠️ 注意（黄色）', value: '注意' },
+          { label: '📌 重点（紫色）', value: '重点' },
+          { label: '🚫 警告（红色）', value: '警告' },
+          { label: '📂 折叠块（点标题展开）', value: '折叠' },
+          { label: '💬 金句（居中大字，一句话）', value: '金句' }
+        ] },
+        { name: 'title', label: '折叠标题（仅「折叠块」用，其它类型可留空）', widget: 'string', required: false },
+        { name: 'content', label: '内容', widget: 'text' }
+      ],
+      pattern: /^> (?:(提示|注意|重点|警告|折叠)：[^\n]*|💬[^\n]*)(?:\n> [^\n]*)*/m,
+      fromBlock: function (m) {
+        var first = (m[0] || '').split('\n');
+        var head = first[0] || '';
+        var typeMatch = head.match(/^>\s*(提示|注意|重点|警告|折叠)：/);
+        var isGold = !typeMatch && /^>\s*💬/.test(head);
+        var type = typeMatch ? typeMatch[1] : (isGold ? '金句' : '提示');
+        var headText = typeMatch
+          ? head.replace(/^>\s*(提示|注意|重点|警告|折叠)：\s*/, '')
+          : head.replace(/^>\s*💬\s*/, '');
+        var rest = first.slice(1).map(function (l) { return l.replace(/^>\s?/, ''); }).join('\n');
+        if (type === '折叠') {
+          return { type: '折叠', title: headText, content: rest };
+        }
+        return { type: type, title: '', content: (headText + (rest ? '\n' + rest : '')).trim() };
+      },
+      toBlock: function (d) {
+        var type = (d && d.type) || '提示';
+        var content = ((d && d.content) || '').trim();
+        if (type === '金句') {
+          return '> 💬 ' + content.replace(/\n/g, '\n> ');
+        }
+        if (type === '折叠') {
+          var title = ((d && d.title) || '点我展开').replace(/\n/g, ' ');
+          return '> 折叠：' + title + '\n> ' + content.replace(/\n/g, '\n> ');
+        }
+        var lines = content.split('\n');
+        lines[0] = '> ' + type + '：' + lines[0];
+        for (var i = 1; i < lines.length; i++) lines[i] = '> ' + lines[i];
+        return lines.join('\n');
+      },
+      toPreview: function (d) {
+        var type = (d && d.type) || '提示';
+        var content = ((d && d.content) || '').replace(/\n/g, '<br>');
+        var colors = { '提示': '#2563eb', '注意': '#d97706', '重点': '#7c3aed', '警告': '#dc2626' };
+        var c = colors[type];
+        if (type === '金句') {
+          return '<div style="text-align:center;font-size:1.25em;color:#64748b">' + content + '</div>';
+        }
+        if (type === '折叠') {
+          return '<div><b>📂 ' + ((d && d.title) || '点我展开') + '</b><br>' + content + '</div>';
+        }
+        return '<div style="border-left:4px solid ' + (c || '#2563eb') + ';padding-left:10px">' +
+               (type === '提示' ? '💡 ' : type === '注意' ? '⚠️ ' : type === '重点' ? '📌 ' : '🚫 ') +
+               type + '：' + content + '</div>';
+      }
+    });
+
+    /* ---------- 5. 按钮链接（圆角大按钮） ----------
+       主题规则：单独一行写【按钮】[文字](网址)，发布后变成居中圆角按钮。 */
+    safeRegister({
+      id: 'wb-button',
+      label: '🔘 按钮链接（圆角大按钮）',
+      icon: 'smart_button',
+      fields: [
+        { name: 'text', label: '按钮上的文字', widget: 'string', default: '点这里' },
+        { name: 'url', label: '链接网址', widget: 'string', default: 'https://' }
+      ],
+      pattern: /^【按钮】\[([^\]]+)\]\(([^)]+)\)$/m,
+      fromBlock: function (m) {
+        return { text: (m[1] || '').trim(), url: (m[2] || '').trim() };
+      },
+      toBlock: function (d) {
+        return '【按钮】[' + ((d && d.text) || '点这里') + '](' + ((d && d.url) || 'https://') + ')';
+      },
+      toPreview: function (d) {
+        return '<div style="text-align:center"><span style="display:inline-block;padding:8px 20px;' +
+               'border-radius:9999px;background:#4a6cf7;color:#fff">' +
+               ((d && d.text) || '点这里') + '</span></div>';
+      }
+    });
+
+    /* ---------- 6. 图注（图片下方小字） ----------
+       主题规则：图片的下一行写 *说明文字*（前后各一个星号）。 */
+    safeRegister({
+      id: 'wb-caption',
+      label: '🖼 图注（图片下方小字）',
+      icon: 'image',
+      fields: [
+        { name: 'text', label: '图注文字', widget: 'string' }
+      ],
+      pattern: /^\*([^*\n]{1,120})\*$/m,
+      fromBlock: function (m) {
+        return { text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        return '*' + ((d && d.text) || '').trim() + '*';
+      },
+      toPreview: function (d) {
+        return '<div style="text-align:center;font-size:0.85em;color:#94a3b8">' +
+               ((d && d.text) || '') + '</div>';
+      }
+    });
+
+    /* ---------- 7. 分割线 ----------
+       主题/标准 Markdown：单独一行 --- 生成一条水平分割线。 */
+    safeRegister({
+      id: 'wb-hr',
+      label: '➖ 分割线',
+      icon: 'remove',
+      fields: [
+        { name: 'note', label: '备注（可不填，仅提示自己，不会写进文章）', widget: 'string', required: false }
+      ],
+      pattern: /^---$/m,
+      fromBlock: function () { return { note: '' }; },
+      toBlock: function () { return '---'; },
+      toPreview: function () { return '<hr>'; }
+    });
+
+    /* ---------- 8. 表格骨架 ----------
+       生成带表头的 Markdown 表格，填几行几列即可，不用手敲竖线。 */
+    safeRegister({
+      id: 'wb-table',
+      label: '📊 表格（填行列自动生成）',
+      icon: 'grid_on',
+      fields: [
+        { name: 'cols', label: '列数（2-6）', widget: 'select', default: '3', options: [
+          { label: '2 列', value: '2' }, { label: '3 列', value: '3' },
+          { label: '4 列', value: '4' }, { label: '5 列', value: '5' }, { label: '6 列', value: '6' }
+        ] },
+        { name: 'rows', label: '数据行数（1-10）', widget: 'select', default: '2', options: [
+          { label: '1 行', value: '1' }, { label: '2 行', value: '2' }, { label: '3 行', value: '3' },
+          { label: '4 行', value: '4' }, { label: '5 行', value: '5' }, { label: '6 行', value: '6' },
+          { label: '7 行', value: '7' }, { label: '8 行', value: '8' },
+          { label: '9 行', value: '9' }, { label: '10 行', value: '10' }
+        ] }
+      ],
+      pattern: /^\|[\s\S]*?\|\s*\n\|\s*:?-+:?\s*\|/m,
+      fromBlock: function (m) {
+        var lines = (m[0] || '').split('\n');
+        var cols = (lines[0] || '').split('|').length - 2;
+        return { cols: String(Math.max(2, Math.min(6, cols))), rows: '2' };
+      },
+      toBlock: function (d) {
+        var cols = Math.max(2, Math.min(6, parseInt((d && d.cols), 10) || 3));
+        var rows = Math.max(1, Math.min(10, parseInt((d && d.rows), 10) || 2));
+        var heads = [], seps = [], empty = [];
+        for (var c = 1; c <= cols; c++) {
+          heads.push('列' + c);
+          seps.push('---');
+          empty.push('   ');
+        }
+        var head = '| ' + heads.join(' | ') + ' |';
+        var sep = '| ' + seps.join(' | ') + ' |';
+        var body = [];
+        for (var r = 0; r < rows; r++) body.push('| ' + empty.join(' | ') + ' |');
+        return [head, sep].concat(body).join('\n');
+      },
+      toPreview: function () { return '<div style="color:#94a3b8">📊 表格（发布后显示）</div>'; }
+    });
+
+    /* ---------- 9. 文章内链 ----------
+       下拉选已有文章 → 插入 [标题](真实网址)。列表按当前 10 篇文章生成；
+       以后新增文章，按同样格式在 options 里加一条即可（或手动打链接）。 */
+    safeRegister({
+      id: 'wb-postlink',
+      label: '🔗 插入站内文章链接',
+      icon: 'link',
+      fields: [
+        { name: 'post', label: '选择文章', widget: 'select', default: '/2026/11/13/电饭锅/', options: [
+          { label: '21点06分', value: '/2026/11/10/21点06分/' },
+          { label: '你好，世界', value: '/2026/11/10/你好，世界/' },
+          { label: '一点闲言碎语', value: '/2026/11/11/一点闲言碎语/' },
+          { label: '122', value: '/2026/11/12/122/' },
+          { label: '电饭锅', value: '/2026/11/13/电饭锅/' },
+          { label: 'a', value: '/2026/11/13/a/' },
+          { label: '测试', value: '/2026/11/18/测试/' },
+          { label: '再次测试', value: '/2026/11/20/再次测试/' },
+          { label: '2020年度总结', value: '/2021/01/01/2020年度总结/' },
+          { label: '2021年度总结', value: '/2022/01/01/2021年度总结/' }
+        ] },
+        { name: 'text', label: '显示的文字（留空＝用文章标题）', widget: 'string', required: false }
+      ],
+      pattern: /\[([^\]]+)\]\((\/(?:20\d{2}|2021|2022)\/[^\s)]+)\)/,
+      fromBlock: function (m) {
+        return { text: '', post: (m[2] || '').trim() };
+      },
+      toBlock: function (d) {
+        var url = (d && d.post) || '/';
+        var label = (d && d.text) || '';
+        if (!label) {
+          var opts = [
+            ['/2026/11/10/21点06分/', '21点06分'], ['/2026/11/10/你好，世界/', '你好，世界'],
+            ['/2026/11/11/一点闲言碎语/', '一点闲言碎语'], ['/2026/11/12/122/', '122'],
+            ['/2026/11/13/电饭锅/', '电饭锅'], ['/2026/11/13/a/', 'a'],
+            ['/2026/11/18/测试/', '测试'], ['/2026/11/20/再次测试/', '再次测试'],
+            ['/2021/01/01/2020年度总结/', '2020年度总结'], ['/2022/01/01/2021年度总结/', '2021年度总结']
+          ];
+          for (var i = 0; i < opts.length; i++) if (opts[i][0] === url) { label = opts[i][1]; break; }
+          if (!label) label = url;
+        }
+        return '[' + label + '](' + url + ')';
+      },
+      toPreview: function (d) {
+        return '<a href="' + ((d && d.post) || '#') + '">' + ((d && d.label) || '站内文章链接') + '</a>';
       }
     });
 
