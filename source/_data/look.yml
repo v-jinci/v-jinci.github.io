@@ -1,164 +1,68 @@
-# ==========================================================
-#  站点设置（本机 /site 与远程 /admin 编辑的就是这一份）
-#
-#  规则：这里写了什么键，就覆盖 _config.butterfly.yml 里的同名键；
-#        没写的键继续用原配置，不会丢。
-#
-#  menu / social 用列表写（一行一条），格式：名称: 链接 || 图标
-# ==========================================================
-CDN:
-  internal_provider: local
-  third_party_provider: jsdelivr
-  version: true
-  option:
-    fontawesome: /libs/fontawesome/css/all.min.css?v=7.3.1
-    egjs_infinitegrid: /libs/infinitegrid.min.js?v=4.13.1
-    typed: /libs/typed.umd.js?v=3.0.0
-    waline_css: /libs/waline/waline.css?v=3.16.2
-    waline_js: /libs/waline/waline.js?v=3.16.2
-    sharejs: /libs/share/social-share.min.js?v=1.1.6
-    sharejs_css: /libs/share/share.min.css?v=1.1.6
-nav:
-  logo: null
-  display_title: true
-  display_post_title: true
-  fixed: false
-menu:
-  - "首页: / || fas fa-home"
-  - "归档: /archives/ || fas fa-archive"
-  - "标签: /tags/ || fas fa-tags"
-  - "友链: /link/ || fas fa-link"
-  - "编年史: /history/ || fas fa-history"
-  - "留言板: /messageBoard/ || far fa-comment-dots"
-  - "下载: /downloads/ || fas fa-download"
-  - "关于: /about/ || fas fa-user"
-social:
-  - "fab fa-github: https://github.com/v-jinci || Github"
-  - "fas fa-envelope: mailto:599676700@qq.com || Email"
+index_img: /img/V_bg.jpg
+default_top_img: /img/V_bg.jpg
+favicon: /img/site-icon.ico
+footer_img: /img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg
 avatar:
   img: /img/Avatar.png
   effect: false
-favicon: /img/site-icon.ico
-disable_top_img: false
-default_top_img: /img/V_bg.jpg
-index_img: /img/V_bg.jpg
+footer:
+  owner:
+    since: '2021'
+    enable: true
+  custom_text: 有可能的就一定会发生 「 What can happen will happen 」
+  copyright:
+    enable: true
+    version: false
+  nav: null
 subtitle:
-  enable: true
-  effect: true
-  typed_option:
-    typeSpeed: 150
-    backSpeed: 50
-    backDelay: 1500
-    startDelay: 300
-    loop: true
-  source: false
   sub:
-    - 有可能的就一定会发生
+    - 有可能的就一定会发生-Γ
     - 吾不识青天高，黄地厚。
     - 唯见月寒日暖，来煎人寿。
     - 竹杖芒鞋轻胜马，谁怕？
     - 一蓑烟雨任平生。
-index_post_content:
-  method: 3
-  length: 275
+  typed_option:
+    typeSpeed: 150
+    backSpeed: 50
+    backDelay: 1500
+    loop: true
+    startDelay: 300
+  effect: true
+  enable: true
+  source: false
 toc:
   post: true
-  page: false
-  number: true
   expand: false
-  style_simple: false
+  number: true
+  page: false
   scroll_percent: true
-post_copyright:
-  enable: true
-  decode: false
-  author_href: null
-  license: CC BY-NC-SA 4.0
-  license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
-darkmode:
-  enable: true
-  button: true
-  autoChangeMode: 1
-readmode: true
-rightside_scroll_percent: true
-rightside_item_order:
-  enable: true
-  hide: readmode,translate
-  show: darkmode,toc,chat,comment,hideAside
-search:
-  use: local_search
-  placeholder: 搜索文章…
-  local_search:
-    preload: true
-    top_n_per_article: 1
-    unescape: false
-    CDN: null
-busuanzi:
-  enable: true
-  site_uv: true
-  site_pv: true
-  page_pv: true
-aside:
-  enable: true
-  hide: false
-  button: true
-  mobile: true
-  position: right
-  display:
-    archive: true
-    tag: true
-    category: true
-  card_author:
-    enable: true
-    description: 记录思考，慢慢成长。
-    button:
-      enable: true
-      icon: fab fa-github
-      text: Follow Me
-      link: https://github.com/v-jinci
-  card_announcement:
-    enable: true
-    content: 欢迎来到我的小站，随便逛逛～
-  card_recent_post:
-    enable: true
-    limit: 5
-    sort: date
-    sort_order: null
-  card_categories:
-    enable: true
-    limit: 8
-    sort: length
-    sort_order: null
-  card_tags:
-    enable: true
-    limit: 20
-    color: false
-    orderby: random
-    order: 1
-  card_archives:
-    enable: true
-    type: monthly
-    format: MMMM YYYY
-    order: -1
-  card_webinfo:
-    enable: true
-    post_count: true
-    last_push_date: true
-    sort_order: null
-    runtime_date: null
-  card_post_series:
-    enable: false
-footer:
-  nav: null
-  owner:
-    enable: true
-    since: 2021
-  copyright:
-    enable: true
-    version: false
-  custom_text: 有可能的就一定会发生 「 What can happen will happen 」
-footer_img: /img/aa80a5b009f0215a0237a33321b5875333a4f52f-46859ed1.jpg
+  style_simple: false
+index_post_content:
+  length: 275
+  method: 3
+index_layout: 3
+comments:
+  use: Waline
+  card_post_count: false
+  count: false
+  lazyload: true
+  text: true
+waline:
+  serverURL: https://weiblog-comments.netlify.app
+  option:
+    login: disable
+    commentSorting: latest
+    lang: zh-CN
+    meta:
+      - nick
+      - mail
+      - link
+    pageSize: 10
+    requiredMeta:
+      - nick
+  bg: null
+  pageview: false
 wb_look:
-  nav_bg: /img/b9ac1696bc480b88622e8d45e9d4678ac80bcbc1-b548bedc.jpg
   hero_images:
     - /img/43a60f5fde29122e133f18d79dbd109f5a7aaffb.jpg
     - /img/457f3ea1d92b768fd9c5fdd125c884eb58cb405c.jpg
@@ -168,62 +72,126 @@ wb_look:
   hero_interval: 6
   hero_scope: all
   hero_overlay: 20
-  avatar_spin: false
-  post_img_width: 50
-  post_img_float: auto
-  upload_shrink: true
+  nav_bg: /img/b9ac1696bc480b88622e8d45e9d4678ac80bcbc1-b548bedc.jpg
   sub_size: 0
   sub_spacing: 0
-  sub_color: ""
+  sub_color: ''
   sub_weight: 0
+  post_img_width: 50
+  post_img_float: auto
   img_zoom: true
   uptime_enable: true
   uptime_since: 2021-01-01T00:00:00.000Z
   uptime_text: 本站已运行 {days} 天
   notfound_enable: true
-  notfound_title: 404
+  notfound_title: '404'
   notfound_subtitle: 这一页走丢了
   notfound_text: 地址可能拼错、文章可能挪了位置，也可能它从来就没存在过。
   notfound_btn: 回到首页
-index_layout: 3
-comments:
-  use: Waline
-  text: true
-  lazyload: true
-  count: false
-  card_post_count: false
-waline:
-  serverURL: https://weiblog-comments.netlify.app
-  bg: null
-  pageview: false
+  avatar_spin: false
+  upload_shrink: true
+darkmode:
+  enable: true
+  button: true
+  autoChangeMode: 1
+readmode: true
+aside:
+  enable: true
+  button: true
+  mobile: true
+  card_author:
+    description: 记录思考，慢慢成长。
+    button:
+      enable: true
+      icon: fab fa-github
+      link: https://github.com/v-jinci
+      text: Follow Me
+    enable: true
+  card_announcement:
+    content: 欢迎来到我的小站，随便逛逛～
+    enable: true
+  card_archives:
+    enable: true
+    format: MMMM YYYY
+    order: -1
+    type: monthly
+  card_categories:
+    enable: true
+    limit: 8
+    sort: length
+    sort_order: null
+  card_post_series:
+    enable: false
+  card_recent_post:
+    enable: true
+    limit: 5
+    sort: date
+    sort_order: null
+  card_tags:
+    color: false
+    enable: true
+    limit: 20
+    order: 1
+    orderby: random
+  card_webinfo:
+    enable: true
+    last_push_date: true
+    post_count: true
+    runtime_date: null
+    sort_order: null
+  display:
+    archive: true
+    category: true
+    tag: true
+  hide: false
+  position: right
+menu:
+  - '首页: / || fas fa-home'
+  - '归档: /archives/ || fas fa-archive'
+  - '标签: /tags/ || fas fa-tags'
+  - '友链: /link/ || fas fa-link'
+  - '编年史: /history/ || fas fa-history'
+  - '留言板: /messageBoard/ || far fa-comment-dots'
+  - '下载: /downloads/ || fas fa-download'
+  - '关于: /about/ || fas fa-user'
+social:
+  - 'fab fa-github: https://github.com/v-jinci || Github'
+  - 'fas fa-envelope: mailto:599676700@qq.com || Email'
+busuanzi:
+  enable: true
+  page_pv: true
+  site_pv: true
+  site_uv: true
+CDN:
+  internal_provider: local
   option:
-    lang: zh-CN
-    requiredMeta:
-      - nick
-    meta:
-      - nick
-      - mail
-      - link
-    pageSize: 10
-    commentSorting: latest
-    login: disable
+    egjs_infinitegrid: /libs/infinitegrid.min.js?v=4.13.1
+    fontawesome: /libs/fontawesome/css/all.min.css?v=7.3.1
+    sharejs: /libs/share/social-share.min.js?v=1.1.6
+    sharejs_css: /libs/share/share.min.css?v=1.1.6
+    typed: /libs/typed.umd.js?v=3.0.0
+    waline_css: /libs/waline/waline.css?v=3.16.2
+    waline_js: /libs/waline/waline.js?v=3.16.2
+  third_party_provider: jsdelivr
+  version: true
+disable_top_img: false
 giscus:
-  repo: v-jinci/v-jinci.github.io
-  repo_id: R_kgDOLV2ueQ
   category_id: DIC_kwDOLV2uec4DK0JX
-  light_theme: light
   dark_theme: dark
   js: https://giscus.app/client.js
+  light_theme: light
   option:
-    data-lang: zh-CN
-    data-strict: "1"
     data-input-position: top
+    data-lang: zh-CN
     data-loading: lazy
-    data-reactions-enabled: "1"
+    data-reactions-enabled: '1'
+    data-strict: '1'
+  repo: v-jinci/v-jinci.github.io
+  repo_id: R_kgDOLV2ueQ
 inject:
   head:
     - <style>.wl-addr{display:none!important}</style>
-    - |
+    - |-
       <style>
       /* ---- 文章底部「上一篇 / 下一篇」：图片打底 + 暗色遮罩，保证文字看得清 ---- */
       /* 背景图来自 wb_look.nav_bg（/site 后台可改），由 scripts/wb-look.js 注入成 CSS 变量 */
@@ -398,3 +366,27 @@ inject:
         #article-container ol.wb-steps>li{padding-left:38px}
       }
       </style>
+nav:
+  display_post_title: true
+  display_title: true
+  fixed: false
+  logo: null
+post_copyright:
+  author_href: null
+  decode: false
+  enable: true
+  license: CC BY-NC-SA 4.0
+  license_url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+rightside_item_order:
+  enable: true
+  hide: readmode,translate
+  show: darkmode,toc,chat,comment,hideAside
+rightside_scroll_percent: true
+search:
+  local_search:
+    CDN: null
+    preload: true
+    top_n_per_article: 1
+    unescape: false
+  placeholder: 搜索文章…
+  use: local_search
