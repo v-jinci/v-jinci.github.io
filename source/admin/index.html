@@ -311,6 +311,66 @@
             toBlockHTML: function (d) { return buildPostLink(d); }
           });
 
+          /* ---- 11+. 内联组件：选中文字直接改颜色/字号（不切断段落） ----
+             关键点：给 inlinePattern.onInsert，编辑器会把选中的文字传进来，
+             自动生成带样式的 span 并替换选区；同时保留 htmlSelector，
+             这样保存再打开时数据属性能被回读，字号 class 也不会丢。 */
+          function inlineKey(kind, value) {
+            return kind + '-' + String(value).replace(/[^0-9a-zA-Z]/g, '');
+          }
+          function inlineHtml(kind, value, text) {
+            var key = inlineKey(kind, value);
+            var style = kind === 'color' ? 'color:' + value + ';' : 'font-size:' + value + ';';
+            var cls = 'wb-inline' + (kind === 'size' ? ' ' + sizeClass(value) : '');
+            var span = el('span', {
+              'data-wb-ic': key,
+              'class': cls,
+              'style': style
+            });
+            setHtml(span, esc(text == null || text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : text));
+            return span.outerHTML;
+          }
+          function inlineFrom(str) {
+            var m = String(str || '').match(/>([\s\S]*)<\/span>$/);
+            return { text: m ? m[1] : '' };
+          }
+          function regInline(kind, value, label) {
+            var key = inlineKey(kind, value);
+            var pattern = new RegExp('<span[^>]*data-wb-ic="' + key + '"[^>]*>[^<]*<\/span>');
+            var make = function (d) {
+              d = d || {};
+              var html = inlineHtml(kind, value, d.text);
+              var tmp = document.createElement('div');
+              tmp.innerHTML = html;
+              return tmp.firstChild;
+            };
+            safeReg({
+              id: 'wb-ic-' + key,
+              label: label,
+              icon: kind === 'color' ? 'format_color_text' : 'format_size',
+              pattern: pattern,
+              fields: [{ name: 'text', label: '文字', widget: 'string' }],
+              toBlock: function (d) { return inlineHtml(kind, value, d && d.text); },
+              fromBlock: inlineFrom,
+              toPreview: function (d) { return inlineHtml(kind, value, d && d.text); },
+              inlinePattern: {
+                onInsert: function (ctx) {
+                  var t = ctx && ctx.selectedText;
+                  return { text: t == null || t === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : t };
+                }
+              },
+              htmlSelector: 'span[data-wb-ic="' + key + '"]',
+              fromBlockHTML: function (node) { return { text: node.textContent || '' }; },
+              toBlockHTML: make
+            });
+          }
+          COLORS.forEach(function (c) {
+            regInline('color', c.value, '🖍 ' + c.label + '（选中文字后点这里）');
+          });
+          SIZES.forEach(function (s) {
+            regInline('size', s.value, '🔤 ' + s.label + '（选中文字后点这里）');
+          });
+
           window.__wbHtmlComboReady = true;
           return true;
         } catch (e) {
