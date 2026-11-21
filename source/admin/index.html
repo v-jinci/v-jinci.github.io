@@ -57,10 +57,45 @@
     #wb-history-dock .wb-hb-reset{background:#94a3b8;padding:9px 10px}
     #wb-history-dock .wb-hb-reset:hover{background:#64748b}
     #wb-history-dock.wb-hb-dragging{opacity:.92;box-shadow:0 8px 28px rgba(15,23,42,.28)}
+
+    /* 写作后台访问密码门：验证通过前隐藏写作界面 */
+    #wb-admin-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,#eef2ff 0%,#f6f7fb 50%,#eef2ff 100%);padding:20px}
+    .wb-gate-card{width:100%;max-width:420px;background:#fff;border:1px solid #e3e8f7;border-radius:18px;
+      box-shadow:0 18px 50px rgba(31,36,48,.14);padding:34px 30px 30px;text-align:center}
+    .wb-gate-ico{width:58px;height:58px;margin:0 auto 16px;border-radius:16px;background:#eef2ff;color:#4a6cf7;
+      display:flex;align-items:center;justify-content:center;font-size:28px}
+    .wb-gate-card h1{font-size:19px;margin:0 0 8px;color:#1f2430}
+    .wb-gate-card p{font-size:13.5px;color:#7c8493;line-height:1.7;margin:0 0 22px}
+    .wb-gate-card form{display:flex;gap:8px}
+    .wb-gate-card input{flex:1 1 auto;min-width:0;padding:11px 13px;border:1px solid #dfe3ee;border-radius:10px;
+      font:inherit;background:#fbfcff;color:#1f2430}
+    .wb-gate-card input:focus{outline:none;border-color:#8aa2f7;background:#fff;box-shadow:0 0 0 3px rgba(74,108,247,.12)}
+    .wb-gate-card button{flex:0 0 auto;border:0;border-radius:10px;padding:11px 22px;background:#4a6cf7;color:#fff;
+      font:inherit;font-weight:600;cursor:pointer}
+    .wb-gate-card button:hover{background:#3453d4}
+    .wb-gate-card button:disabled{opacity:.6;cursor:default}
+    .wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:12px}
+    .wb-gate-foot{margin-top:18px;font-size:12px;color:#a3abb9;line-height:1.6}
   </style>
   <script>window.CMS_MANUAL_INIT = true;</script>
 </head>
 <body>
+  <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
+  <div id="wb-admin-gate" style="display:none">
+    <div class="wb-gate-card">
+      <div class="wb-gate-ico">✍️</div>
+      <h1>这是写作后台</h1>
+      <p>输入访问密码后才能进入。<br>忘记密码去 <b>/admin</b> 的「站点设置 → 联系方式与页面密码」里看，或来问我。</p>
+      <form id="wb-gate-form" autocomplete="off">
+        <input type="password" id="wb-gate-pw" placeholder="访问密码" autocomplete="current-password">
+        <button type="submit" id="wb-gate-go">进入</button>
+      </form>
+      <div class="wb-gate-msg" id="wb-gate-msg"></div>
+      <div class="wb-gate-foot">写作后台本身还需要 GitHub 令牌登录，这层只是额外确认。</div>
+    </div>
+  </div>
+
   <div id="fallback">
     <h1>写作后台（HTML 富文本）正在加载…</h1>
     <p>这是主力的写作后台（Sveltia 0.270）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮，「插入」菜单里还有一批一键排版组件。登录后即可编辑正式文章，保存自动提交到 GitHub。</p>
@@ -561,16 +596,21 @@
         });
       }
 
-      try {
-        if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
-          throw new Error('CMS 对象未就绪');
+      // 真正启动 CMS。密码门验证通过后才会调用它（没设密码则立即调用）。
+      window.__wbStartCMS = function () {
+        if (window.__wbCMSStarted) return;
+        try {
+          if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+            throw new Error('CMS 对象未就绪');
+          }
+          window.CMS.init();
+          window.__wbCMSStarted = true;
+          window.__wbHtmlDemoReady = true;
+        } catch (e) {
+          console.error('[CMS 启动失败]', e);
+          window.__wbHtmlDemoReady = false;
         }
-        window.CMS.init();
-        window.__wbHtmlDemoReady = true;
-      } catch (e) {
-        console.error('[CMS 启动失败]', e);
-        window.__wbHtmlDemoReady = false;
-      }
+      };
       window.__wbHtmlComboLoaded = LOADED;
 
       /* ---------- 撤销/恢复悬浮按钮 ----------
@@ -616,6 +656,58 @@
         window.__wbFireHistory = fire; // 便于自动化验证
         window.__wbHistoryReady = true;
       })();
+    })();
+  </script>
+
+  <!-- 网站访问密码门：验证通过后才调用 __wbStartCMS 启动写作后台 -->
+  <script>
+    (function () {
+      var hash = String(window.__WB_ADMIN_HASH__ || '').toLowerCase();
+      var gate = document.getElementById('wb-admin-gate');
+
+      function unlock() {
+        if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+        if (typeof window.__wbStartCMS === 'function') window.__wbStartCMS();
+      }
+
+      // 没设密码：直接放行
+      if (!hash) { unlock(); return; }
+
+      var KEY = 'wb_admin_unlock_' + hash.slice(0, 12);
+      // 本次会话已解锁：直接放行
+      try { if (sessionStorage.getItem(KEY) === '1') { unlock(); return; } } catch (e) {}
+
+      // 需要密码：显示门
+      if (gate) gate.style.display = 'flex';
+      var form = document.getElementById('wb-gate-form');
+      var input = document.getElementById('wb-gate-pw');
+      var msg = document.getElementById('wb-gate-msg');
+      var btn = document.getElementById('wb-gate-go');
+      if (!form) return;
+
+      function hex(buf) {
+        var a = new Uint8Array(buf), s = '';
+        for (var i = 0; i < a.length; i++) s += ('0' + a[i].toString(16)).slice(-2);
+        return s;
+      }
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var val = input.value;
+        if (!val) { msg.textContent = '请输入密码'; return; }
+        if (!(window.crypto && crypto.subtle)) { msg.textContent = '浏览器太旧，换一个再试'; return; }
+        btn.disabled = true; msg.textContent = '校验中…';
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then(function (buf) {
+          if (hex(buf) === hash) {
+            try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+            msg.textContent = '';
+            unlock();
+          } else {
+            msg.textContent = '密码不对，再试一次';
+            input.value = ''; input.focus(); btn.disabled = false;
+          }
+        }).catch(function () { msg.textContent = '校验出错，刷新页面重试'; btn.disabled = false; });
+      });
+      if (input) input.focus();
     })();
   </script>
 

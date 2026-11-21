@@ -76,6 +76,12 @@ collections:
         required: false
         hint: 首页卡片和「上一篇/下一篇」用这张图打底；建议横图 1200×675
 
+      - label: 🔒 这篇文章的访问密码（可不填）
+        name: password
+        widget: string
+        required: false
+        hint: 留空＝所有人能看。填了之后，别人打开这一篇要先输密码才能看正文。
+
       # ---------- 排版与显示开关（都可以不填） ----------
       - label: 系列 / 专栏
         name: series
@@ -109,12 +115,6 @@ collections:
         widget: boolean
         required: false
         default: true
-
-      - label: 访问密码（留空＝公开）
-        name: password
-        widget: string
-        required: false
-        hint: 填了之后网页上要输密码才能看，正文在源码里也是加密的
 
       - label: 正文图片宽度（只影响这一篇）
         name: img_width
@@ -257,15 +257,15 @@ collections:
         format: yaml
         fields:
           # ---- 站点图片（对应 /site 的「外观图片」） ----
-          - { label: 首页 / 内页顶部大图（路径）, name: index_img, widget: string, required: false }
-          - { label: 文章页默认顶部大图, name: default_top_img, widget: string, required: false }
-          - { label: 浏览器标签小图标 favicon, name: favicon, widget: string, required: false }
-          - { label: 页脚背景图（留空＝纯色页脚）, name: footer_img, widget: string, required: false }
-          - label: 侧边栏头像
+          - { label: 首页 / 内页顶部大图（点图标选）, name: index_img, widget: image, required: false }
+          - { label: 文章页默认顶部大图（点图标选）, name: default_top_img, widget: image, required: false }
+          - { label: 浏览器标签小图标 favicon（点图标选）, name: favicon, widget: image, required: false }
+          - { label: 页脚背景图（点图标选，留空＝纯色页脚）, name: footer_img, widget: image, required: false }
+          - label: 侧边栏头像（点图标选）
             name: avatar
             widget: object
             fields:
-              - { label: 头像图片路径, name: img, widget: string, required: false }
+              - { label: 头像图片, name: img, widget: image, required: false }
 
           # ---- 页脚（对应 /site 的「基本信息 → 页脚」） ----
           - label: 页脚
@@ -349,8 +349,8 @@ collections:
             name: wb_look
             widget: object
             fields:
-              - { label: 首页背景图（一行一张，可多张轮播）, name: hero_images, widget: list }
-              - { label: 首页背景视频（填了就用视频，图片只当封面）, name: hero_video, widget: string, required: false }
+              - { label: 首页背景图（一行一张路径，可多张轮播；在 /img 里传好图后填路径）, name: hero_images, widget: list }
+              - { label: 首页背景视频（点「选择文件」从媒体库挑，填了就用视频，图片只当封面）, name: hero_video, widget: file, required: false }
               - { label: 轮播间隔（秒）, name: hero_interval, widget: number, value_type: int, required: false }
               - label: 背景范围
                 name: hero_scope
@@ -360,7 +360,7 @@ collections:
                   - { label: 全站都显示, value: all }
                   - { label: 只在首页显示, value: home }
               - { label: 遮罩深浅（0-60 百分比）, name: hero_overlay, widget: number, value_type: int, required: false }
-              - { label: 上一篇/下一篇卡片背景, name: nav_bg, widget: string, required: false }
+              - { label: 上一篇/下一篇卡片背景（点图标选）, name: nav_bg, widget: image, required: false }
               - { label: 标语字号（0＝跟随主题）, name: sub_size, widget: number, value_type: int, required: false }
               - { label: 标语字间距, name: sub_spacing, widget: number, value_type: int, required: false }
               - { label: 标语颜色（留空＝跟随主题）, name: sub_color, widget: string, required: false }
@@ -434,6 +434,12 @@ collections:
         file: source/_data/site.yml
         format: yaml
         fields:
+          - label: 🔒 写作后台访问密码（重点）
+            name: admin_password
+            widget: string
+            required: false
+            hint: 点导航「写作」进后台时先要输这个密码；填明文即可，构建时自动加密。留空＝不要密码。注意：这是公开仓库，密码别人也能在源码里看到，只挡随手点进来的人，真正保护靠 GitHub 令牌。
+
           - label: 站点文字（对应 /site 的「基本信息 → 站点文字」，覆盖 _config.yml 同名键）
             name: hexo
             widget: object
@@ -468,7 +474,7 @@ collections:
               - { label: 图标类名（如 fab fa-github）, name: icon, widget: string, required: false }
               - { label: 内容（账号 / 号码 / 邮箱）, name: value, widget: string, required: false }
               - { label: 链接（留空＝点击弹窗显示）, name: href, widget: string, required: false }
-              - { label: 二维码图片路径（弹窗里显示）, name: qr, widget: string, required: false }
+              - { label: 二维码图片（弹窗里显示，点可图标选）, name: qr, widget: image, required: false }
               - { label: 备注 / 提示文字, name: hint, widget: string, required: false }
               - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
 

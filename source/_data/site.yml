@@ -11,6 +11,11 @@ hexo:
   language: "zh-CN"
 
 mail: "599676700@qq.com"
+
+# 写作后台 /admin 的访问密码（明文填写，构建时自动转成 SHA-256）
+# 留空＝不要密码，点导航「写作」直接进。这层只挡随手点进来的人，真正保护靠 GitHub 令牌。
+admin_password: ""
+
 sections:
   about: ''
   link: ''
