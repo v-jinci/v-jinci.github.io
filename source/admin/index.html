@@ -12,6 +12,22 @@
     #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
     #fallback a{color:#4a6cf7}
 
+    /* 加载骨架屏：脚本 2.6MB 下载期间显示，避免白屏干等 */
+    #fallback{text-align:center}
+    .wb-load-card{max-width:460px;margin:0 auto}
+    .wb-load-spinner{width:44px;height:44px;margin:6px auto 20px;border-radius:50%;
+      border:4px solid #e3e8f7;border-top-color:#4a6cf7;animation:wb-spin .8s linear infinite}
+    @keyframes wb-spin{to{transform:rotate(360deg)}}
+    .wb-load-card h1{font-size:19px;color:#1f2430;margin:0 0 10px}
+    .wb-load-card p{font-size:13.5px;color:#7c8493;line-height:1.75;margin:0 0 8px}
+    .wb-load-card .wb-load-sub{color:#a3abb9;font-size:12.5px}
+    .wb-load-bar{margin:20px auto 0;width:100%;height:5px;background:#eef2ff;border-radius:99px;overflow:hidden}
+    .wb-load-bar span{display:block;height:100%;width:38%;border-radius:99px;
+      background:linear-gradient(90deg,#4a6cf7,#8aa2f7,#4a6cf7);background-size:200% 100%;
+      animation:wb-load 1.4s ease-in-out infinite}
+    @keyframes wb-load{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
+    @media (prefers-reduced-motion: reduce){.wb-load-spinner,.wb-load-bar span{animation:none}}
+
     /* ============================================================
        富文本预览兜底样式
        关键：Sveltia 0.270 的 HTML 转换器在渲染预览时会清洗 style，
@@ -78,7 +94,18 @@
     .wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:12px}
     .wb-gate-foot{margin-top:18px;font-size:12px;color:#a3abb9;line-height:1.6}
   </style>
+  <!-- 性能优化：尽早开始下载 2.6MB 主脚本（不等 HTML 解析到 body 中间） -->
+  <link rel="preconnect" href="/libs/">
+  <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>window.CMS_MANUAL_INIT = true;</script>
+  <!-- 性能优化：注册 Service Worker，把 CMS 脚本缓存到本机，第二次进后台秒开 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/admin/sw.js').catch(function () {});
+      });
+    }
+  </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
   <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="";</script><!--WB_HASH_END-->
 </head>
@@ -99,9 +126,13 @@
   </div>
 
   <div id="fallback">
-    <h1>写作后台（HTML 富文本）正在加载…</h1>
-    <p>这是主力的写作后台（Sveltia 0.270）：正文用 <code>richtext + format: html</code>，工具栏带官方「对齐 / 下划线 / 任务清单」等全部按钮，「插入」菜单里还有一批一键排版组件。登录后即可编辑正式文章，保存自动提交到 GitHub。</p>
-    <p>如果一直停在这一页，请确认 <code>/libs/sveltia-270/sveltia-cms.js</code> 能打开。</p>
+    <div class="wb-load-card">
+      <div class="wb-load-spinner"></div>
+      <h1>写作后台正在加载…</h1>
+      <p>正在载入编辑器组件（约 2.6MB）。<br>首次打开需要十几秒，稍等一下就好。</p>
+      <p class="wb-load-sub">加载过一次会自动缓存到本机，以后再进就秒开。</p>
+      <div class="wb-load-bar"><span></span></div>
+    </div>
   </div>
 
   <!-- 撤销/恢复悬浮按钮（正文工具栏没有这两个，靠原生 history 命令实现） -->
@@ -727,15 +758,15 @@
     setTimeout(function () {
       // 用真实的启动标记判断，不再靠猜 DOM class（会误报"界面没起来"）
       if (window.__wbCMSStarted) return;
-      if (!document.querySelector('[class*="sveltia"], #sveltiacms, .sc-app')) {
-        var tip = document.getElementById('fallback');
-        if (tip) {
-          tip.querySelector('h1').textContent = '脚本已加载，但界面没起来';
-          tip.querySelector('p').innerHTML =
-            '多半是配置写错了，按 F12 看控制台红色报错，或者把报错发我。';
-        }
+      var tip = document.getElementById('fallback');
+      if (tip) {
+        var h = tip.querySelector('h1');
+        var sub = tip.querySelector('.wb-load-sub');
+        if (h) h.textContent = '脚本已加载，但界面没起来';
+        if (sub) sub.innerHTML =
+          '多半是配置写错了，按 F12 看控制台红色报错，或者把报错发我。';
       }
-    }, 8000);
+    }, 15000);
   </script>
 </body>
 </html>
