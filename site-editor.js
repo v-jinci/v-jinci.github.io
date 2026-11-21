@@ -519,6 +519,7 @@ function saveDataUrl(base, dataUrl, suggestName) {
 /* ------------------------------ 读取当前值 ------------------------------ */
 
 const PAGE_SECTIONS = [
+  { key: 'index', name: '首页', url: '/' },
   { key: 'about', name: '关于', url: '/about/' },
   { key: 'downloads', name: '下载区', url: '/downloads/' },
   { key: 'messageBoard', name: '留言板', url: '/messageBoard/' },
@@ -911,6 +912,16 @@ async function handle(hexo, req, res, options) {
             siteData.sections[s.key] = '';
           }
         });
+        // 「记住」只在作者自己的浏览器里留一份明文，方便下次打开 /site 时带回来
+        data.sections.forEach((s) => {
+          if (!s || !s.key) return;
+          const k = 'wb_site_pw_' + s.key;
+          const pw = String(s.password || '').trim();
+          try {
+            if (s.remember && s.protect && pw) localStorage.setItem(k, pw);
+            else localStorage.removeItem(k);
+          } catch (e) {}
+        });
       }
       if (Array.isArray(data.contacts)) {
         siteData.contacts = data.contacts
@@ -1185,13 +1196,16 @@ function renderPage(cur) {
 
   const pwRows = PAGE_SECTIONS.map((s) => {
     const on = !!sections[s.key];
+    let remembered = '';
+    try { remembered = localStorage.getItem('wb_site_pw_' + s.key) || ''; } catch (e) {}
     return (
       '<div class="pw-item" data-key="' + esc(s.key) + '">' +
       '<div class="pw-name">' + esc(s.name) + '<span class="pw-url">' + esc(s.url) + '</span>' +
       '<span class="pw-state ' + (on ? 'on' : '') + '">' + (on ? '已设密码' : '公开') + '</span></div>' +
       '<div class="pw-ctl">' +
       '<label class="chk"><input type="checkbox" class="pw-toggle"' + (on ? ' checked' : '') + '><span>需要密码</span></label>' +
-      '<input type="password" class="pw-input" placeholder="' + (on ? '输入新密码可修改' : '设置一个密码') + '" autocomplete="new-password">' +
+      '<input type="password" class="pw-input" placeholder="' + (on ? '输入新密码可修改' : '设置一个密码') + '" autocomplete="new-password"' + (remembered ? ' value="' + esc(remembered) + '"' : '') + '>' +
+      '<label class="chk"><input type="checkbox" class="pw-remember"' + (remembered ? ' checked' : '') + '><span>记住</span></label>' +
       '</div></div>'
     );
   }).join('');
@@ -1648,7 +1662,7 @@ function renderPage(cur) {
     <div class="panel" id="p-pw">
       <div class="card">
         <h2>给每个页面单独设密码<span class="badge">可选</span></h2>
-        <div class="desc">勾上「需要密码」并输入密码，保存后这一页要先输密码才能看内容。不勾就是公开。想改密码就重新输一个；想取消，取消勾选再保存。</div>
+        <div class="desc">勾上「需要密码」并输入密码，保存后这一页要先输密码才能看内容。不勾就是公开。想改密码就重新输一个；想取消，取消勾选再保存。勾旁边的「记住」＝这台电脑下次打开本站设置时自动把密码填回来（别在公用电脑勾）。</div>
         <div id="pwList">${pwRows}</div>
         <div class="warn">
           这是<b>前端校验</b>：能挡住随手点进来的人，但页面和文件本身仍在公开仓库里，懂技术的人可以绕过。
@@ -2243,6 +2257,7 @@ function collectSections() {
       key: el.getAttribute('data-key'),
       protect: el.querySelector('.pw-toggle').checked,
       password: el.querySelector('.pw-input').value,
+      remember: !!(el.querySelector('.pw-remember') && el.querySelector('.pw-remember').checked),
     };
   });
 }

@@ -83,7 +83,8 @@
       display:flex;align-items:center;justify-content:center;font-size:28px}
     .wb-gate-card h1{font-size:19px;margin:0 0 8px;color:#1f2430}
     .wb-gate-card p{font-size:13.5px;color:#7c8493;line-height:1.7;margin:0 0 22px}
-    .wb-gate-card form{display:flex;gap:8px}
+    .wb-gate-card form{display:block}
+    .wb-gate-row{display:flex;gap:8px}
     .wb-gate-card input{flex:1 1 auto;min-width:0;padding:11px 13px;border:1px solid #dfe3ee;border-radius:10px;
       font:inherit;background:#fbfcff;color:#1f2430}
     .wb-gate-card input:focus{outline:none;border-color:#8aa2f7;background:#fff;box-shadow:0 0 0 3px rgba(74,108,247,.12)}
@@ -91,6 +92,9 @@
       font:inherit;font-weight:600;cursor:pointer}
     .wb-gate-card button:hover{background:#3453d4}
     .wb-gate-card button:disabled{opacity:.6;cursor:default}
+    .wb-gate-rem{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;
+      font-size:13px;color:#7c8493;cursor:pointer;user-select:none}
+    .wb-gate-rem input{width:16px;height:16px;flex:0 0 auto;accent-color:#4a6cf7;cursor:pointer}
     .wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:12px}
     .wb-gate-foot{margin-top:18px;font-size:12px;color:#a3abb9;line-height:1.6}
   </style>
@@ -128,8 +132,11 @@
       <h1>这是写作后台</h1>
       <p>输入访问密码后才能进入。<br>忘记密码去 <b>/admin</b> 的「站点设置 → 联系方式与页面密码」里看，或来问我。</p>
       <form id="wb-gate-form" autocomplete="off">
-        <input type="password" id="wb-gate-pw" placeholder="访问密码" autocomplete="current-password">
-        <button type="submit" id="wb-gate-go">进入</button>
+        <div class="wb-gate-row">
+          <input type="password" id="wb-gate-pw" placeholder="访问密码" autocomplete="current-password">
+          <button type="submit" id="wb-gate-go">进入</button>
+        </div>
+        <label class="wb-gate-rem"><input type="checkbox" id="wb-gate-remember"><span>记住密码（这台设备下次免输，公用电脑别勾）</span></label>
       </form>
       <div class="wb-gate-msg" id="wb-gate-msg"></div>
       <div class="wb-gate-foot">写作后台本身还需要 GitHub 令牌登录，这层只是额外确认。</div>
@@ -727,9 +734,13 @@
       // 没设密码：直接放行
       if (!hash) { unlock(); return; }
 
-      var KEY = 'wb_admin_unlock_' + hash.slice(0, 12);
-      // 本次会话已解锁：直接放行
-      try { if (sessionStorage.getItem(KEY) === '1') { unlock(); return; } } catch (e) {}
+      var PREFIX = hash.slice(0, 12);
+      var KEY = 'wb_admin_unlock_' + PREFIX;
+      var SAVE = 'wb_admin_pw_' + PREFIX;
+      // 本次会话已解锁，或之前勾了「记住密码」且验证通过：直接放行
+      try {
+        if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(KEY) === '1') { unlock(); return; }
+      } catch (e) {}
 
       // 需要密码：显示门
       if (gate) gate.style.display = 'flex';
@@ -737,7 +748,14 @@
       var input = document.getElementById('wb-gate-pw');
       var msg = document.getElementById('wb-gate-msg');
       var btn = document.getElementById('wb-gate-go');
+      var remember = document.getElementById('wb-gate-remember');
       if (!form) return;
+
+      // 之前勾过「记住密码」：把密码带回来，并自动勾上
+      try {
+        var saved = localStorage.getItem(SAVE);
+        if (saved && remember) { input.value = saved; remember.checked = true; }
+      } catch (e) {}
 
       function hex(buf) {
         var a = new Uint8Array(buf), s = '';
@@ -752,7 +770,16 @@
         btn.disabled = true; msg.textContent = '校验中…';
         crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then(function (buf) {
           if (hex(buf) === hash) {
-            try { sessionStorage.setItem(KEY, '1'); } catch (e) {}
+            try {
+              if (remember && remember.checked) {
+                localStorage.setItem(KEY, '1');
+                localStorage.setItem(SAVE, val);
+              } else {
+                sessionStorage.setItem(KEY, '1');
+                localStorage.removeItem(KEY);
+                localStorage.removeItem(SAVE);
+              }
+            } catch (e) {}
             msg.textContent = '';
             unlock();
           } else {

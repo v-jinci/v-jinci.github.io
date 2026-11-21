@@ -31,24 +31,28 @@ function keyOf(p) {
     .replace(/\\/g, '/')
     .replace(/^\/+/, '')
     .replace(/index\.html$/, '')
-    .replace(/\/+$/, '');
+    .replace(/\/+$/, '') || 'index';
 }
 
 const STYLE = [
   '<style>',
-  'html.wb-locked #article-container{display:none!important}',
+  'html.wb-locked #article-container,html.wb-locked #content-inner{display:none!important}',
   '.wb-gate{max-width:420px;margin:40px auto 60px;padding:30px 26px 26px;border-radius:16px;',
   'background:var(--wbg-card,#fff);border:1px solid var(--wbg-line,#e3e8f7);box-shadow:0 6px 26px rgba(31,36,48,.07);text-align:center;',
   'font-size:15px;color:var(--wbg-text,#4c4948)}',
   '.wb-gate-ico{font-size:30px;line-height:1;margin-bottom:10px}',
   '.wb-gate-t{font-size:17px;font-weight:600;margin-bottom:6px}',
   '.wb-gate-d{font-size:13px;color:var(--wbg-sub,#8b93a1);margin-bottom:18px;line-height:1.7}',
-  '.wb-gate form{display:flex;gap:8px}',
+  '.wb-gate form{display:block}',
+  '.wb-gate-row{display:flex;gap:8px}',
   '.wb-gate input{flex:1 1 auto;min-width:0;padding:10px 12px;border:1px solid var(--wbg-line,#dfe3ee);border-radius:10px;',
   'font:inherit;background:#fbfcff;color:inherit}',
   '.wb-gate input:focus{outline:none;border-color:#8aa2f7;background:#fff}',
   '.wb-gate button{flex:0 0 auto;border:0;border-radius:10px;padding:10px 20px;background:#4a6cf7;color:#fff;font:inherit;cursor:pointer}',
   '.wb-gate button:disabled{opacity:.6;cursor:default}',
+  '.wb-gate .wb-remember{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;',
+  'font-size:13px;color:var(--wbg-sub,#8b93a1);cursor:pointer;user-select:none}',
+  '.wb-gate .wb-remember input{width:16px;height:16px;flex:0 0 auto;accent-color:#4a6cf7;cursor:pointer}',
   '.wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:10px}',
   'html[data-theme="dark"] .wb-gate,body.dark .wb-gate{--wbg-card:rgba(255,255,255,.05);--wbg-line:rgba(255,255,255,.12);--wbg-text:#c8ccd4;--wbg-sub:#8b93a1}',
   'html[data-theme="dark"] .wb-gate input,body.dark .wb-gate input{background:rgba(255,255,255,.06);color:#c8ccd4}',
@@ -56,8 +60,9 @@ const STYLE = [
   '<script>',
   '"use strict";',
   'window.__WB_GATE__={key:KEYVAL,hash:HASHVAL};',
-  'try{var _k="wb_unlock_"+window.__WB_GATE__.key;',
-  'if(!sessionStorage.getItem(_k))document.documentElement.classList.add("wb-locked");',
+  'try{var _g=window.__WB_GATE__,_k="wb_unlock_"+_g.key,',
+  '_r="wb_gate_ok_"+_g.key+"_"+String(_g.hash||"").slice(0,12);',
+  'if(!sessionStorage.getItem(_k)&&!localStorage.getItem(_r))document.documentElement.classList.add("wb-locked");',
   '}catch(e){document.documentElement.classList.add("wb-locked");}',
   '</script>'
 ].join('');
@@ -68,8 +73,11 @@ const GATE_HTML = [
   '<div class="wb-gate-t">这一页需要密码</div>',
   '<div class="wb-gate-d">输入访问密码后查看内容。忘记密码就来找我。</div>',
   '<form id="wb-gate-form" autocomplete="off">',
+  '<div class="wb-gate-row">',
   '<input type="password" id="wb-gate-pw" placeholder="访问密码" autocomplete="current-password">',
   '<button type="submit" id="wb-gate-go">进入</button>',
+  '</div>',
+  '<label class="wb-remember"><input type="checkbox" id="wb-gate-remember"><span>记住密码（这台设备下次免输，公用电脑别勾）</span></label>',
   '</form>',
   '<div class="wb-gate-msg" id="wb-gate-msg"></div>',
   '</div>'
@@ -79,7 +87,10 @@ const GATE_JS = [
   '<script>',
   '(function(){',
   '  var cfg = window.__WB_GATE__ || {};',
+  '  var PREFIX = String(cfg.hash || "").toLowerCase().slice(0, 12);',
   '  var STORE = "wb_unlock_" + cfg.key;',
+  '  var OK = "wb_gate_ok_" + cfg.key + "_" + PREFIX;',
+  '  var REM = "wb_gate_pw_" + cfg.key + "_" + PREFIX;',
   '  function b64dec(v){',
   '    try{ var bin = atob(v); var b = new Uint8Array(bin.length);',
   '      for (var i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i);',
@@ -102,6 +113,8 @@ const GATE_JS = [
   '  var input = document.getElementById("wb-gate-pw");',
   '  var msg = document.getElementById("wb-gate-msg");',
   '  var btn = document.getElementById("wb-gate-go");',
+  '  var remember = document.getElementById("wb-gate-remember");',
+  '  try { var saved = localStorage.getItem(REM); if (saved && remember) { input.value = saved; remember.checked = true; } } catch (e) {}',
   '  function hex(buf){',
   '    var a = new Uint8Array(buf), s = "";',
   '    for (var i = 0; i < a.length; i++) s += ("0" + a[i].toString(16)).slice(-2);',
@@ -115,7 +128,14 @@ const GATE_JS = [
   '    btn.disabled = true; msg.textContent = "校验中…";',
   '    crypto.subtle.digest("SHA-256", new TextEncoder().encode(val)).then(function(buf){',
   '      if (hex(buf) === String(cfg.hash || "").toLowerCase()) {',
-  '        try { sessionStorage.setItem(STORE, "1"); } catch (e) {}',
+  '        try {',
+  '          if (remember && remember.checked) {',
+  '            localStorage.setItem(OK, "1"); localStorage.setItem(REM, val);',
+  '          } else {',
+  '            sessionStorage.setItem(STORE, "1");',
+  '            localStorage.removeItem(OK); localStorage.removeItem(REM);',
+  '          }',
+  '        } catch (e) {}',
   '        reveal();',
   '      } else {',
   '        msg.textContent = "密码不对，再试一次";',
@@ -144,7 +164,10 @@ hexo.extend.filter.register('after_render:html', function (str, data) {
   const head = STYLE.replace('KEYVAL', JSON.stringify(key)).replace('HASHVAL', JSON.stringify(hash));
   if (str.indexOf('</head>') !== -1) str = str.replace('</head>', head + '</head>');
 
-  const marker = '<div class="container" id="article-container">';
+  // 首页没有 #article-container，改用 Butterfly 的 #content-inner
+  const marker = key === 'index'
+    ? '<main class="layout" id="content-inner">'
+    : '<div class="container" id="article-container">';
   if (str.indexOf(marker) !== -1) {
     str = str.replace(marker, GATE_HTML + marker);
     if (str.indexOf('</body>') !== -1) str = str.replace('</body>', GATE_JS + '</body>');

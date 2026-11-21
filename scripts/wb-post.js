@@ -319,6 +319,7 @@ function lockBlock(payload) {
     '<div class="wb-lock-d">输入访问密码后查看正文</div>' +
     '<input class="wb-lock-in" type="password" autocomplete="off" placeholder="访问密码">' +
     '<button class="wb-lock-btn" type="button">解锁</button>' +
+    '<label class="wb-lock-rem"><input type="checkbox" class="wb-lock-remember"><span>记住密码（这台设备下次免输，公用电脑别勾）</span></label>' +
     '<div class="wb-lock-err"></div>' +
     '</div></div>' +
     '<style>' +
@@ -334,14 +335,19 @@ function lockBlock(payload) {
     '.wb-lock-btn{margin-top:12px;width:100%;padding:10px 12px;border:0;border-radius:10px;cursor:pointer;' +
     'background:linear-gradient(120deg,#2563eb,#06b6d4);color:#fff;font-weight:600}' +
     '.wb-lock-btn:disabled{opacity:.6;cursor:default}' +
+    '.wb-lock-rem{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:11px;' +
+    'font-size:12px;color:#94a3b8;cursor:pointer;user-select:none}' +
+    '.wb-lock-rem input{width:15px;height:15px;flex:0 0 auto;accent-color:#2563eb;cursor:pointer}' +
     '.wb-lock-err{margin-top:8px;font-size:12px;color:#ef4444;min-height:16px}' +
     '</style>' +
     '<script>(function(){' +
     'var box=document.getElementById("' + id + '");if(!box)return;' +
-    'var inp=box.querySelector(".wb-lock-in"),btn=box.querySelector(".wb-lock-btn"),err=box.querySelector(".wb-lock-err");' +
+    'var inp=box.querySelector(".wb-lock-in"),btn=box.querySelector(".wb-lock-btn"),err=box.querySelector(".wb-lock-err"),rem=box.querySelector(".wb-lock-remember");' +
+    'var TAG=String(box.dataset.p||"").slice(0,12),RK="wb_article_pw_"+TAG,OK="wb_article_ok_"+TAG;' +
+    'var saved="";try{saved=localStorage.getItem(RK)||"";if(saved&&rem){inp.value=saved;rem.checked=true}}catch(e){}' +
     'function b64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}' +
-    'async function run(){' +
-    'var pwd=inp.value;if(!pwd){err.textContent="请输入密码";return}' +
+    'async function run(pwd,auto){' +
+    'pwd=pwd||inp.value;if(!pwd){err.textContent="请输入密码";return}' +
     'btn.disabled=true;err.textContent="";' +
     'try{' +
     'var raw=b64(box.dataset.p),it=Number(box.dataset.it)||120000;' +
@@ -350,13 +356,21 @@ function lockBlock(payload) {
     'var key=await crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:it,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["decrypt"]);' +
     'var buf=await crypto.subtle.decrypt({name:"AES-GCM",iv:iv,tagLength:128},key,data);' +
     'var html=new TextDecoder().decode(buf);' +
+    'try{' +
+    'if(rem&&rem.checked){localStorage.setItem(RK,pwd);localStorage.setItem(OK,"1")}' +
+    'else{localStorage.removeItem(RK);localStorage.removeItem(OK)}' +
+    '}catch(e){}' +
     'var wrap=document.createElement("div");wrap.className="wb-lock-done";wrap.innerHTML=html;' +
     'box.parentNode.replaceChild(wrap,box);' +
-    '}catch(e){err.textContent="密码不对，再试一次";btn.disabled=false;}' +
+    '}catch(e){' +
+    'if(auto){try{localStorage.removeItem(RK);localStorage.removeItem(OK)}catch(e2){};inp.value="";inp.focus()}' +
+    'err.textContent="密码不对，再试一次";btn.disabled=false;' +
     '}' +
-    'btn.addEventListener("click",run);' +
+    '}' +
+    'btn.addEventListener("click",function(){run()});' +
     'inp.addEventListener("keydown",function(e){if(e.key==="Enter")run()});' +
-    'inp.focus();' +
+    'var auto=false;try{auto=localStorage.getItem(OK)==="1"&&!!saved}catch(e){}' +
+    'if(auto){run(saved,true)}else{inp.focus()}' +
     '})();</script>'
   );
 }
