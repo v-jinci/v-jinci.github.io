@@ -669,7 +669,17 @@
 
       function unlock() {
         if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
-        if (typeof window.__wbStartCMS === 'function') window.__wbStartCMS();
+        // CMS 脚本（2.6MB）可能还没加载完，__wbStartCMS 尚未定义，
+        // 这里轮询等它就绪，避免空密码时被跳过导致后台起不来。
+        var tries = 0;
+        var timer = setInterval(function () {
+          if (typeof window.__wbStartCMS === 'function') {
+            clearInterval(timer);
+            window.__wbStartCMS();
+          } else if (++tries > 120) {
+            clearInterval(timer); // 超时 12 秒，交给页面自带的报错提示处理
+          }
+        }, 100);
       }
 
       // 没设密码：直接放行
@@ -715,6 +725,8 @@
 
   <script>
     setTimeout(function () {
+      // 用真实的启动标记判断，不再靠猜 DOM class（会误报"界面没起来"）
+      if (window.__wbCMSStarted) return;
       if (!document.querySelector('[class*="sveltia"], #sveltiacms, .sc-app')) {
         var tip = document.getElementById('fallback');
         if (tip) {
