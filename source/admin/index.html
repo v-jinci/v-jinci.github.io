@@ -102,7 +102,18 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
-        navigator.serviceWorker.register('/admin/sw.js').catch(function () {});
+        // 先注销旧版 /admin/sw.js（作用域太小，拦不到 /libs/），再注册根目录新版
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) {
+            try {
+              var u = (r.active && r.active.scriptURL) || (r.installing && r.installing.scriptURL) || '';
+              if (/\/admin\/sw\.js$/.test(u)) return r.unregister();
+            } catch (e) {}
+            return null;
+          }));
+        }).catch(function () {}).then(function () {
+          return navigator.serviceWorker.register('/sw.js');
+        }).catch(function () {});
       });
     }
   </script>
