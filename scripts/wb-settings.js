@@ -51,6 +51,27 @@ function listToMap(list) {
   return out;
 }
 
+/**
+ * 主题模板用 theme.comments.use[0] / use[1] 取评论系统名，
+ * 所以 use 必须是数组。look.yml 里为了方便 /site 下拉框存的是字符串 "Waline"，
+ * 合并进来后会覆盖主题初始化时转好的数组，导致模板取成 'W' / 'a'，
+ * 留言板/文章底部就只剩 "W a" 两个字母按钮。这里在合并后统一转回数组。
+ */
+function normalizeCommentsUse(themeConfig) {
+  const c = themeConfig.comments;
+  if (!c || c.use == null) return;
+  let u = c.use;
+  if (typeof u === 'string') {
+    u = u.trim() ? u.split(',').map((s) => String(s).trim()).filter(Boolean) : [];
+  } else if (!Array.isArray(u)) {
+    u = [];
+  }
+  u = u.map((s) => typeof s === 'string'
+    ? s.replace(/\b[a-z]/g, (m) => m.toUpperCase())
+    : s);
+  c.use = u;
+}
+
 hexo.extend.filter.register('before_generate', () => {
   let yaml;
   try { yaml = require('js-yaml'); } catch (e) { return; }
@@ -88,6 +109,8 @@ hexo.extend.filter.register('before_generate', () => {
   if (!hexo.theme) hexo.theme = {};
   if (!hexo.theme.config) hexo.theme.config = {};
   deepMerge(hexo.theme.config, data);
+  // 合并后必须把 comments.use 规范化回数组，否则字符串会被模板逐字取成 W/a
+  normalizeCommentsUse(hexo.theme.config);
 
   console.log('[wb-settings] 已应用站点设置：', Object.keys(data).join(', '));
 });

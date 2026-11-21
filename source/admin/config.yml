@@ -31,6 +31,7 @@ collections:
   - name: posts
     label: 文章
     label_singular: 文章
+    icon: edit_note
     folder: source/_posts
     create: true
     extension: md
@@ -203,9 +204,11 @@ collections:
   # ---------------- 独立页面 ----------------
   - name: pages
     label: 独立页面
+    icon: article
     files:
       - label: 关于
         name: about
+        icon: info
         file: source/about/index.md
         format: yaml-frontmatter
         fields:
@@ -214,6 +217,7 @@ collections:
 
       - label: 友链
         name: link
+        icon: link
         file: source/link/index.md
         format: yaml-frontmatter
         fields:
@@ -222,6 +226,7 @@ collections:
 
       - label: 留言板
         name: messageBoard
+        icon: forum
         file: source/messageBoard/index.md
         format: yaml-frontmatter
         fields:
@@ -230,6 +235,7 @@ collections:
 
       - label: 编年史
         name: history
+        icon: history
         file: source/history/index.md
         format: yaml-frontmatter
         fields:
@@ -241,9 +247,12 @@ collections:
   #  保存后提交到 hexo-src，等自动部署完成就上线了。
   - name: settings
     label: 站点设置
+    icon: settings
+    description: 和本机 localhost:4000/site 改的是同一套数据；保存后等自动部署完成就上线
     files:
       - label: 外观与开关
         name: look
+        icon: palette
         file: source/_data/look.yml
         format: yaml
         fields:
@@ -421,6 +430,7 @@ collections:
 
       - label: 联系方式与页面密码
         name: site
+        icon: contact_support
         file: source/_data/site.yml
         format: yaml
         fields:
@@ -465,6 +475,7 @@ collections:
       # ---------------- 下载区（对应 /site 的「下载区」） ----------------
       - label: 下载区文件
         name: downloads
+        icon: download
         file: source/_data/downloads.yml
         format: yaml
         fields:
@@ -484,6 +495,7 @@ collections:
       # ---------------- 留言管理（对应 /site 的「留言管理」，备用方案） ----------------
       - label: 留言管理（备用，不显示在留言板）
         name: comments
+        icon: chat_bubble
         file: source/_data/comments.yml
         format: yaml
         fields:

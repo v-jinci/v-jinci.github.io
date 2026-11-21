@@ -37,6 +37,7 @@ menu:
   编年史: /history/ || fas fa-history
   留言板: /messageBoard/ || far fa-comment-dots
   下载: /downloads/ || fas fa-download
+  写作: /admin/ || fas fa-pen
   关于: /about/ || fas fa-user
 
 social:
