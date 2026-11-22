@@ -360,7 +360,14 @@ collections:
             name: wb_look
             widget: object
             fields:
-              - { label: 首页背景图（一行一张路径，可多张轮播；在 /img 里传好图后填路径）, name: hero_images, widget: list }
+              - label: 首页背景图轮播（一行一张，点图标上传，可多张）
+                name: hero_images
+                widget: list
+                required: false
+                label_singular: 一张背景图
+                hint: 点每张右侧的图标从媒体库选图（上传到 source/img），删掉某一行＝移除那张。
+                field:
+                  { label: 背景图, name: src, widget: image, required: false }
               - { label: 首页背景视频（点「选择文件」从媒体库挑，填了就用视频，图片只当封面）, name: hero_video, widget: file, required: false }
               - { label: 轮播间隔（秒）, name: hero_interval, widget: number, value_type: int, required: false }
               - label: 背景范围
@@ -428,7 +435,13 @@ collections:
             fields:
               - { label: 名称, name: name, widget: string }
               - { label: 说明, name: desc, widget: string, required: false }
-              - { label: 站内文件路径（如 /files/xxx.zip）, name: file, widget: string, required: false }
+              - label: 本站文件（点上传选文件，存进 source/files/）
+                name: file
+                widget: file
+                required: false
+                media_folder: /source/files
+                public_folder: /files
+                hint: 上传的文件会提交进仓库的 source/files/，自动填成 /files/xxx。超过 90MB 请改用下面的外部链接。
               - { label: 或外部链接（网盘等，不占仓库体积）, name: url, widget: string, required: false }
               - { label: 大小（留空＝自动显示）, name: size, widget: string, required: false }
               - { label: 日期, name: date, widget: string, required: false }

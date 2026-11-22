@@ -35,7 +35,8 @@ function cacheKey(p) {
 hexo.extend.filter.register('after_render:html', (str) => {
   const cfg = (hexo.theme.config && hexo.theme.config.wb_look) || {};
   const images = (Array.isArray(cfg.hero_images) ? cfg.hero_images : [])
-    .map((s) => String(s || '').trim())
+    // 兼容两种写法：字符串 "/img/a.jpg"，或后台上传控件的对象 { src: "/img/a.jpg" }
+    .map((s) => String((s && typeof s === 'object' ? (s.src || s.path || s.url) : s) || '').trim())
     .filter(Boolean);
   const video = String(cfg.hero_video || '').trim();
   if (!images.length && !video) return str;

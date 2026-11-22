@@ -1117,7 +1117,10 @@ function renderPage(cur) {
     const s = String(v).trim().toLowerCase();
     return s === 'false' || s === '0' || s === 'off' ? '' : ' checked';
   };
-  const heroImages = Array.isArray(wb.hero_images) ? wb.hero_images : [];
+  // 兼容 /admin 上传控件写入的对象数组 [{src}] 与本地的字符串数组
+  const heroImages = Array.isArray(wb.hero_images)
+    ? wb.hero_images.map(s => (s && typeof s === 'object') ? (s.src || s.path || s.url || '') : s).filter(Boolean)
+    : [];
   const heroVideo = typeof wb.hero_video === 'string' ? wb.hero_video : '';
   const typed = (theme.subtitle && theme.subtitle.typed_option) || {};
   const contacts = cur.siteData.contacts || [];
