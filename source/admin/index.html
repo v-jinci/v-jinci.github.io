@@ -127,7 +127,7 @@
     }
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
-  <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="";</script><!--WB_HASH_END-->
+  <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="87af7229d6e32d18baedeac279d4327a0dfbd69d395b3b0b9cbe0ca6210716b7";</script><!--WB_HASH_END-->
 </head>
 <body>
   <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
@@ -315,7 +315,8 @@
           size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px'
         };
       }
-      function pickStyle(current, sampleText) {
+      // mode = 'color' 只显示颜色、'size' 只显示字号、其它＝两者都显示
+      function pickStyle(current, sampleText, mode) {
         return new Promise(function (resolve) {
           if (!document.getElementById('wb-pick-style')) {
             var st = document.createElement('style');
@@ -346,18 +347,29 @@
           ov.className = 'wb-pick-ov';
           var card = document.createElement('div');
           card.className = 'wb-pick-card';
-          var html = '<h3>🎯 强调这段文字</h3>' +
-            '<div class="sub">一次设好颜色和字号；以后点这段文字还能再改</div>' +
-            '<div class="wb-pick-prev" id="wb-pick-prev"></div>' +
-            '<div class="wb-pick-label">颜色</div><div class="wb-pick-colors">';
-          COLORS.forEach(function (c) {
-            html += '<button type="button" data-c="' + c.value + '" title="' + esc(c.label) + '" style="background:' + c.value + '"></button>';
-          });
-          html += '</div><div class="wb-pick-label">字号</div><div class="wb-pick-sizes">';
-          SIZES.forEach(function (s) {
-            html += '<button type="button" data-z="' + s.value + '">' + esc(s.label) + '</button>';
-          });
-          html += '</div><div class="wb-pick-act">' +
+          var showColor = mode !== 'size', showSize = mode !== 'color';
+          var title = mode === 'color' ? '🖍 设置文字颜色' : mode === 'size' ? '🔤 设置文字大小' : '🎯 强调这段文字';
+          var sub = mode === 'color' ? '选一个颜色；以后点这段文字还能再改'
+            : mode === 'size' ? '选一个字号；以后点这段文字还能再改'
+              : '一次设好颜色和字号；以后点这段文字还能再改';
+          var html = '<h3>' + title + '</h3>' +
+            '<div class="sub">' + sub + '</div>' +
+            '<div class="wb-pick-prev" id="wb-pick-prev"></div>';
+          if (showColor) {
+            html += '<div class="wb-pick-label">颜色</div><div class="wb-pick-colors">';
+            COLORS.forEach(function (c) {
+              html += '<button type="button" data-c="' + c.value + '" title="' + esc(c.label) + '" style="background:' + c.value + '"></button>';
+            });
+            html += '</div>';
+          }
+          if (showSize) {
+            html += '<div class="wb-pick-label">字号</div><div class="wb-pick-sizes">';
+            SIZES.forEach(function (s) {
+              html += '<button type="button" data-z="' + s.value + '">' + esc(s.label) + '</button>';
+            });
+            html += '</div>';
+          }
+          html += '<div class="wb-pick-act">' +
             '<button type="button" class="wb-pick-no" data-act="no">取消</button>' +
             '<button type="button" class="wb-pick-ok" data-act="ok">应用</button></div>';
           card.innerHTML = html;
@@ -365,7 +377,11 @@
           document.body.appendChild(ov);
           function paint() {
             var prev = card.querySelector('#wb-pick-prev');
-            if (prev) { prev.textContent = text; prev.style.color = color; prev.style.fontSize = size; }
+            if (prev) {
+              prev.textContent = text;
+              if (showColor) prev.style.color = color;
+              if (showSize) prev.style.fontSize = size;
+            }
             var cs = card.querySelectorAll('[data-c]');
             for (var i = 0; i < cs.length; i++) cs[i].className = (cs[i].getAttribute('data-c') === color ? 'on' : '');
             var zs = card.querySelectorAll('[data-z]');
@@ -599,65 +615,82 @@
             toBlockHTML: function (d) { return buildPostLink(d); }
           });
 
-          /* ---- 11+. 内联组件：选中文字直接改颜色/字号（不切断段落） ----
-             关键点：给 inlinePattern.onInsert，编辑器会把选中的文字传进来，
-             自动生成带样式的 span 并替换选区；同时保留 htmlSelector，
-             这样保存再打开时数据属性能被回读，字号 class 也不会丢。 */
+          /* ---- 11+. 彩色文字 / 文字大小：和强调文字一样，插入弹面板，点击已插入的文字再弹面板改 ----
+             旧版本是 11 个固定值按钮，插入后变原子节点就没法再改。
+             现在合并成两个通用组件：onInsert 弹对应面板，onEdit 同样弹面板原地更新。
+             旧文章里的 data-wb-ic="color-xxx" / "size-xxx" 仍能被 pattern 命中并回读。 */
           function inlineKey(kind, value) {
-            return kind + '-' + String(value).replace(/[^0-9a-zA-Z]/g, '');
+            return kind + '-' + String(value || '').replace(/[^0-9a-zA-Z]/g, '');
           }
-          function inlineHtml(kind, value, text) {
-            var key = inlineKey(kind, value);
-            var style = kind === 'color' ? 'color:' + value + ';' : 'font-size:' + value + ';';
-            var cls = 'wb-inline' + (kind === 'size' ? ' ' + sizeClass(value) : '');
-            var span = el('span', {
-              'data-wb-ic': key,
-              'class': cls,
-              'style': style
-            });
-            setHtml(span, esc(text == null || text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : text));
+          function inlineHtml(kind, d) {
+            d = d || {};
+            var color = kind === 'color' ? (d.color || '#e60000') : (d.color || '');
+            var size = kind === 'size' ? (d.size || '20px') : (d.size || '');
+            var key = inlineKey(kind, kind === 'color' ? color : size);
+            var style = (color ? 'color:' + color + ';' : '') + (size ? 'font-size:' + size + ';' : '');
+            var cls = 'wb-inline' + (size ? ' ' + sizeClass(size) : '');
+            var span = el('span', { 'data-wb-ic': key, 'class': cls, 'style': style });
+            setHtml(span, esc(d.text == null || d.text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : d.text));
             return span.outerHTML;
           }
-          function inlineFrom(str) {
-            var m = String(str || '').match(/>([\s\S]*)<\/span>$/);
-            return { text: m ? m[1] : '' };
-          }
-          function regInline(kind, value, label) {
-            var key = inlineKey(kind, value);
-            var pattern = new RegExp('<span[^>]*data-wb-ic="' + key + '"[^>]*>[^<]*<\/span>');
-            var make = function (d) {
-              d = d || {};
-              var html = inlineHtml(kind, value, d.text);
-              var tmp = document.createElement('div');
-              tmp.innerHTML = html;
-              return tmp.firstChild;
+          function inlineFrom(node) {
+            return {
+              text: node.textContent || '',
+              color: styleVal(node, 'color') || '',
+              size: styleVal(node, 'font-size') || sizeFromClass(node) || ''
             };
+          }
+          function regInlineSmart(kind, label, icon) {
+            var pattern = new RegExp('<span[^>]*data-wb-ic="' + kind + '-[^"]*"[^>]*>[^<]*</span>');
+            function make(d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = inlineHtml(kind, d);
+              return tmp.firstChild;
+            }
+            function pick(current, text) {
+              return pickStyle(current, text, kind).then(function (p) {
+                if (!p) return null;
+                var out = {
+                  text: text || (kind === 'color' ? '彩色文字' : '示例文字'),
+                  color: (current && current.color) || '',
+                  size: (current && current.size) || ''
+                };
+                if (kind === 'color') out.color = p.color; else out.size = p.size;
+                return out;
+              });
+            }
             safeReg({
-              id: 'wb-ic-' + key,
+              id: 'wb-ic-' + kind,
               label: label,
-              icon: kind === 'color' ? 'format_color_text' : 'format_size',
+              icon: icon,
               pattern: pattern,
-              fields: [{ name: 'text', label: '文字', widget: 'string' }],
-              toBlock: function (d) { return inlineHtml(kind, value, d && d.text); },
-              fromBlock: inlineFrom,
-              toPreview: function (d) { return inlineHtml(kind, value, d && d.text); },
+              fields: [
+                { name: 'text', label: '文字', widget: 'string' },
+                { name: 'color', label: '颜色', widget: 'string' },
+                { name: 'size', label: '字号', widget: 'string' }
+              ],
+              toBlock: function (d) { return inlineHtml(kind, d); },
+              fromBlock: function (m) {
+                var str = m && (m[0] || String(m));
+                var tmp = document.createElement('div');
+                tmp.innerHTML = str;
+                return tmp.firstElementChild ? inlineFrom(tmp.firstElementChild) : {};
+              },
+              toPreview: function (d) { return inlineHtml(kind, d); },
               inlinePattern: {
-                onInsert: function (ctx) {
-                  var t = ctx && ctx.selectedText;
-                  return { text: t == null || t === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : t };
+                onInsert: function (ctx) { return pick(null, (ctx && ctx.selectedText) || ''); },
+                onEdit: function (ctx) {
+                  var data = (ctx && ctx.data) || {};
+                  return pick(data, data.text);
                 }
               },
-              htmlSelector: 'span[data-wb-ic="' + key + '"]',
-              fromBlockHTML: function (node) { return { text: node.textContent || '' }; },
+              htmlSelector: 'span[data-wb-ic^="' + kind + '-"]',
+              fromBlockHTML: inlineFrom,
               toBlockHTML: make
             });
           }
-          COLORS.forEach(function (c) {
-            regInline('color', c.value, '🖍 ' + c.label + '（选中文字后点这里）');
-          });
-          SIZES.forEach(function (s) {
-            regInline('size', s.value, '🔤 ' + s.label + '（选中文字后点这里）');
-          });
+          regInlineSmart('color', '🖍 彩色文字（点已插入的文字可改颜色）', 'format_color_text');
+          regInlineSmart('size', '🔤 文字大小（点已插入的文字可改字号）', 'format_size');
 
           /* ---- 12. 强调文字：颜色+字号一次设好，点一下还能再改 ----
              为什么可行：Sveltia 对 inline 组件的 onInsert / onEdit 都是 await 调用的，
@@ -866,6 +899,10 @@
     (function () {
       var hash = String(window.__WB_ADMIN_HASH__ || '').toLowerCase();
       var gate = document.getElementById('wb-admin-gate');
+      // 提前声明，避免「无密码直接放行」时 unlock() 里 PREFIX 还是 undefined 导致锁定按钮不出现
+      var PREFIX = hash.slice(0, 12);
+      var KEY = 'wb_admin_unlock_' + PREFIX;
+      var SAVE = 'wb_admin_pw_' + PREFIX;
 
       function unlock() {
         if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
@@ -907,9 +944,6 @@
       // 没设密码：直接放行
       if (!hash) { unlock(); return; }
 
-      var PREFIX = hash.slice(0, 12);
-      var KEY = 'wb_admin_unlock_' + PREFIX;
-      var SAVE = 'wb_admin_pw_' + PREFIX;
       // 本次会话已解锁，或之前勾了「记住密码」且验证通过：直接放行
       try {
         if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(KEY) === '1') { unlock(); return; }
