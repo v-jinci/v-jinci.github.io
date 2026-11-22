@@ -408,6 +408,73 @@ inject:
         font-size:40px;line-height:1;color:rgba(56,189,248,.45);font-family:Georgia,serif}
       #article-container blockquote.wb-quote p{margin:0;font-size:17px;line-height:1.8;font-weight:600;color:inherit}
 
+      /* ================= 后台一键组件样式（由 /admin 插入菜单生成） ================= */
+      /* 折叠 / 金句复用上面 .wb-fold / .wb-quote，金句大卡片多一层居中渐变 */
+      #article-container blockquote.wb-quote2{margin:26px 0;padding:24px 26px;
+        background:linear-gradient(120deg,rgba(37,99,235,.10),rgba(6,182,212,.10));border-radius:16px}
+      #article-container blockquote.wb-quote2 p{font-size:18px;line-height:1.9}
+      #article-container blockquote.wb-quote2 cite{display:block;margin-top:10px;font-size:13px;
+        font-style:normal;color:#94a3b8;text-align:right}
+
+      /* 双栏卡片 */
+      #article-container .wb-2col{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0;clear:both}
+      #article-container .wb-2col-c{padding:14px 16px;border-radius:12px;background:rgba(148,163,184,.08);
+        border:1px solid rgba(148,163,184,.22);line-height:1.8}
+      #article-container .wb-2col-c>*:first-child{margin-top:0}
+      #article-container .wb-2col-c>*:last-child{margin-bottom:0}
+
+      /* 彩色标签徽章 */
+      #article-container .wb-tag{display:inline-block;padding:3px 12px;border-radius:999px;font-size:13px;
+        line-height:1.6;margin:3px 6px 3px 0;font-weight:600}
+
+      /* 文章内跳转目录 */
+      #article-container .wb-jump{margin:18px 0;padding:12px 14px;border-radius:12px;
+        background:rgba(148,163,184,.09);border:1px solid rgba(148,163,184,.2);clear:both}
+      #article-container .wb-jump a{display:inline-block;padding:5px 14px;margin:3px 5px 3px 0;
+        border-radius:8px;font-size:13.5px;text-decoration:none!important;color:#fff!important;
+        background:linear-gradient(120deg,#2563eb,#06b6d4);transition:transform .15s ease}
+      #article-container .wb-jump a:hover{color:#fff!important;transform:translateY(-1px)}
+      #article-container .wb-jump a::after{content:none!important}
+
+      /* 时间线（每条是一个 data-wb-tl，连起来成一条线） */
+      #article-container .wb-tl{position:relative;margin:0 0 4px;padding:0 0 18px 22px;
+        border-left:2px solid rgba(37,99,235,.35);clear:both}
+      #article-container .wb-tl::before{content:"";position:absolute;left:-7px;top:3px;width:12px;height:12px;
+        border-radius:50%;background:#2563eb;box-shadow:0 0 0 4px rgba(37,99,235,.16)}
+      #article-container .wb-tl-time{font-size:12px;color:#94a3b8;letter-spacing:.03em}
+      #article-container .wb-tl-h{font-weight:700;font-size:15px;color:#2563eb;margin:2px 0 5px}
+      #article-container .wb-tl-c{font-size:14px;line-height:1.8}
+      #article-container .wb-tl-c>*:first-child{margin-top:0}
+      #article-container .wb-tl-c>*:last-child{margin-bottom:0}
+
+      /* 视频卡片：16:9 自适应 */
+      #article-container .wb-video{margin:20px 0;clear:both}
+      #article-container .wb-video-box{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;
+        background:#000;box-shadow:0 8px 24px rgba(15,23,42,.14)}
+      #article-container .wb-video-box iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+      #article-container .wb-video video{width:100%;border-radius:12px;display:block}
+      #article-container .wb-video-cap{margin-top:8px;text-align:center;font-size:12.5px;color:#94a3b8}
+
+      /* 进度条 / 技能条 */
+      #article-container .wb-prog{margin:14px 0}
+      #article-container .wb-prog-h{display:flex;justify-content:space-between;font-size:13px;
+        color:var(--font-color,#4c4948);margin-bottom:5px}
+      #article-container .wb-prog-t{height:10px;border-radius:99px;background:rgba(148,163,184,.22);overflow:hidden}
+      #article-container .wb-prog-t i{display:block;height:100%;border-radius:99px;
+        background:linear-gradient(90deg,#2563eb,#06b6d4);transition:width .4s ease}
+
+      /* 深色模式 */
+      html[data-theme="dark"] #article-container .wb-2col-c,
+      html[data-theme="dark"] #article-container .wb-jump{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.12)}
+      html[data-theme="dark"] #article-container .wb-tl-h{color:#7dd3fc}
+      html[data-theme="dark"] #article-container .wb-tl::before{background:#7dd3fc;box-shadow:0 0 0 4px rgba(125,211,252,.16)}
+
+      /* 手机上双栏改单栏 */
+      @media (max-width:768px){
+        #article-container .wb-2col{grid-template-columns:1fr}
+        #article-container blockquote.wb-quote2 p{font-size:16px}
+      }
+
       /* ---- 图注（图片 + 小字说明） ---- */
       #article-container .wb-figbox{margin:16px auto;display:block;max-width:100%}
       #article-container .wb-figbox img{width:100%!important;max-width:100%;height:auto;display:block;

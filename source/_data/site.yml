@@ -25,6 +25,14 @@ editor_components:
   - wb-combo-html
   - wb-em-html
   - wb-image-html
+  - wb-fold-html
+  - wb-2col-html
+  - wb-tag-html
+  - wb-jump-html
+  - wb-tl-html
+  - wb-video-html
+  - wb-quote2-html
+  - wb-prog-html
 admin_password: '19981227.'
 contacts:
   - href: https://github.com/v-jinci

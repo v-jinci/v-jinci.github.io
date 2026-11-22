@@ -52,6 +52,19 @@
     .wb-table-hl{border-collapse:collapse;width:100%;margin:8px 0}
     .wb-table-hl th,.wb-table-hl td{border:1px solid #cbd5e1;padding:6px 10px}
     .wb-table-hl th{background:#f1f5f9}
+    /* 新组件后台预览 */
+    [data-wb-2col]{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+    [data-wb-tag]{display:inline-block;padding:2px 10px;border-radius:999px;background:#eef2ff;color:#4a6cf7;font-size:13px;margin:2px 4px 2px 0}
+    [data-wb-jump]{padding:8px 12px;border-radius:8px;background:#f1f5f9;margin:8px 0}
+    [data-wb-jump] a{display:inline-block;padding:3px 10px;margin:2px;border-radius:6px;background:#4a6cf7;color:#fff;text-decoration:none}
+    [data-wb-tl]{border-left:2px solid #93c5fd;padding-left:14px;margin:8px 0}
+    [data-wb-tl] .wb-tl-h{font-weight:600;color:#2563eb}
+    [data-wb-video]{padding:10px;border:1px dashed #cbd5e1;border-radius:8px;margin:8px 0;color:#64748b;font-size:13px}
+    [data-wb-quote2]{margin:12px 0;padding:14px 18px;border-radius:12px;background:linear-gradient(120deg,#eff6ff,#ecfeff);text-align:center;font-size:1.15em;font-weight:600;color:#334155}
+    [data-wb-prog]{margin:8px 0}
+    [data-wb-prog] .wb-prog-t{height:9px;border-radius:99px;background:#eef2ff;overflow:hidden}
+    [data-wb-prog] .wb-prog-t i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2563eb,#06b6d4)}
+    [data-wb-prog] .wb-prog-h{display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:3px}
 
     /* 撤销/恢复悬浮按钮：Sveltia 0.270 工具栏没有这两个按钮，
        这里浮在正文编辑区旁边，用 Lexical 原生 historyUndo/historyRedo 命令。
@@ -128,7 +141,7 @@
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
   <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="87af7229d6e32d18baedeac279d4327a0dfbd69d395b3b0b9cbe0ca6210716b7";</script><!--WB_HASH_END-->
-<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image","wb-image-html"];</script><!--WB_ORDER_END-->
+<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image","wb-image-html","wb-fold-html","wb-2col-html","wb-tag-html","wb-jump-html","wb-tl-html","wb-video-html","wb-quote2-html","wb-prog-html"];</script><!--WB_ORDER_END-->
 </head>
 <body>
   <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
@@ -987,6 +1000,190 @@
             toBlockHTML: function (d) { return buildImg(d); }
           });
 
+          /* ---- 7.6 写文章常用组件（折叠/双栏/标签/跳转/时间线/视频/金句/进度条）----
+             每个组件都产出带 data-wb-* 标记的 HTML，前台样式在 butterfly 注入。
+             折叠块、金句直接复用已有的 .wb-fold / .wb-quote 样式，不重复造。 */
+          var LINK_OPTS = [
+            { label: '普通视频（B站/抖音/YouTube 分享链接）', value: 'embed' },
+            { label: '本地视频（媒体库上传的 mp4/webm）', value: 'local' }
+          ];
+          var BAR_COLORS = [
+            { label: '蓝色', value: '#2563eb' }, { label: '青色', value: '#06b6d4' },
+            { label: '绿色', value: '#16a34a' }, { label: '橙色', value: '#ea580c' },
+            { label: '紫色', value: '#7c3aed' }, { label: '红色', value: '#dc2626' }
+          ];
+
+          // ① 折叠块（复用前台已有的 details.wb-fold）
+          safeReg({
+            id: 'wb-fold-html', label: '📂 折叠块（点开看更多）', icon: 'unfold_more',
+            pattern: /<details[^>]*data-wb-fold[^>]*>[\s\S]*?<\/details>/,
+            fields: [
+              { name: 'title', label: '标题（折叠前显示）', widget: 'string', default: '点开看更多' },
+              { name: 'content', label: '折叠内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return buildFold(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'details'); },
+            toPreview: function (d) { return buildFold(d).outerHTML; },
+            htmlSelector: 'details[data-wb-fold]',
+            fromBlockHTML: function (n) {
+              var s = n.querySelector('summary');
+              var b = n.querySelector('.wb-fold-body');
+              return { title: s ? s.innerHTML : '', content: b ? b.innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return buildFold(d); }
+          });
+
+          // ② 双栏卡片
+          safeReg({
+            id: 'wb-2col-html', label: '▥ 双栏卡片（左右并排）', icon: 'view_column',
+            pattern: /<div[^>]*data-wb-2col[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'left', label: '左栏内容', widget: 'string' },
+              { name: 'right', label: '右栏内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return build2Col(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return build2Col(d).outerHTML; },
+            htmlSelector: 'div[data-wb-2col]',
+            fromBlockHTML: function (n) {
+              var cs = n.children;
+              return { left: cs[0] ? cs[0].innerHTML : '', right: cs[1] ? cs[1].innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return build2Col(d); }
+          });
+
+          // ③ 彩色标签徽章
+          safeReg({
+            id: 'wb-tag-html', label: '🏷 彩色标签徽章', icon: 'sell',
+            pattern: /<span[^>]*data-wb-tag[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '标签文字', widget: 'string', default: '标签' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#2563eb', options: BAR_COLORS }
+            ],
+            toBlock: function (d) { return buildTag(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'span'); },
+            toPreview: function (d) { return buildTag(d).outerHTML; },
+            htmlSelector: 'span[data-wb-tag]',
+            fromBlockHTML: function (n) { return { text: n.innerHTML || '', color: styleVal(n, 'color') || n.getAttribute('data-wb-tag') || '#2563eb' }; },
+            toBlockHTML: function (d) { return buildTag(d); }
+          });
+
+          // ④ 文章内跳转目录
+          safeReg({
+            id: 'wb-jump-html', label: '🔖 文章内跳转目录（锚点按钮）', icon: 'bookmark',
+            pattern: /<div[^>]*data-wb-jump[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'items', label: '跳转项（每行一个：文件名 => #锚点；锚点用正文标题生成的 id）', widget: 'string', default: '第一章 => #chapter1' }
+            ],
+            toBlock: function (d) { return buildJump(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildJump(d).outerHTML; },
+            htmlSelector: 'div[data-wb-jump]',
+            fromBlockHTML: function (n) {
+              var links = n.querySelectorAll('a');
+              var lines = [];
+              for (var i = 0; i < links.length; i++) {
+                lines.push(links[i].textContent + ' => ' + (links[i].getAttribute('href') || ''));
+              }
+              return { items: lines.join('\n') };
+            },
+            toBlockHTML: function (d) { return buildJump(d); }
+          });
+
+          // ⑤ 时间线
+          safeReg({
+            id: 'wb-tl-html', label: '🕒 时间线（一条记录）', icon: 'timeline',
+            pattern: /<div[^>]*data-wb-tl[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'time', label: '时间', widget: 'string', default: '2026-01' },
+              { name: 'title', label: '标题', widget: 'string', default: '事件标题' },
+              { name: 'content', label: '内容', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildTl(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildTl(d).outerHTML; },
+            htmlSelector: 'div[data-wb-tl]',
+            fromBlockHTML: function (n) {
+              function find(c) { var e = n.querySelector(c); return e ? e.innerHTML : ''; }
+              return { time: find('.wb-tl-time'), title: find('.wb-tl-h'), content: find('.wb-tl-c') };
+            },
+            toBlockHTML: function (d) { return buildTl(d); }
+          });
+
+          // ⑥ 视频卡片
+          safeReg({
+            id: 'wb-video-html', label: '🎬 视频卡片（B站/本地 mp4）', icon: 'play_circle',
+            pattern: /<div[^>]*data-wb-video[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'kind', label: '视频类型', widget: 'select', default: 'embed', options: LINK_OPTS },
+              { name: 'src', label: '视频链接（B站分享链接 或 本地 /files/xxx.mp4）', widget: 'string' },
+              { name: 'caption', label: '视频下方说明（可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildVideo(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildVideo(d).outerHTML; },
+            htmlSelector: 'div[data-wb-video]',
+            fromBlockHTML: function (n) {
+              var f = n.querySelector('iframe'), v = n.querySelector('video');
+              var cap = n.querySelector('.wb-video-cap');
+              var raw = f ? (f.getAttribute('src') || '') : (v ? (v.getAttribute('src') || '') : '');
+              // 把播放器地址还原成原始分享链接，方便点开再改
+              var bv = raw.match(/bvid=(BV[0-9A-Za-z]{10})/);
+              if (bv) raw = 'https://www.bilibili.com/video/' + bv[1];
+              var av = raw.match(/[?&]aid=(\d+)/);
+              if (av) raw = 'https://www.bilibili.com/video/av' + av[1];
+              var yt = raw.match(/youtube\.com\/embed\/([\w-]{11})/);
+              if (yt) raw = 'https://www.youtube.com/watch?v=' + yt[1];
+              return { kind: f ? 'embed' : 'local', src: raw, caption: cap ? cap.innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return buildVideo(d); }
+          });
+
+          // ⑦ 金句大卡片（复用前台 blockquote.wb-quote）
+          safeReg({
+            id: 'wb-quote2-html', label: '💬 金句大卡片（醒目引文）', icon: 'format_quote',
+            pattern: /<blockquote[^>]*data-wb-quote2[^>]*>[\s\S]*?<\/blockquote>/,
+            fields: [
+              { name: 'text', label: '金句内容', widget: 'string' },
+              { name: 'by', label: '出处（可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildQuote2(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'blockquote'); },
+            toPreview: function (d) { return buildQuote2(d).outerHTML; },
+            htmlSelector: 'blockquote[data-wb-quote2]',
+            fromBlockHTML: function (n) {
+              var p = n.querySelector('p'), by = n.querySelector('cite');
+              return { text: p ? p.innerHTML : n.innerHTML, by: by ? by.textContent : '' };
+            },
+            toBlockHTML: function (d) { return buildQuote2(d); }
+          });
+
+          // ⑧ 进度条 / 技能条
+          safeReg({
+            id: 'wb-prog-html', label: '📊 进度条 / 技能条', icon: 'linear_scale',
+            pattern: /<div[^>]*data-wb-prog[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'label', label: '名称', widget: 'string', default: '熟练度' },
+              { name: 'value', label: '百分比（0-100）', widget: 'string', default: '80' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#2563eb', options: BAR_COLORS }
+            ],
+            toBlock: function (d) { return buildProg(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildProg(d).outerHTML; },
+            htmlSelector: 'div[data-wb-prog]',
+            fromBlockHTML: function (n) {
+              var lab = n.querySelector('.wb-prog-h'), bar = n.querySelector('.wb-prog-t i');
+              var name = '', val = '80';
+              if (lab) {
+                var spans = lab.querySelectorAll('span');
+                name = spans[0] ? spans[0].textContent : '';
+                if (spans[1]) val = String(spans[1].textContent).replace('%', '');
+              }
+              return { label: name, value: val, color: bar ? (bar.getAttribute('data-wb-color') || '#2563eb') : '#2563eb' };
+            },
+            toBlockHTML: function (d) { return buildProg(d); }
+          });
+
           /* ---- 8. 分割线 ---- */
           safeReg({
             id: 'wb-hr-html', label: '➖ 分割线', icon: 'remove',
@@ -1316,6 +1513,109 @@
           'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
           'src': src, 'alt': d.alt || ''
         });
+      }
+      // 新组件通用的 fromBlock：从匹配串里取第一个元素的 data-* 属性
+      function htmlToData(m, tag) {
+        var str = m && (m[0] || String(m));
+        var tmp = document.createElement('div');
+        tmp.innerHTML = str;
+        var n = tmp.firstElementChild;
+        if (!n) return {};
+        var d = {};
+        for (var i = 0; i < n.attributes.length; i++) {
+          var a = n.attributes[i];
+          if (a.name.indexOf('data-wb-') === 0) d[a.name.slice(8).replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); })] = a.value;
+        }
+        return d;
+      }
+      function buildFold(d) {
+        d = d || {};
+        var e = el('details', { 'data-wb-fold': '1', 'class': 'wb-fold' });
+        e.appendChild(el('summary', {}, esc(d.title || '点开看更多')));
+        var body = el('div', { 'class': 'wb-fold-body' });
+        setHtml(body, d.content || '<p>折叠内容</p>');
+        e.appendChild(body);
+        return e;
+      }
+      function build2Col(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-2col': '1', 'class': 'wb-2col' });
+        var l = el('div', { 'class': 'wb-2col-c' }); setHtml(l, d.left || '左栏内容');
+        var r = el('div', { 'class': 'wb-2col-c' }); setHtml(r, d.right || '右栏内容');
+        e.appendChild(l); e.appendChild(r);
+        return e;
+      }
+      function buildTag(d) {
+        d = d || {};
+        var color = d.color || '#2563eb';
+        return el('span', { 'data-wb-tag': color, 'class': 'wb-tag', 'style': 'color:' + color + ';border:1px solid ' + color }, esc(d.text || '标签'));
+      }
+      function buildJump(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-jump': '1', 'class': 'wb-jump' });
+        var lines = String(d.items || '第一章 => #chapter1').split(/\r?\n/);
+        lines.forEach(function (line) {
+          var parts = line.split(/\s*=>\s*/);
+          var label = parts[0].trim(); if (!label) return;
+          var href = (parts[1] || '#' + label).trim();
+          e.appendChild(el('a', { 'href': href }, esc(label)));
+        });
+        if (!e.children.length) e.appendChild(el('a', { 'href': '#' }, '示例'));
+        return e;
+      }
+      function buildTl(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-tl': '1', 'class': 'wb-tl' });
+        e.appendChild(el('div', { 'class': 'wb-tl-time' }, esc(d.time || '')));
+        e.appendChild(el('div', { 'class': 'wb-tl-h' }, esc(d.title || '事件标题')));
+        if (d.content) { var c = el('div', { 'class': 'wb-tl-c' }); setHtml(c, d.content); e.appendChild(c); }
+        return e;
+      }
+      function buildVideo(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-video': '1', 'class': 'wb-video' });
+        var src = String(d.src || '').trim();
+        if (d.kind === 'local') {
+          e.appendChild(el('video', { 'src': src || '/files/demo.mp4', 'controls': 'controls', 'style': 'width:100%;border-radius:10px' }));
+        } else {
+          var embed = wbVideoEmbed(src);
+          e.appendChild(el('div', { 'class': 'wb-video-box' }, embed));
+        }
+        if (d.caption) e.appendChild(el('div', { 'class': 'wb-video-cap' }, esc(d.caption)));
+        return e;
+      }
+      // 把 B站/YouTube 分享链接转成可直接嵌播放器的地址
+      function wbVideoEmbed(url) {
+        var u = String(url || '').trim();
+        if (!u) u = 'https://www.bilibili.com/video/BV1xx411c7mD';
+        var bv = u.match(/(BV[0-9A-Za-z]{10})/);
+        if (bv) return '<iframe src="//player.bilibili.com/player.html?bvid=' + bv[1] + '&page=1&high_quality=1" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+        var av = u.match(/av(\d+)/i);
+        if (av) return '<iframe src="//player.bilibili.com/player.html?aid=' + av[1] + '&page=1" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+        var yt = u.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
+        if (yt) return '<iframe src="//www.youtube.com/embed/' + yt[1] + '" frameborder="0" allowfullscreen="true"></iframe>';
+        return '<iframe src="' + esc(u) + '" frameborder="0" allowfullscreen="true"></iframe>';
+      }
+      function buildQuote2(d) {
+        d = d || {};
+        var e = el('blockquote', { 'data-wb-quote2': '1', 'class': 'wb-quote wb-quote2' });
+        e.appendChild(el('p', {}, esc(d.text || '一句值得记住的话')));
+        if (d.by) e.appendChild(el('cite', {}, '—— ' + d.by));
+        return e;
+      }
+      function buildProg(d) {
+        d = d || {};
+        var val = Math.max(0, Math.min(100, parseInt(d.value, 10) || 0));
+        var color = d.color || '#2563eb';
+        var e = el('div', { 'data-wb-prog': '1', 'class': 'wb-prog' });
+        var h = el('div', { 'class': 'wb-prog-h' });
+        h.appendChild(el('span', {}, esc(d.label || '进度')));
+        h.appendChild(el('span', {}, val + '%'));
+        e.appendChild(h);
+        var t = el('div', { 'class': 'wb-prog-t' });
+        t.appendChild(el('i', { 'data-wb-color': color, 'style': 'width:' + val + '%;background:' + color }));
+        e.appendChild(t);
+        return e;
       }
       function buildTable(d) {
         d = d || {};

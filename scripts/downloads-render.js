@@ -36,7 +36,11 @@ function load(baseDir) {
   if (!fs.existsSync(file)) return [];
   try {
     const data = require('js-yaml').load(fs.readFileSync(file, 'utf8'));
-    return Array.isArray(data) ? data : [];
+    // 后台 /admin 站点设置保存的是 { downloads: [...] }，
+    // 本机 /site 老版本可能写顶层数组——两种都认，否则后台加的文件永远不显示
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.downloads)) return data.downloads;
+    return [];
   } catch (e) {
     console.warn('[下载区] downloads.yml 解析失败：' + e.message);
     return [];

@@ -202,6 +202,8 @@ function applyRichBlocks(html) {
 
   /* ---- ① 引用块：提示框 / 折叠块 / 金句 ---- */
   out = out.replace(/<blockquote(\s[^>]*)?>([\s\S]*?)<\/blockquote>/gi, (m0, attr, inner) => {
+    // 后台「金句大卡片」组件自带样式，别被下面的短句金句规则覆盖掉 class
+    if (/\bdata-wb-quote2\b/i.test(attr || '')) return m0;
     const pm = inner.match(/^(\s*)<p(\s[^>]*)?>([\s\S]*?)<\/p>/);
     const firstHtml = pm ? pm[3] : inner;
     const firstTxt = plainText(firstHtml);
