@@ -97,6 +97,11 @@
     .wb-gate-rem input{width:16px;height:16px;flex:0 0 auto;accent-color:#4a6cf7;cursor:pointer}
     .wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:12px}
     .wb-gate-foot{margin-top:18px;font-size:12px;color:#a3abb9;line-height:1.6}
+    .wb-lock-float{position:fixed;right:18px;bottom:18px;z-index:99999;border:1px solid #dfe3ee;
+      background:rgba(255,255,255,.95);color:#64748b;border-radius:9999px;padding:9px 15px;
+      font:600 12px/1 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;cursor:pointer;
+      box-shadow:0 4px 16px rgba(31,36,48,.14)}
+    .wb-lock-float:hover{color:#4a6cf7;border-color:#8aa2f7;background:#fff}
   </style>
   <!-- 性能优化：尽早开始下载 2.6MB 主脚本（不等 HTML 解析到 body 中间） -->
   <link rel="preconnect" href="/libs/">
@@ -286,6 +291,106 @@
         { label: '一点闲言碎语', value: '/2026/11/11/一点闲言碎语/' },
         { label: '测试', value: '/2026/11/18/测试/' }
       ];
+
+      /* ---------- 组合强调：一次设颜色+字号，点击已插入的文字还能再改 ----------
+         Sveltia 内部对 inline 组件的 onInsert / onEdit 都是 `await` 调用的，
+         所以这里可以弹一个面板等用户选完再返回数据。 */
+      function emHtml(d) {
+        d = d || {};
+        var color = d.color || '#e60000', size = d.size || '20px';
+        var text = d.text == null ? '强调文字' : d.text;
+        var key = 'em-' + String(color).replace(/[^0-9a-zA-Z]/g, '') + '-' + String(size).replace(/[^0-9]/g, '');
+        var span = el('span', {
+          'data-wb-em': key,
+          'class': 'wb-inline ' + sizeClass(size),
+          'style': 'color:' + color + ';font-size:' + size + ';'
+        });
+        setHtml(span, esc(text));
+        return span.outerHTML;
+      }
+      function emFrom(node) {
+        return {
+          text: node.textContent || '',
+          color: styleVal(node, 'color') || '#e60000',
+          size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px'
+        };
+      }
+      function pickStyle(current, sampleText) {
+        return new Promise(function (resolve) {
+          if (!document.getElementById('wb-pick-style')) {
+            var st = document.createElement('style');
+            st.id = 'wb-pick-style';
+            st.textContent =
+              '.wb-pick-ov{position:fixed;inset:0;z-index:2147483000;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:20px}' +
+              '.wb-pick-card{width:100%;max-width:360px;background:#fff;border-radius:16px;padding:22px;box-shadow:0 18px 50px rgba(15,23,42,.28);font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#1f2430}' +
+              '.wb-pick-card h3{margin:0 0 4px;font-size:16px}' +
+              '.wb-pick-card .sub{color:#8b93a1;font-size:12px;margin-bottom:14px}' +
+              '.wb-pick-prev{padding:14px;border:1px dashed #dfe3ee;border-radius:10px;text-align:center;margin-bottom:14px;min-height:46px;word-break:break-all}' +
+              '.wb-pick-label{font-size:12px;color:#8b93a1;margin:10px 0 6px}' +
+              '.wb-pick-colors{display:flex;gap:8px;flex-wrap:wrap}' +
+              '.wb-pick-colors button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer}' +
+              '.wb-pick-colors button.on{border-color:#1f2430;box-shadow:0 0 0 2px #fff inset}' +
+              '.wb-pick-sizes{display:flex;gap:6px;flex-wrap:wrap}' +
+              '.wb-pick-sizes button{border:1px solid #dfe3ee;background:#fbfcff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;color:#475569}' +
+              '.wb-pick-sizes button.on{border-color:#4a6cf7;background:#eef2ff;color:#3453d4}' +
+              '.wb-pick-act{display:flex;gap:8px;margin-top:18px}' +
+              '.wb-pick-act button{flex:1;border:0;border-radius:10px;padding:10px;cursor:pointer;font:inherit;font-weight:600}' +
+              '.wb-pick-ok{background:#4a6cf7;color:#fff}' +
+              '.wb-pick-no{background:#f1f5f9;color:#64748b}';
+            document.head.appendChild(st);
+          }
+          var color = (current && current.color) || '#e60000';
+          var size = (current && current.size) || '20px';
+          var text = (sampleText == null || sampleText === '') ? '示例文字' : sampleText;
+          var ov = document.createElement('div');
+          ov.className = 'wb-pick-ov';
+          var card = document.createElement('div');
+          card.className = 'wb-pick-card';
+          var html = '<h3>🎯 强调这段文字</h3>' +
+            '<div class="sub">一次设好颜色和字号；以后点这段文字还能再改</div>' +
+            '<div class="wb-pick-prev" id="wb-pick-prev"></div>' +
+            '<div class="wb-pick-label">颜色</div><div class="wb-pick-colors">';
+          COLORS.forEach(function (c) {
+            html += '<button type="button" data-c="' + c.value + '" title="' + esc(c.label) + '" style="background:' + c.value + '"></button>';
+          });
+          html += '</div><div class="wb-pick-label">字号</div><div class="wb-pick-sizes">';
+          SIZES.forEach(function (s) {
+            html += '<button type="button" data-z="' + s.value + '">' + esc(s.label) + '</button>';
+          });
+          html += '</div><div class="wb-pick-act">' +
+            '<button type="button" class="wb-pick-no" data-act="no">取消</button>' +
+            '<button type="button" class="wb-pick-ok" data-act="ok">应用</button></div>';
+          card.innerHTML = html;
+          ov.appendChild(card);
+          document.body.appendChild(ov);
+          function paint() {
+            var prev = card.querySelector('#wb-pick-prev');
+            if (prev) { prev.textContent = text; prev.style.color = color; prev.style.fontSize = size; }
+            var cs = card.querySelectorAll('[data-c]');
+            for (var i = 0; i < cs.length; i++) cs[i].className = (cs[i].getAttribute('data-c') === color ? 'on' : '');
+            var zs = card.querySelectorAll('[data-z]');
+            for (var j = 0; j < zs.length; j++) zs[j].className = (zs[j].getAttribute('data-z') === size ? 'on' : '');
+          }
+          function done(v) {
+            if (ov.parentNode) ov.parentNode.removeChild(ov);
+            document.removeEventListener('keydown', onKey);
+            resolve(v);
+          }
+          function onKey(e) { if (e.key === 'Escape') done(null); }
+          card.addEventListener('click', function (ev) {
+            var t = ev.target;
+            if (!t || !t.getAttribute) return;
+            var c = t.getAttribute('data-c'); if (c) { color = c; paint(); return; }
+            var z = t.getAttribute('data-z'); if (z) { size = z; paint(); return; }
+            var a = t.getAttribute('data-act');
+            if (a === 'ok') done({ color: color, size: size });
+            else if (a === 'no') done(null);
+          });
+          ov.addEventListener('click', function (ev) { if (ev.target === ov) done(null); });
+          document.addEventListener('keydown', onKey);
+          paint();
+        });
+      }
 
       function safeReg(def) {
         try {
@@ -554,6 +659,52 @@
             regInline('size', s.value, '🔤 ' + s.label + '（选中文字后点这里）');
           });
 
+          /* ---- 12. 强调文字：颜色+字号一次设好，点一下还能再改 ----
+             为什么可行：Sveltia 对 inline 组件的 onInsert / onEdit 都是 await 调用的，
+             插入时弹面板等选择；已插入的组件点击会走 onEdit，返回新数据即原地更新。
+             这样不用"先变色→再选中→再变字号"，也不会卡在原子节点选不中。 */
+          safeReg({
+            id: 'wb-em-html',
+            label: '🎯 强调文字（一次设颜色+字号，点它能改）',
+            icon: 'format_color_text',
+            pattern: /<span[^>]*data-wb-em[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '文字', widget: 'string' }
+            ],
+            toBlock: function (d) { return emHtml(d); },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              var n = tmp.firstElementChild;
+              return n ? emFrom(n) : {};
+            },
+            toPreview: function (d) { return emHtml(d); },
+            htmlSelector: 'span[data-wb-em]',
+            fromBlockHTML: function (n) { return emFrom(n); },
+            toBlockHTML: function (d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = emHtml(d);
+              return tmp.firstChild;
+            },
+            inlinePattern: {
+              onInsert: function (ctx) {
+                var text = (ctx && ctx.selectedText) || '';
+                return pickStyle(null, text).then(function (p) {
+                  if (!p) return null;
+                  return { text: text || '强调文字', color: p.color, size: p.size };
+                });
+              },
+              onEdit: function (ctx) {
+                var data = (ctx && ctx.data) || {};
+                return pickStyle(data, data.text).then(function (p) {
+                  if (!p) return null;
+                  return { text: data.text || '强调文字', color: p.color, size: p.size };
+                });
+              }
+            }
+          });
+
           window.__wbHtmlComboReady = true;
           return true;
         } catch (e) {
@@ -718,6 +869,8 @@
 
       function unlock() {
         if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+        // 已放行：右下角留一个「锁定后台」按钮，点它清掉记住的密码并刷新，回到输密码状态
+        if (PREFIX) showLockBtn();
         // CMS 脚本（2.6MB）可能还没加载完，__wbStartCMS 尚未定义，
         // 这里轮询等它就绪，避免空密码时被跳过导致后台起不来。
         var tries = 0;
@@ -729,6 +882,26 @@
             clearInterval(timer); // 超时 12 秒，交给页面自带的报错提示处理
           }
         }, 100);
+      }
+
+      // 解锁后右下角的「锁定后台」按钮：清掉记住的密码并刷新，回到未输入状态
+      function showLockBtn() {
+        if (document.getElementById('wb-lock-float')) return;
+        var b = document.createElement('button');
+        b.id = 'wb-lock-float';
+        b.className = 'wb-lock-float';
+        b.type = 'button';
+        b.textContent = '🔒 锁定后台';
+        b.title = '清除记住的密码，回到输密码状态';
+        b.onclick = function () {
+          try {
+            localStorage.removeItem(SAVE);
+            localStorage.removeItem(KEY);
+            sessionStorage.removeItem(KEY);
+          } catch (e) {}
+          location.reload();
+        };
+        (document.body || document.documentElement).appendChild(b);
       }
 
       // 没设密码：直接放行

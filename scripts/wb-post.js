@@ -339,6 +339,10 @@ function lockBlock(payload) {
     'font-size:12px;color:#94a3b8;cursor:pointer;user-select:none}' +
     '.wb-lock-rem input{width:15px;height:15px;flex:0 0 auto;accent-color:#2563eb;cursor:pointer}' +
     '.wb-lock-err{margin-top:8px;font-size:12px;color:#ef4444;min-height:16px}' +
+    '.wb-lock-relock{position:fixed;right:18px;bottom:18px;z-index:99999;border:1px solid rgba(148,163,184,.35);' +
+    'background:rgba(255,255,255,.94);color:#64748b;border-radius:9999px;padding:9px 15px;' +
+    'font:600 12px/1 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;cursor:pointer;' +
+    'box-shadow:0 4px 16px rgba(15,23,42,.14)}' +
     '</style>' +
     '<script>(function(){' +
     'var box=document.getElementById("' + id + '");if(!box)return;' +
@@ -362,6 +366,7 @@ function lockBlock(payload) {
     '}catch(e){}' +
     'var wrap=document.createElement("div");wrap.className="wb-lock-done";wrap.innerHTML=html;' +
     'box.parentNode.replaceChild(wrap,box);' +
+    'if(!document.getElementById("wb-lock-relock")){var rb=document.createElement("button");rb.id="wb-lock-relock";rb.className="wb-lock-relock";rb.type="button";rb.textContent="🔒 上锁";rb.title="清除记住的密码，回到输密码状态";rb.addEventListener("click",function(){try{localStorage.removeItem(RK);localStorage.removeItem(OK)}catch(e){};location.reload()});document.body.appendChild(rb)}' +
     '}catch(e){' +
     'if(auto){try{localStorage.removeItem(RK);localStorage.removeItem(OK)}catch(e2){};inp.value="";inp.focus()}' +
     'err.textContent="密码不对，再试一次";btn.disabled=false;' +
