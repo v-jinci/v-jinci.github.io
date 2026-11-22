@@ -1308,7 +1308,12 @@
         if (!Array.isArray(order) || !order.length || typeof window.fetch !== 'function') return;
         var origFetch = window.fetch;
         window.fetch = function (input, init) {
-          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          // Sveltia 0.270 用 fetch(new URL(...)) 加载 config.yml，传进来的是 URL 对象：
+          // 它只有 href、没有 url 属性。以前只认字符串/Request(.url)，于是
+          // config.yml 请求被原样放行，field_defaults 顺序注入从未生效，
+          // 「插入」菜单一直按组件注册顺序排，站点设置里排的顺序不起作用。
+          var url = typeof input === 'string' ? input
+            : (input && (input.url || input.href)) || '';
           if (!/\/config\.yml(?:\?|$)/.test(url) || /\/(cms|cms-html|tina)\//.test(url)) {
             return origFetch.apply(window, arguments);
           }
