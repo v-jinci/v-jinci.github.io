@@ -128,6 +128,7 @@
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
   <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="87af7229d6e32d18baedeac279d4327a0dfbd69d395b3b0b9cbe0ca6210716b7";</script><!--WB_HASH_END-->
+<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image"];</script><!--WB_ORDER_END-->
 </head>
 <body>
   <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
@@ -337,7 +338,9 @@
               '.wb-pick-act{display:flex;gap:8px;margin-top:18px}' +
               '.wb-pick-act button{flex:1;border:0;border-radius:10px;padding:10px;cursor:pointer;font:inherit;font-weight:600}' +
               '.wb-pick-ok{background:#4a6cf7;color:#fff}' +
-              '.wb-pick-no{background:#f1f5f9;color:#64748b}';
+              '.wb-pick-no{background:#f1f5f9;color:#64748b}' +
+              '.wb-pick-clear{background:#fff1f2;color:#e11d48;border:1px solid #fecdd3}' +
+              '.wb-pick-act.wb-pick-three button{font-size:13px;padding:9px 4px}';
             document.head.appendChild(st);
           }
           var color = (current && current.color) || '#e60000';
@@ -369,8 +372,9 @@
             });
             html += '</div>';
           }
-          html += '<div class="wb-pick-act">' +
+          html += '<div class="wb-pick-act wb-pick-three">' +
             '<button type="button" class="wb-pick-no" data-act="no">取消</button>' +
+            '<button type="button" class="wb-pick-clear" data-act="clear">🧹 恢复默认</button>' +
             '<button type="button" class="wb-pick-ok" data-act="ok">应用</button></div>';
           card.innerHTML = html;
           ov.appendChild(card);
@@ -400,6 +404,7 @@
             var z = t.getAttribute('data-z'); if (z) { size = z; paint(); return; }
             var a = t.getAttribute('data-act');
             if (a === 'ok') done({ color: color, size: size });
+            else if (a === 'clear') done({ clear: true });
             else if (a === 'no') done(null);
           });
           ov.addEventListener('click', function (ev) { if (ev.target === ov) done(null); });
@@ -407,6 +412,39 @@
           paint();
         });
       }
+
+      /* 弹窗里点「恢复默认」：把当前选中的（内联组件）节点替换成同内容的纯文本。
+         Lexical 对 beforeinput insertText 的处理就是把选区换成普通文本节点，
+         和 Ctrl+Shift+M 之外的第三方库无关，不需要额外权限。 */
+      function fireClearFormat(text) {
+        var ed = null;
+        var a = document.activeElement;
+        if (a && a.matches && a.matches('.lexical-root[contenteditable="true"]')) ed = a;
+        if (!ed) {
+          var list = document.querySelectorAll('.lexical-root[contenteditable="true"]');
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].getClientRects && list[i].getClientRects().length) { ed = list[i]; break; }
+          }
+        }
+        if (!ed) ed = document.querySelector('.lexical-root[contenteditable="true"]');
+        if (!ed) return false;
+        try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+        var ev;
+        try {
+          ev = new InputEvent('beforeinput', {
+            inputType: 'insertText', data: String(text || ''),
+            bubbles: true, cancelable: true, composed: true
+          });
+        } catch (e) {
+          ev = document.createEvent('Event');
+          ev.initEvent('beforeinput', true, true);
+          try { Object.defineProperty(ev, 'inputType', { value: 'insertText' }); } catch (e2) {}
+          try { Object.defineProperty(ev, 'data', { value: String(text || '') }); } catch (e3) {}
+        }
+        ed.dispatchEvent(ev);
+        return true;
+      }
+      window.__wbFireClearFormat = fireClearFormat;
 
       function safeReg(def) {
         try {
@@ -647,9 +685,11 @@
               tmp.innerHTML = inlineHtml(kind, d);
               return tmp.firstChild;
             }
-            function pick(current, text) {
+            function pick(current, text, editing) {
               return pickStyle(current, text, kind).then(function (p) {
                 if (!p) return null;
+                // 恢复默认：插入时返回空值让 Sveltia 换成纯文本；编辑时主动派发 insertText
+                if (p.clear) { if (editing) fireClearFormat(text); return null; }
                 var out = {
                   text: text || (kind === 'color' ? '彩色文字' : '示例文字'),
                   color: (current && current.color) || '',
@@ -678,10 +718,10 @@
               },
               toPreview: function (d) { return inlineHtml(kind, d); },
               inlinePattern: {
-                onInsert: function (ctx) { return pick(null, (ctx && ctx.selectedText) || ''); },
+                onInsert: function (ctx) { return pick(null, (ctx && ctx.selectedText) || '', false); },
                 onEdit: function (ctx) {
                   var data = (ctx && ctx.data) || {};
-                  return pick(data, data.text);
+                  return pick(data, data.text, true);
                 }
               },
               htmlSelector: 'span[data-wb-ic^="' + kind + '-"]',
@@ -725,6 +765,7 @@
                 var text = (ctx && ctx.selectedText) || '';
                 return pickStyle(null, text).then(function (p) {
                   if (!p) return null;
+                  if (p.clear) return null; // Sveltia 会把选区替换成纯文本
                   return { text: text || '强调文字', color: p.color, size: p.size };
                 });
               },
@@ -732,9 +773,40 @@
                 var data = (ctx && ctx.data) || {};
                 return pickStyle(data, data.text).then(function (p) {
                   if (!p) return null;
+                  if (p.clear) { fireClearFormat(data.text); return null; }
                   return { text: data.text || '强调文字', color: p.color, size: p.size };
                 });
               }
+            }
+          });
+
+          /* ---- 13. 清除格式 ----
+             Sveltia 源码里 inlinePattern.onInsert 若没有返回对象，
+             会直接把临时组件节点替换成「纯文本节点」。所以这里故意返回 null：
+             选中任何带颜色/字号/加粗的文字，点它就会变回普通文字，可继续编辑。 */
+          safeReg({
+            id: 'wb-clear-html',
+            label: '🧹 清除格式（选中文字后点这里，恢复普通文字）',
+            icon: 'format_clear',
+            pattern: /<span[^>]*data-wb-clear[^>]*>[\s\S]*?<\/span>/,
+            fields: [{ name: 'text', label: '文字', widget: 'string' }],
+            toBlock: function (d) { return clearHtml(d); },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              return { text: tmp.textContent || '' };
+            },
+            toPreview: function (d) { return clearHtml(d); },
+            htmlSelector: 'span[data-wb-clear]',
+            fromBlockHTML: function (n) { return { text: n.textContent || '' }; },
+            toBlockHTML: function (d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = clearHtml(d);
+              return tmp.firstChild;
+            },
+            inlinePattern: {
+              onInsert: function () { return null; }
             }
           });
 
@@ -748,6 +820,11 @@
       }
 
       /* ---------- 各组件的 DOM 构造（inline + class 双写） ---------- */
+      function clearHtml(d) {
+        d = d || {};
+        var e = el('span', { 'data-wb-clear': '1' }, esc(d.text || '普通文字'));
+        return e.outerHTML;
+      }
       function buildCombo(d) {
         d = d || {};
         var align = d.align || 'center', color = d.color || '#e60000', size = d.size || '20px';
@@ -831,6 +908,36 @@
         });
       }
 
+      /* ---------- 正文「插入」菜单顺序 ----------
+         顺序保存在 site.yml 的 editor_components，构建时由 scripts/admin-gate.js
+         内联成 window.__WB_EDITOR_ORDER__。这里在 CMS 读取 config.yml 时临时
+         注入 field_defaults.richtext.editor_components，Sveltia 会按这个顺序
+         排「插入」菜单。因为顺序文件在 Git 里，改一次所有设备同步。 */
+      function applyToolbarOrder() {
+        if (window.__wbConfigFetchPatched) return;
+        window.__wbConfigFetchPatched = true;
+        var order = window.__WB_EDITOR_ORDER__;
+        if (!Array.isArray(order) || !order.length || typeof window.fetch !== 'function') return;
+        var origFetch = window.fetch;
+        window.fetch = function (input, init) {
+          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          if (!/\/config\.yml(?:\?|$)/.test(url) || /\/(cms|cms-html|tina)\//.test(url)) {
+            return origFetch.apply(window, arguments);
+          }
+          return origFetch.call(window, input, init).then(function (res) {
+            return res.text().then(function (body) {
+              // 已显式配置过就尊重原配置，不重复注入
+              if (/^field_defaults\s*:/m.test(body)) return res;
+              var lines = ['field_defaults:', '  richtext:', '    editor_components:'];
+              order.forEach(function (id) { lines.push('      - ' + JSON.stringify(String(id))); });
+              var opts = { status: res.status, statusText: res.statusText, headers: res.headers };
+              return new Response(lines.join('\n') + '\n' + body, opts);
+            });
+          });
+        };
+        window.__wbToolbarOrderApplied = order.slice();
+      }
+
       // 真正启动 CMS。密码门验证通过后才会调用它（没设密码则立即调用）。
       window.__wbStartCMS = function () {
         if (window.__wbCMSStarted) return;
@@ -838,6 +945,7 @@
           if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
             throw new Error('CMS 对象未就绪');
           }
+          applyToolbarOrder();
           window.CMS.init();
           window.__wbCMSStarted = true;
           window.__wbHtmlDemoReady = true;

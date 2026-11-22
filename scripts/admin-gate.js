@@ -24,14 +24,29 @@ function hashOf(raw) {
 
 const START = '<!--WB_HASH_START-->';
 const END = '<!--WB_HASH_END-->';
+const O_START = '<!--WB_ORDER_START-->';
+const O_END = '<!--WB_ORDER_END-->';
+
+function replaceBlock(html, start, end, block, name) {
+  const re = new RegExp(start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?' + end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!re.test(html)) {
+    console.warn('[admin-gate] index.html 里没找到 ' + name + ' 占位标记，跳过');
+    return html;
+  }
+  return html.replace(re, block);
+}
 
 hexo.extend.filter.register('before_generate', function () {
   let pw = '';
+  let order = [];
   try {
     const file = path.join(hexo.base_dir, 'source', '_data', 'site.yml');
     if (fs.existsSync(file)) {
       const sd = require('js-yaml').load(fs.readFileSync(file, 'utf8')) || {};
       pw = sd.admin_password || '';
+      if (Array.isArray(sd.editor_components)) {
+        order = sd.editor_components.map(function (x) { return String(x).trim(); }).filter(Boolean);
+      }
     }
   } catch (e) {
     console.warn('[admin-gate] site.yml 读取失败，密码门关闭：', e.message);
@@ -43,13 +58,14 @@ hexo.extend.filter.register('before_generate', function () {
   let html = fs.readFileSync(target, 'utf8');
 
   const block = START + '<script>window.__WB_ADMIN_HASH__=' + JSON.stringify(hash) + ';</script>' + END;
-  const re = new RegExp(START.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[\\s\\S]*?' + END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  if (re.test(html)) {
-    html = html.replace(re, block);
-  } else {
-    console.warn('[admin-gate] index.html 里没找到 hash 占位标记，跳过');
-    return;
-  }
+  html = replaceBlock(html, START, END, block, 'hash');
+
+  // 正文「插入」菜单顺序：在 /admin 站点设置 → 基本信息 → 正文工具栏顺序 里拖动，
+  // 保存到 site.yml，构建时内联进页面，所有设备打开后自动用新顺序。
+  const oblock = O_START + '<script>window.__WB_EDITOR_ORDER__=' + JSON.stringify(order) + ';</script>' + O_END;
+  html = replaceBlock(html, O_START, O_END, oblock, 'order');
+
   fs.writeFileSync(target, html);
   console.log('[admin-gate] /admin 密码门', hash ? '已启用（内联 hash）' : '未设置（直接放行）');
+  console.log('[admin-gate] 正文工具栏顺序', order.length ? order.length + ' 项（已内联）' : '未设置（用默认顺序）');
 });

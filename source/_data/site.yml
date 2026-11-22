@@ -16,6 +16,27 @@ mail: "599676700@qq.com"
 # 留空＝不要密码，点导航「写作」直接进。这层只挡随手点进来的人，真正保护靠 GitHub 令牌。
 admin_password: "19981227."
 
+# 写作后台 /admin 正文「插入」菜单的顺序。
+# 也可以在 /admin → 站点设置 → 基本信息 →「正文工具栏顺序」里上下拖动调整，
+# 保存后等自动部署完成，其他设备打开就是新顺序。删掉某一行＝在菜单里隐藏它。
+editor_components:
+  - wb-em-html
+  - wb-clear-html
+  - wb-ic-color
+  - wb-ic-size
+  - wb-combo-html
+  - wb-align-html
+  - wb-callout-html
+  - wb-button-html
+  - wb-caption-html
+  - wb-hr-html
+  - wb-table-html
+  - wb-postlink-html
+  - wb-color-html
+  - wb-size-html
+  - code-block
+  - image
+
 sections:
   index: ''
   about: ''

@@ -269,6 +269,11 @@ collections:
               - { label: 作者名字, name: author, widget: string, required: false }
               - { label: 语言, name: language, widget: string, required: false }
           - { label: 联系邮箱（关于页和联系方式卡片共用）, name: mail, widget: string, required: false }
+          - label: 正文工具栏顺序（上下拖动改顺序，保存后所有设备同步）
+            name: editor_components
+            widget: list
+            required: false
+            hint: 一行一个，可拖动排序；删掉某一行＝在正文「插入」菜单里隐藏它。可选：wb-em-html 强调文字、wb-clear-html 清除格式、wb-ic-color 彩色文字、wb-ic-size 文字大小、wb-combo-html 整段排版、wb-align-html 段落对齐、wb-callout-html 提示卡片、wb-button-html 按钮链接、wb-caption-html 图注、wb-hr-html 分割线、wb-table-html 表格、wb-postlink-html 站内链接、wb-color-html 旧彩色文字、wb-size-html 旧字号、code-block 代码块、image 图片
 
       # ============ 2 联系方式 ============
       - label: 联系方式
