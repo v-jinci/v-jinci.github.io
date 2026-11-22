@@ -10,8 +10,8 @@ hexo:
   language: zh-CN
 mail: 599676700@qq.com
 editor_components:
-  - wb-size-html
-  - wb-color-html
+  - wb-ic-size
+  - wb-ic-color
   - wb-clear-html
   - wb-callout-html
   - wb-button-html
