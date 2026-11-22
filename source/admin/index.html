@@ -917,7 +917,8 @@
             toPreview: function (d) { return buildCallout(d).outerHTML; },
             htmlSelector: 'blockquote[data-wb-callout]',
             fromBlockHTML: function (n) {
-              return { type: n.getAttribute('data-wb-callout') || '提示', content: n.innerHTML || '' };
+              // 只取正文，别把开头的「💡 提示：」标记也当成正文存回去
+              return { type: n.getAttribute('data-wb-callout') || '提示', content: wbStripCalloutMark(n.innerHTML) };
             },
             toBlockHTML: function (d) { return buildCallout(d); }
           });
@@ -1218,6 +1219,25 @@
         var s = d.size || '20px';
         var e = el('span', { 'data-wb-size': '1', 'class': sizeClass(s), 'style': 'font-size:' + s + ';' });
         return setHtml(e, d.text || '不同字号的文字');
+      }
+      // 提示卡片的标记（如「💡 提示：」）是拼在正文前面的，
+      // 以前导入时把整段 innerHTML（含标记）当成正文存下来，
+      // 下次导出又套一层标记，于是每保存一次就多重复一遍
+      // （线上那篇「测试」已经叠了 4 层）。
+      // 这里把开头重复的标记全部剥掉，只留真正的正文。
+      var WB_CALLOUT_MARKS = ['💡 提示：', '⚠️ 注意：', '📌 重点：', '🚫 警告：', '💬 金句：', '💬 ',
+        '提示：', '注意：', '重点：', '警告：', '金句：', '💡 ', '⚠️ ', '📌 ', '🚫 '];
+      function wbStripCalloutMark(inner) {
+        var h = String(inner == null ? '' : inner);
+        var changed = true;
+        while (changed) {
+          changed = false;
+          for (var i = 0; i < WB_CALLOUT_MARKS.length; i++) {
+            var m = WB_CALLOUT_MARKS[i];
+            if (h.indexOf(m) === 0) { h = h.slice(m.length); changed = true; break; }
+          }
+        }
+        return h.replace(/^[ \t\r\n]+/, '');
       }
       function buildCallout(d) {
         d = d || {};
