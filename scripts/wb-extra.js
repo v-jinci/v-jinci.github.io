@@ -77,6 +77,20 @@ hexo.extend.filter.register('after_render:html', function (str) {
 
   /* -------- 3. 首页排版用主题原生 index_layout（在 /site 后台切换），这里无需注入 -------- */
 
+  /* -------- 3. 导航里的「写作」在新标签页打开 --------
+     Butterfly 的菜单模板（layout/includes/header/menu_item.pug）只输出 href，
+     没有 target 的支持，所以这里在生成 HTML 时，
+     给指向后台的链接补上 target="_blank" rel="noopener"。 */
+  const adminPath = '/admin/';
+  const adminRe = new RegExp(
+    '(<a\\b[^>]*\\shref="' + adminPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*)(>)',
+    'g'
+  );
+  str = str.replace(adminRe, function (m, head, tail) {
+    if (/\starget\s*=/i.test(head)) return m;
+    return head + ' target="_blank" rel="noopener"' + tail;
+  });
+
   if (css) str = str.replace(/<\/head>/i, function () { return '<style id="wb-extra-css">' + css + '</style></head>'; });
   if (js) str = str.replace(/<\/body>/i, function () { return '<script id="wb-extra-js">' + js + '</script></body>'; });
   return str;

@@ -306,12 +306,13 @@
           'class': 'wb-inline ' + sizeClass(size),
           'style': 'color:' + color + ';font-size:' + size + ';'
         });
-        setHtml(span, esc(text));
+        setHtml(span, (d.html != null && d.html !== '') ? d.html : esc(text));
         return span.outerHTML;
       }
       function emFrom(node) {
         return {
           text: node.textContent || '',
+          html: node.innerHTML || '',
           color: styleVal(node, 'color') || '#e60000',
           size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px'
         };
@@ -335,6 +336,9 @@
               '.wb-pick-sizes{display:flex;gap:6px;flex-wrap:wrap}' +
               '.wb-pick-sizes button{border:1px solid #dfe3ee;background:#fbfcff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;color:#475569}' +
               '.wb-pick-sizes button.on{border-color:#4a6cf7;background:#eef2ff;color:#3453d4}' +
+              '.wb-pick-fmts{display:flex;gap:6px;flex-wrap:wrap}' +
+              '.wb-pick-fmts button{border:1px solid #dfe3ee;background:#fbfcff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;color:#475569}' +
+              '.wb-pick-fmts button.on{border-color:#4a6cf7;background:#eef2ff;color:#3453d4;font-weight:600}' +
               '.wb-pick-act{display:flex;gap:8px;margin-top:18px}' +
               '.wb-pick-act button{flex:1;border:0;border-radius:10px;padding:10px;cursor:pointer;font:inherit;font-weight:600}' +
               '.wb-pick-ok{background:#4a6cf7;color:#fff}' +
@@ -346,15 +350,22 @@
           var color = (current && current.color) || '#e60000';
           var size = (current && current.size) || '20px';
           var text = (sampleText == null || sampleText === '') ? '示例文字' : sampleText;
+          // 富文本内容：优先用组件里存下来的 html，没有就用纯文字
+          var baseHtml = (current && current.html) ? current.html : esc(text);
+          var baseFmt = (current && current.fmt) ? current.fmt : wbDetectFmt(baseHtml);
+          var fmt = {
+            bold: !!baseFmt.bold, italic: !!baseFmt.italic,
+            underline: !!baseFmt.underline, strike: !!baseFmt.strike
+          };
           var ov = document.createElement('div');
           ov.className = 'wb-pick-ov';
           var card = document.createElement('div');
           card.className = 'wb-pick-card';
           var showColor = mode !== 'size', showSize = mode !== 'color';
           var title = mode === 'color' ? '🖍 设置文字颜色' : mode === 'size' ? '🔤 设置文字大小' : '🎯 强调这段文字';
-          var sub = mode === 'color' ? '选一个颜色；以后点这段文字还能再改'
-            : mode === 'size' ? '选一个字号；以后点这段文字还能再改'
-              : '一次设好颜色和字号；以后点这段文字还能再改';
+          var sub = mode === 'color' ? '选一个颜色；勾选格式可与加粗、斜体叠加；以后点这段文字还能再改'
+            : mode === 'size' ? '选一个字号；勾选格式可与加粗、斜体叠加；以后点这段文字还能再改'
+              : '一次设好颜色、字号和格式；以后点这段文字还能再改';
           var html = '<h3>' + title + '</h3>' +
             '<div class="sub">' + sub + '</div>' +
             '<div class="wb-pick-prev" id="wb-pick-prev"></div>';
@@ -372,6 +383,11 @@
             });
             html += '</div>';
           }
+          html += '<div class="wb-pick-label">格式（可与颜色、字号叠加）</div><div class="wb-pick-fmts">' +
+            '<button type="button" data-f="bold">加粗</button>' +
+            '<button type="button" data-f="italic">斜体</button>' +
+            '<button type="button" data-f="underline">下划线</button>' +
+            '<button type="button" data-f="strike">删除线</button></div>';
           html += '<div class="wb-pick-act wb-pick-three">' +
             '<button type="button" class="wb-pick-no" data-act="no">取消</button>' +
             '<button type="button" class="wb-pick-clear" data-act="clear">🧹 恢复默认</button>' +
@@ -382,7 +398,7 @@
           function paint() {
             var prev = card.querySelector('#wb-pick-prev');
             if (prev) {
-              prev.textContent = text;
+              prev.innerHTML = wbApplyFmtDiff(baseHtml, baseFmt, fmt) || esc(text);
               if (showColor) prev.style.color = color;
               if (showSize) prev.style.fontSize = size;
             }
@@ -390,6 +406,8 @@
             for (var i = 0; i < cs.length; i++) cs[i].className = (cs[i].getAttribute('data-c') === color ? 'on' : '');
             var zs = card.querySelectorAll('[data-z]');
             for (var j = 0; j < zs.length; j++) zs[j].className = (zs[j].getAttribute('data-z') === size ? 'on' : '');
+            var fs = card.querySelectorAll('[data-f]');
+            for (var k = 0; k < fs.length; k++) fs[k].className = (fmt[fs[k].getAttribute('data-f')] ? 'on' : '');
           }
           function done(v) {
             if (ov.parentNode) ov.parentNode.removeChild(ov);
@@ -402,8 +420,9 @@
             if (!t || !t.getAttribute) return;
             var c = t.getAttribute('data-c'); if (c) { color = c; paint(); return; }
             var z = t.getAttribute('data-z'); if (z) { size = z; paint(); return; }
+            var f = t.getAttribute('data-f'); if (f) { fmt[f] = !fmt[f]; paint(); return; }
             var a = t.getAttribute('data-act');
-            if (a === 'ok') done({ color: color, size: size });
+            if (a === 'ok') done({ color: color, size: size, html: wbApplyFmtDiff(baseHtml, baseFmt, fmt), fmt: fmt });
             else if (a === 'clear') done({ clear: true });
             else if (a === 'no') done(null);
           });
@@ -413,13 +432,193 @@
         });
       }
 
+      /* ---------- 组合格式：颜色/字号组件要保留选区里已有的加粗、斜体 ----------
+         问题：颜色、字号是「原子组件」，插入时整段替换选区，
+         选区里原有的斜体/加粗就被冲掉了，于是
+         「整体斜体 + 某个字加粗 + 某个字变大 + 某个字变色」没法共存。
+         做法：插入前把选区的真实 HTML（含 <em>/<strong> 等）抓下来存进组件的
+         html 属性，导出时再放回外层 span 里，颜色字号和斜体加粗就能一起生效。
+
+         注意：组件插入的那一刻，选区原文已经被替换掉了，
+         所以必须在「选中文字的时候」就把选区内容克隆一份快照存起来。 */
+      var WB_FMT_TAGS = { bold: 'strong', italic: 'em', underline: 'u', strike: 's' };
+      var WB_FMT_ORDER = ['strike', 'underline', 'italic', 'bold']; // 包裹顺序：加粗在最外层
+
+      // 行内样式：粗/斜/下划线/删除线改用标签表示，其余（颜色、字号）保留
+      function wbKeepStyle(st) {
+        if (!st) return '';
+        return String(st).split(';').map(function (p) {
+          var i = p.indexOf(':');
+          if (i < 0) return '';
+          var k = p.slice(0, i).trim().toLowerCase();
+          var v = p.slice(i + 1).trim();
+          if (!v) return '';
+          if (k === 'font-weight' || k === 'font-style' || k === 'text-decoration' ||
+            k === 'text-decoration-line' || k === 'white-space') return '';
+          return k + ':' + v;
+        }).filter(Boolean).join(';');
+      }
+      // 拼一个 span 片段
+      function wbSpanHtml(html, style, cls) {
+        var s = '<span';
+        if (cls) s += ' class="' + esc(cls) + '"';
+        if (style) s += ' style="' + esc(style) + '"';
+        return s + '>' + html + '</span>';
+      }
+      // 编辑器 DOM → 干净的富文本 HTML（<strong>/<em>/<u>/<s> + 带样式的 span）
+      function wbToHtml(node, out) {
+        if (!node) return;
+        if (node.nodeType === 3) { out.push(esc(node.nodeValue)); return; }
+        if (node.nodeType !== 1) return;
+        var tag = String(node.tagName || '').toLowerCase();
+        if (tag === 'br') { out.push('<br>'); return; }
+        // 内联组件（颜色/字号/强调）：取它自己的内容与样式，摊平成普通标签
+        if (node.hasAttribute && node.hasAttribute('data-component-name')) {
+          var pv = node.querySelector('.preview');
+          var own = (pv && pv.firstElementChild) ? pv.firstElementChild : (pv || node);
+          var cst = own.getAttribute('style') || node.getAttribute('style') || '';
+          var ccl = own.getAttribute('class') || '';
+          var ci = [];
+          for (var a = 0; a < own.childNodes.length; a++) wbToHtml(own.childNodes[a], ci);
+          out.push(wbSpanHtml(ci.join(''), wbKeepStyle(cst), ccl));
+          return;
+        }
+        var cls = String(node.getAttribute('class') || '');
+        var bold = tag === 'strong' || tag === 'b';
+        var italic = tag === 'em' || tag === 'i' || /(^|\s)italic(\s|$)/.test(cls);
+        var under = tag === 'u' || /(^|\s)underline(\s|$)/.test(cls);
+        var strike = tag === 's' || tag === 'del' || /(^|\s)strikethrough(\s|$)/.test(cls);
+        var inner = [];
+        for (var b = 0; b < node.childNodes.length; b++) wbToHtml(node.childNodes[b], inner);
+        var h = inner.join('');
+        if (strike) h = '<s>' + h + '</s>';
+        if (under) h = '<u>' + h + '</u>';
+        if (italic) h = '<em>' + h + '</em>';
+        if (bold) h = '<strong>' + h + '</strong>';
+        var st = node.getAttribute('style') || '';
+        var keep = wbKeepStyle(st);
+        var fs = (st.match(/font-size\s*:\s*(\d+(?:\.\d+)?)px/i) || [])[1];
+        var extra = '';
+        if (fs) {
+          keep = keep ? keep + ';font-size:' + fs + 'px' : 'font-size:' + fs + 'px';
+          extra = 'wb-fs-' + String(fs).replace('.', '_');
+        }
+        if (keep) h = wbSpanHtml(h, keep, extra);
+        out.push(h);
+      }
+      // 当前选区在编辑器里的真实范围（优先用记下来的 Range，失效时按文字重找）
+      function wbCurrentRange() {
+        var ed = wbActiveEditor();
+        if (!ed) return null;
+        if (wbSel.range && ed.contains(wbSel.range.commonAncestorContainer)) return wbSel.range;
+        if (wbSel.text) {
+          var r = wbFindTextRange(ed, wbSel.text);
+          if (r) return r;
+        }
+        return null;
+      }
+      // 取某个节点往上、直到编辑器根为止的格式链（外 → 内）。
+      // Range.cloneContents() 只克隆选中的内容，不会带上祖先的 <strong>/<em>，
+      // 所以选中「加粗的字」时必须靠这条链把格式补回来。
+      function wbFmtChain(node) {
+        var chain = [];
+        var el = node && node.parentElement;
+        while (el && !(el.hasAttribute && el.hasAttribute('data-lexical-editor'))) {
+          var t = String(el.tagName || '').toLowerCase();
+          var cls = String(el.getAttribute('class') || '');
+          var st = el.getAttribute('style') || '';
+          var bold = t === 'strong' || t === 'b';
+          var italic = t === 'em' || t === 'i' || /(^|\s)italic(\s|$)/.test(cls);
+          var under = t === 'u' || /(^|\s)underline(\s|$)/.test(cls);
+          var strike = t === 's' || t === 'del' || /(^|\s)strikethrough(\s|$)/.test(cls);
+          var fs = (st.match(/font-size\s*:\s*(\d+(?:\.\d+)?)px/i) || [])[1];
+          var color = (st.match(/color\s*:\s*([^;]+)/i) || [])[1];
+          if (bold || italic || under || strike || fs || color) {
+            chain.push({ bold: bold, italic: italic, underline: under, strike: strike, fs: fs, color: color });
+          }
+          el = el.parentElement;
+        }
+        chain.reverse(); // 外 → 内
+        return chain;
+      }
+      // 把格式链套到 html 外层（链里越靠外的套得越靠外）
+      function wbWrapChain(html, chain) {
+        var h = String(html || '');
+        for (var i = (chain || []).length - 1; i >= 0; i--) {
+          var c = chain[i];
+          if (c.strike) h = '<s>' + h + '</s>';
+          if (c.underline) h = '<u>' + h + '</u>';
+          if (c.italic) h = '<em>' + h + '</em>';
+          if (c.bold) h = '<strong>' + h + '</strong>';
+          var style = '';
+          if (c.color) style += 'color:' + c.color + ';';
+          if (c.fs) style += 'font-size:' + c.fs + 'px;';
+          if (style) {
+            var cls = c.fs ? 'wb-fs-' + String(c.fs).replace('.', '_') : '';
+            h = wbSpanHtml(h, style, cls);
+          }
+        }
+        return h;
+      }
+      // 把选区内容转成富文本 HTML。
+      // 组件插入时原文已被替换，所以优先用「选中时」存下的快照。
+      function wbCaptureRichHtml(expectedText) {
+        var want = expectedText == null ? '' : String(expectedText);
+        var frag = null, chain = null;
+        if (wbSel.snapFrag && want && wbSel.snapText === want) {
+          frag = wbSel.snapFrag;
+          chain = wbSel.snapChain;
+        } else {
+          var r = wbCurrentRange();
+          if (!r) return '';
+          frag = r.cloneContents();
+          chain = wbFmtChain(r.startContainer);
+        }
+        var out = [];
+        for (var i = 0; i < frag.childNodes.length; i++) wbToHtml(frag.childNodes[i], out);
+        return wbWrapChain(out.join(''), chain);
+      }
+      // 剥掉所有某个标签
+      function wbStripAll(html, tag) {
+        return String(html || '').replace(new RegExp('</?' + tag + '(?:\\s[^>]*)?>', 'gi'), '');
+      }
+      // 读出 html 里带了哪些格式
+      function wbDetectFmt(html) {
+        var h = String(html || '');
+        return {
+          bold: /<strong(\s[^>]*)?>/i.test(h),
+          italic: /<em(\s[^>]*)?>/i.test(h),
+          underline: /<u(\s[^>]*)?>/i.test(h),
+          strike: /<s(\s[^>]*)?>/i.test(h)
+        };
+      }
+      // 只把「用户改动过」的格式开关套到整段上。
+      // 没动过的保持原样，避免把「只有某个字加粗」压成「整段加粗」。
+      function wbApplyFmtDiff(html, baseFmt, fmt) {
+        var h = String(html || '');
+        WB_FMT_ORDER.forEach(function (k) {
+          if (fmt[k] === baseFmt[k]) return;
+          h = wbStripAll(h, WB_FMT_TAGS[k]);
+          if (fmt[k]) h = '<' + WB_FMT_TAGS[k] + '>' + h + '</' + WB_FMT_TAGS[k] + '>';
+        });
+        return h;
+      }
+      // 能匹配嵌套 span 的正则（最多 3 层），供组件的 pattern 使用
+      function wbSpanRe(attrPat) {
+        // T：任意文本与非 span 标签（<em>/<strong>/<br> 等），但不吃掉 span
+        var T = '(?:[^<]|<(?!/?span[\\s>])[^>]*>)*';
+        var L1 = '<span[^>]*>' + T + '<\\/span>';
+        var L2 = '<span[^>]*>(?:' + T + '|' + L1 + ')*<\\/span>';
+        return new RegExp('<span(?=[^>]*' + attrPat + ')[^>]*>(?:' + T + '|' + L2 + ')*<\\/span>');
+      }
+
       /* ---------- 清除格式：记住真实选区，点菜单/「恢复默认」时原地换成纯文本 ----------
          旧实现有两个坑：
          1) 用 .lexical-root 找编辑器，0.270 实际是 [data-lexical-editor]，找不到就乱发事件；
          2) 用 Sveltia 传进来的 selectedText，选中原子组件时它是空字符串，组件会被直接删掉。
          现在统一用「记录下来的 DOM 选区 + 纯文本 paste」：Lexical 对 RangeSelection 和
          NodeSelection（内联组件）都会用纯文本替换，内容留在原来的位置。 */
-      var wbSel = { range: null, text: '', editor: null, component: null };
+      var wbSel = { range: null, text: '', editor: null, component: null, snapText: '', snapFrag: null, snapChain: null };
       function wbComponentFromRange(ed, r, s) {
         var start = r.startContainer;
         var host = start && (start.nodeType === 1 ? start : start.parentElement);
@@ -440,7 +639,7 @@
       document.addEventListener('mousedown', function (ev) {
         var t = ev.target;
         var ed = (t && t.closest) ? t.closest('[data-lexical-editor]') : null;
-        if (ed) { wbSel.range = null; wbSel.text = ''; wbSel.editor = ed; wbSel.component = null; }
+        if (ed) { wbSel.range = null; wbSel.text = ''; wbSel.editor = ed; wbSel.component = null; wbSel.snapText = ''; wbSel.snapFrag = null; wbSel.snapChain = null; }
       }, true);
       document.addEventListener('selectionchange', function () {
         var s = window.getSelection();
@@ -458,6 +657,15 @@
         wbSel.text = txt;
         wbSel.editor = ed;
         wbSel.component = comp;
+        // 快照一份选区内容：组件插入后原文就被替换掉了，
+        // 靠这份快照才能保住选区里原有的加粗、斜体。
+        // 只在真的选中了文字时才更新 —— 组件刚插入时浏览器也会派发
+        // selectionchange，那时文字是空的，覆盖快照就把原文弄丢了。
+        if (txt) {
+          wbSel.snapText = txt;
+          try { wbSel.snapFrag = r.cloneContents(); } catch (e) { wbSel.snapFrag = null; }
+          wbSel.snapChain = wbFmtChain(r.startContainer);
+        }
       });
 
       function wbActiveEditor() {
@@ -815,18 +1023,21 @@
             var style = (color ? 'color:' + color + ';' : '') + (size ? 'font-size:' + size + ';' : '');
             var cls = 'wb-inline' + (size ? ' ' + sizeClass(size) : '');
             var span = el('span', { 'data-wb-ic': key, 'class': cls, 'style': style });
-            setHtml(span, esc(d.text == null || d.text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : d.text));
+            // 内容优先用存下来的富文本（带 <em>/<strong> 等），没有才退回纯文字
+            var fallback = d.text == null || d.text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : d.text;
+            setHtml(span, (d.html != null && d.html !== '') ? d.html : esc(fallback));
             return span.outerHTML;
           }
           function inlineFrom(node) {
             return {
               text: node.textContent || '',
+              html: node.innerHTML || '',
               color: styleVal(node, 'color') || '',
               size: styleVal(node, 'font-size') || sizeFromClass(node) || ''
             };
           }
           function regInlineSmart(kind, label, icon) {
-            var pattern = new RegExp('<span[^>]*data-wb-ic="' + kind + '-[^"]*"[^>]*>[^<]*</span>');
+            var pattern = wbSpanRe('data-wb-ic="' + kind + '-[^"]*"');
             function make(d) {
               var tmp = document.createElement('div');
               tmp.innerHTML = inlineHtml(kind, d);
@@ -840,7 +1051,8 @@
                 var out = {
                   text: text || (kind === 'color' ? '彩色文字' : '示例文字'),
                   color: (current && current.color) || '',
-                  size: (current && current.size) || ''
+                  size: (current && current.size) || '',
+                  html: p.html
                 };
                 if (kind === 'color') out.color = p.color; else out.size = p.size;
                 return out;
@@ -865,7 +1077,12 @@
               },
               toPreview: function (d) { return inlineHtml(kind, d); },
               inlinePattern: {
-                onInsert: function (ctx) { return pick(null, (ctx && ctx.selectedText) || '', false); },
+                onInsert: function (ctx) {
+                  var text = (ctx && ctx.selectedText) || '';
+                  // 插入前先把选区里已有的加粗、斜体抓下来，组件里一并保留
+                  var rich = wbCaptureRichHtml(text);
+                  return pick({ html: rich }, text, false);
+                },
                 onEdit: function (ctx) {
                   var data = (ctx && ctx.data) || {};
                   markEditingComponent();
@@ -888,7 +1105,7 @@
             id: 'wb-em-html',
             label: '🎯 强调文字（一次设颜色+字号，点它能改）',
             icon: 'format_color_text',
-            pattern: /<span[^>]*data-wb-em[^>]*>[\s\S]*?<\/span>/,
+            pattern: wbSpanRe('data-wb-em'),
             fields: [
               { name: 'text', label: '文字', widget: 'string' }
             ],
@@ -911,10 +1128,12 @@
             inlinePattern: {
               onInsert: function (ctx) {
                 var text = (ctx && ctx.selectedText) || '';
-                return pickStyle(null, text).then(function (p) {
+                // 插入前先把选区里已有的加粗、斜体抓下来，组件里一并保留
+                var rich = wbCaptureRichHtml(text);
+                return pickStyle({ html: rich }, text).then(function (p) {
                   if (!p) return null;
                   if (p.clear) return null; // Sveltia 会把选区替换成纯文本
-                  return { text: text || '强调文字', color: p.color, size: p.size };
+                  return { text: text || '强调文字', color: p.color, size: p.size, html: p.html };
                 });
               },
               onEdit: function (ctx) {
@@ -923,7 +1142,7 @@
                 return pickStyle(data, data.text).then(function (p) {
                   if (!p) return null;
                   if (p.clear) { clearFormatEditingComponent(); return null; }
-                  return { text: data.text || '强调文字', color: p.color, size: p.size };
+                  return { text: data.text || '强调文字', color: p.color, size: p.size, html: p.html };
                 });
               }
             }

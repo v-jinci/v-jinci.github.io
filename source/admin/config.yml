@@ -539,7 +539,7 @@ collections:
       # ============ 10 细节开关 ============
       - label: 细节开关
         name: misc
-        icon: toggles
+        icon: tune
         file: source/_data/look.yml
         format: yaml
         fields:
