@@ -184,7 +184,9 @@ function figBox(img, cap) {
 }
 
 function addBtnClass(a) {
-  if (/class=("|')/i.test(a)) {
+  const cm = String(a).match(/class=("|')([^"']*)\1/i);
+  if (cm) {
+    if (/(^|\s)wb-btn(\s|$)/.test(cm[2])) return a; // 已经有就别重复加
     return a.replace(/class=("|')([^"']*)\1/i, (m0, q, v) => 'class=' + q + (v + ' wb-btn').trim() + q);
   }
   return a.replace(/<a\b/i, '<a class="wb-btn"');
@@ -287,6 +289,18 @@ function applyRichBlocks(html) {
     if (rest !== '【按钮】') return m0;
     return '<p class="wb-btn-row">' + addBtnClass(a[0]) + '</p>';
   });
+
+  /* ---- ⑤.5 后台「按钮链接」组件 ----
+   * 组件产出的是 <a data-wb-button="1" class="wb-btn-hl" href="…">文字</a>，
+   * 没有「【按钮】」前缀，规则⑤认不出来，页面上就只剩一个普通蓝色链接。
+   * 这里按 data-wb-button 认出它，补上前台的 wb-btn 样式，并单独占一行。 */
+  out = out.replace(
+    /<p(\s[^>]*)?>\s*(<a\b[^>]*\bdata-wb-button\b[^>]*>[\s\S]*?<\/a>)\s*<\/p>|<a\b[^>]*\bdata-wb-button\b[^>]*>[\s\S]*?<\/a>/gi,
+    function (m0, attr, a) {
+      const link = a || m0;
+      return '<p class="wb-btn-row">' + addBtnClass(link) + '</p>';
+    }
+  );
 
   /* ---- ⑥ 表格：外面套一层，手机上可以横向滑 ---- */
   if (out.indexOf('class="wb-table"') === -1) {
