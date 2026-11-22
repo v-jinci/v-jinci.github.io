@@ -65,6 +65,15 @@
     [data-wb-prog] .wb-prog-t{height:9px;border-radius:99px;background:#eef2ff;overflow:hidden}
     [data-wb-prog] .wb-prog-t i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2563eb,#06b6d4)}
     [data-wb-prog] .wb-prog-h{display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:3px}
+    /* 进度条颜色：inline background 会被 Sveltia 清洗，用 class + !important 兜底 */
+    .wb-bar-2563eb,.wb-bar-06b6d4,.wb-bar-16a34a,.wb-bar-ea580c,.wb-bar-7c3aed,.wb-bar-dc2626{
+      background-image:none!important}
+    .wb-bar-2563eb{background-color:#2563eb!important}
+    .wb-bar-06b6d4{background-color:#06b6d4!important}
+    .wb-bar-16a34a{background-color:#16a34a!important}
+    .wb-bar-ea580c{background-color:#ea580c!important}
+    .wb-bar-7c3aed{background-color:#7c3aed!important}
+    .wb-bar-dc2626{background-color:#dc2626!important}
 
     /* 撤销/恢复悬浮按钮：Sveltia 0.270 工具栏没有这两个按钮，
        这里浮在正文编辑区旁边，用 Lexical 原生 historyUndo/historyRedo 命令。
@@ -976,7 +985,8 @@
             icon: 'image',
             pattern: /<img[^>]*data-wb-img[^>]*>/,
             fields: [
-              { name: 'src', label: '图片地址（媒体库选好后复制，如 /img/abc.png）', widget: 'string' },
+              { name: 'src', label: '图片（点图标上传或从图库选）', widget: 'image', media_folder: '/source/img', public_folder: '/img', required: false },
+              { name: 'srcText', label: '或手填图片地址（可留空）', widget: 'string', required: false },
               { name: 'width', label: '显示宽度（50%、25%、400px 都行；留空＝100%）', widget: 'string', default: '100%' },
               { name: 'float', label: '位置 / 文字环绕', widget: 'select', default: 'c', options: [
                 { label: '居中 —— 图片独占一行，文字在上下', value: 'c' },
@@ -1073,7 +1083,7 @@
             id: 'wb-jump-html', label: '🔖 文章内跳转目录（锚点按钮）', icon: 'bookmark',
             pattern: /<div[^>]*data-wb-jump[^>]*>[\s\S]*?<\/div>/,
             fields: [
-              { name: 'items', label: '跳转项（每行一个：文件名 => #锚点；锚点用正文标题生成的 id）', widget: 'string', default: '第一章 => #chapter1' }
+              { name: 'items', label: '跳转项：留空或填 AUTO＝自动把正文所有标题列成按钮（推荐）；也可手动每行「显示名 => #锚点」', widget: 'string', default: '' }
             ],
             toBlock: function (d) { return buildJump(d).outerHTML; },
             fromBlock: function (m) { return htmlToData(m, 'div'); },
@@ -1116,7 +1126,8 @@
             pattern: /<div[^>]*data-wb-video[^>]*>[\s\S]*?<\/div>/,
             fields: [
               { name: 'kind', label: '视频类型', widget: 'select', default: 'embed', options: LINK_OPTS },
-              { name: 'src', label: '视频链接（B站分享链接 或 本地 /files/xxx.mp4）', widget: 'string' },
+              { name: 'src', label: '网络视频链接（B站/YouTube 分享链接；用本地视频时留空）', widget: 'string', required: false },
+              { name: 'localFile', label: '本地视频（点图标上传或从资源库选；选了它就用它，忽略上面的链接）', widget: 'file', media_folder: '/source/files', public_folder: '/files', required: false },
               { name: 'caption', label: '视频下方说明（可不填）', widget: 'string', required: false }
             ],
             toBlock: function (d) { return buildVideo(d).outerHTML; },
@@ -1134,7 +1145,9 @@
               if (av) raw = 'https://www.bilibili.com/video/av' + av[1];
               var yt = raw.match(/youtube\.com\/embed\/([\w-]{11})/);
               if (yt) raw = 'https://www.youtube.com/watch?v=' + yt[1];
-              return { kind: f ? 'embed' : 'local', src: raw, caption: cap ? cap.innerHTML : '' };
+              // 本地视频回填到 localFile 字段；网络链接回填到 src
+              if (v) return { kind: 'local', src: '', localFile: raw, caption: cap ? cap.innerHTML : '' };
+              return { kind: 'embed', src: raw, localFile: '', caption: cap ? cap.innerHTML : '' };
             },
             toBlockHTML: function (d) { return buildVideo(d); }
           });
@@ -1179,7 +1192,9 @@
                 name = spans[0] ? spans[0].textContent : '';
                 if (spans[1]) val = String(spans[1].textContent).replace('%', '');
               }
-              return { label: name, value: val, color: bar ? (bar.getAttribute('data-wb-color') || '#2563eb') : '#2563eb' };
+              var col = bar ? (bar.getAttribute('data-wb-color') || '') : '';
+              if (!col && bar) { var cm = (bar.getAttribute('class') || '').match(/wb-bar-([0-9a-f]{6})/i); if (cm) col = '#' + cm[1]; }
+              return { label: name, value: val, color: col || '#2563eb' };
             },
             toBlockHTML: function (d) { return buildProg(d); }
           });
@@ -1498,11 +1513,14 @@
         // data 属性若被编辑器擦掉，退回从地址参数解析，保证点开还能改
         if (!w) { var mw = src.match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i); if (mw) w = mw[1] + (mw[2] === 'px' ? 'px' : '%'); }
         if (!f) { var mf = src.match(/[?#&]f=([a-z]+)/i); if (mf) f = mf[1]; }
-        return { src: imgBaseSrc(src), width: w, float: f || 'c', alt: n.getAttribute('alt') || '' };
+        var clean = imgBaseSrc(src);
+        return { src: clean, srcText: clean, width: w, float: f || 'c', alt: n.getAttribute('alt') || '' };
       }
       function buildImg(d) {
         d = d || {};
-        var base = imgBaseSrc(d.src || '') || '/img/example.png';
+        // src 来自 image widget（上传/图库），srcText 是手填兜底；两者取其一
+        var raw = d.src || d.srcText || '';
+        var base = imgBaseSrc(raw) || '/img/example.png';
         var w = String(d.width || '').trim();
         var f = d.float || 'c';
         var extra = [];
@@ -1550,14 +1568,41 @@
         var color = d.color || '#2563eb';
         return el('span', { 'data-wb-tag': color, 'class': 'wb-tag', 'style': 'color:' + color + ';border:1px solid ' + color }, esc(d.text || '标签'));
       }
+      // 标题文本 -> 锚点 id（与前台 wb-post.js 的 wbHeadingId 规则一致）
+      function wbHeadingId(text) {
+        return 'wb-h-' + String(text || '').replace(/[^\w\u4e00-\u9fa5-]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+      }
+      // 从正文编辑器读取所有标题，供跳转目录自动选题
+      function wbCollectHeadings() {
+        var ed = wbSel.editor && wbSel.editor.isConnected ? wbSel.editor
+          : document.querySelector('[data-lexical-editor]');
+        if (!ed) return [];
+        var out = [], seen = {};
+        var hs = ed.querySelectorAll('h1,h2,h3,h4,h5,h6');
+        for (var i = 0; i < hs.length; i++) {
+          var txt = (hs[i].textContent || '').trim();
+          if (!txt || seen[txt]) continue;
+          seen[txt] = 1;
+          out.push(txt);
+        }
+        return out;
+      }
       function buildJump(d) {
         d = d || {};
         var e = el('div', { 'data-wb-jump': '1', 'class': 'wb-jump' });
-        var lines = String(d.items || '第一章 => #chapter1').split(/\r?\n/);
+        var items = String(d.items || '').trim();
+        var lines;
+        // AUTO = 自动把正文里所有标题列成跳转按钮，不用手找 id
+        if (!items || /^auto$/i.test(items)) {
+          lines = wbCollectHeadings().map(function (t) { return t + ' => #' + wbHeadingId(t); });
+          if (!lines.length) lines = ['（插入前先在正文写好标题）=> #'];
+        } else {
+          lines = items.split(/\r?\n/);
+        }
         lines.forEach(function (line) {
           var parts = line.split(/\s*=>\s*/);
           var label = parts[0].trim(); if (!label) return;
-          var href = (parts[1] || '#' + label).trim();
+          var href = (parts[1] || '#' + wbHeadingId(label)).trim();
           e.appendChild(el('a', { 'href': href }, esc(label)));
         });
         if (!e.children.length) e.appendChild(el('a', { 'href': '#' }, '示例'));
@@ -1574,9 +1619,11 @@
       function buildVideo(d) {
         d = d || {};
         var e = el('div', { 'data-wb-video': '1', 'class': 'wb-video' });
+        var local = String(d.localFile || '').trim();
         var src = String(d.src || '').trim();
-        if (d.kind === 'local') {
-          e.appendChild(el('video', { 'src': src || '/files/demo.mp4', 'controls': 'controls', 'style': 'width:100%;border-radius:10px' }));
+        // 选了本地文件就用它（不管 kind）；否则按 kind 处理网络链接
+        if (local || d.kind === 'local') {
+          e.appendChild(el('video', { 'src': local || src || '/files/demo.mp4', 'controls': 'controls', 'style': 'width:100%;border-radius:10px' }));
         } else {
           var embed = wbVideoEmbed(src);
           e.appendChild(el('div', { 'class': 'wb-video-box' }, embed));
@@ -1613,7 +1660,8 @@
         h.appendChild(el('span', {}, val + '%'));
         e.appendChild(h);
         var t = el('div', { 'class': 'wb-prog-t' });
-        t.appendChild(el('i', { 'data-wb-color': color, 'style': 'width:' + val + '%;background:' + color }));
+        var colorCls = 'wb-bar-' + String(color).replace(/^#/, '');
+        t.appendChild(el('i', { 'data-wb-color': color, 'class': colorCls, 'style': 'width:' + val + '%;background:' + color }));
         e.appendChild(t);
         return e;
       }

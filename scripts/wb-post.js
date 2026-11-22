@@ -197,8 +197,22 @@ function addBtnClass(a) {
   return a.replace(/<a\b/i, '<a class="wb-btn"');
 }
 
+// 标题文本 -> 锚点 id（与后台 admin/index.html 的 wbHeadingId 规则一致）
+function wbHeadingId(text) {
+  return 'wb-h-' + String(text || '').replace(/[^\w\u4e00-\u9fa5-]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+}
+
 function applyRichBlocks(html) {
   let out = String(html);
+
+  /* ---- ⓪ 给正文标题补 id，供「跳转目录」组件的 #wb-h-xxx 锚点使用 ---- */
+  out = out.replace(/<h([1-6])(\s[^>]*)?>([\s\S]*?)<\/h\1>/gi, (m0, lv, attr, inner) => {
+    if (/\bid\s*=/i.test(attr || '')) return m0; // 已有 id 就尊重
+    const text = plainText(inner);
+    if (!text) return m0;
+    const id = wbHeadingId(text);
+    return '<h' + lv + (attr || '') + ' id="' + id + '">' + inner + '</h' + lv + '>';
+  });
 
   /* ---- ① 引用块：提示框 / 折叠块 / 金句 ---- */
   out = out.replace(/<blockquote(\s[^>]*)?>([\s\S]*?)<\/blockquote>/gi, (m0, attr, inner) => {

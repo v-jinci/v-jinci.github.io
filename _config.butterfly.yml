@@ -462,6 +462,16 @@ inject:
       #article-container .wb-prog-t{height:10px;border-radius:99px;background:rgba(148,163,184,.22);overflow:hidden}
       #article-container .wb-prog-t i{display:block;height:100%;border-radius:99px;
         background:linear-gradient(90deg,#2563eb,#06b6d4);transition:width .4s ease}
+      /* 用户选的颜色：class + !important 兜底，别被上面的渐变盖掉 */
+      #article-container .wb-prog-t i.wb-bar-2563eb,#article-container .wb-prog-t i.wb-bar-06b6d4,
+      #article-container .wb-prog-t i.wb-bar-16a34a,#article-container .wb-prog-t i.wb-bar-ea580c,
+      #article-container .wb-prog-t i.wb-bar-7c3aed,#article-container .wb-prog-t i.wb-bar-dc2626{background-image:none!important}
+      #article-container .wb-prog-t i.wb-bar-2563eb{background-color:#2563eb!important}
+      #article-container .wb-prog-t i.wb-bar-06b6d4{background-color:#06b6d4!important}
+      #article-container .wb-prog-t i.wb-bar-16a34a{background-color:#16a34a!important}
+      #article-container .wb-prog-t i.wb-bar-ea580c{background-color:#ea580c!important}
+      #article-container .wb-prog-t i.wb-bar-7c3aed{background-color:#7c3aed!important}
+      #article-container .wb-prog-t i.wb-bar-dc2626{background-color:#dc2626!important}
 
       /* 深色模式 */
       html[data-theme="dark"] #article-container .wb-2col-c,
