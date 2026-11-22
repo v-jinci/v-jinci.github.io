@@ -10,22 +10,20 @@ hexo:
   language: zh-CN
 mail: 599676700@qq.com
 editor_components:
-  - wb-em-html
-  - wb-ic-color
-  - wb-ic-size
+  - wb-size-html
+  - wb-color-html
   - wb-clear-html
-  - wb-combo-html
-  - wb-align-html
   - wb-callout-html
   - wb-button-html
+  - image
   - wb-caption-html
   - wb-hr-html
   - wb-table-html
   - wb-postlink-html
-  - wb-color-html
-  - wb-size-html
   - code-block
-  - image
+  - wb-align-html
+  - wb-combo-html
+  - wb-em-html
 admin_password: '19981227.'
 contacts:
   - href: https://github.com/v-jinci
