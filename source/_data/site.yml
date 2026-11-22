@@ -24,6 +24,7 @@ editor_components:
   - wb-align-html
   - wb-combo-html
   - wb-em-html
+  - wb-image-html
 admin_password: '19981227.'
 contacts:
   - href: https://github.com/v-jinci

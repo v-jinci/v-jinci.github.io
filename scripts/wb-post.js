@@ -15,9 +15,14 @@ function esc(s) {
 
 /* ------------------------- 1. 正文图片宽度 / 排版 ------------------------- */
 
+// HTML 属性里的 & 会被序列化成 &amp;，先归一化，否则 ?w=50%&f=c 里的 f 读不到
+function normSrc(src) {
+  return String(src || '').replace(/&amp;/gi, '&');
+}
+
 // 支持 ?w=60% / ?w=400px / #w=60%
 function widthFromSrc(src) {
-  const m = String(src || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
+  const m = normSrc(src).match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
   if (!m) return '';
   const unit = (m[2] || '%').toLowerCase() === 'px' ? 'px' : '%'; // %25 是编码后的 %，统一按百分比处理
   const n = Number(m[1]);
@@ -27,7 +32,7 @@ function widthFromSrc(src) {
 
 // 对齐方式：?f=l 左环绕（文字在右） / ?f=r 右环绕 / ?f=c 居中
 function floatFromSrc(src) {
-  const m = String(src || '').match(/[?#&]f=([a-z\u4e00-\u9fa5]+)/i);
+  const m = normSrc(src).match(/[?#&]f=([a-z\u4e00-\u9fa5]+)/i);
   if (!m) return '';
   return normFloat(m[1]);
 }

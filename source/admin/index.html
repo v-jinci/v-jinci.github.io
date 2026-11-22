@@ -128,7 +128,7 @@
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
   <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="87af7229d6e32d18baedeac279d4327a0dfbd69d395b3b0b9cbe0ca6210716b7";</script><!--WB_HASH_END-->
-<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image"];</script><!--WB_ORDER_END-->
+<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image","wb-image-html"];</script><!--WB_ORDER_END-->
 </head>
 <body>
   <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
@@ -954,6 +954,39 @@
             toBlockHTML: function (d) { return buildCaption(d); }
           });
 
+          /* ---- 7.5 图片排版：大小 + 位置 + 文字环绕 ----
+             前台 wb-post.js 认图片地址里的 ?w= / ?f=，这里把用户填的
+             宽度和排版写进地址，并留 data-wb-w / data-wb-f 方便点开再改。 */
+          safeReg({
+            id: 'wb-image-html',
+            label: '🖼 图片排版（大小 / 居中 / 左右环绕）',
+            icon: 'image',
+            pattern: /<img[^>]*data-wb-img[^>]*>/,
+            fields: [
+              { name: 'src', label: '图片地址（媒体库选好后复制，如 /img/abc.png）', widget: 'string' },
+              { name: 'width', label: '显示宽度（50%、25%、400px 都行；留空＝100%）', widget: 'string', default: '100%' },
+              { name: 'float', label: '位置 / 文字环绕', widget: 'select', default: 'c', options: [
+                { label: '居中 —— 图片独占一行，文字在上下', value: 'c' },
+                { label: '左对齐 —— 图片在左，文字环绕在右', value: 'l' },
+                { label: '右对齐 —— 图片在右，文字环绕在左', value: 'r' },
+                { label: '自动 —— 窄图左环绕，大图居中', value: 'auto' }
+              ] },
+              { name: 'alt', label: '图片说明（替代文字，可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildImg(d).outerHTML; },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              var n = tmp.firstElementChild;
+              return n ? imgFrom(n) : {};
+            },
+            toPreview: function (d) { return buildImg(d).outerHTML; },
+            htmlSelector: 'img[data-wb-img]',
+            fromBlockHTML: imgFrom,
+            toBlockHTML: function (d) { return buildImg(d); }
+          });
+
           /* ---- 8. 分割线 ---- */
           safeReg({
             id: 'wb-hr-html', label: '➖ 分割线', icon: 'remove',
@@ -1253,6 +1286,36 @@
       function buildCaption(d) {
         d = d || {};
         return el('em', { 'data-wb-caption': '1', 'class': 'wb-cap-hl' }, esc(d.text || '图注说明'));
+      }
+      // 图片排版：剥掉旧的地址参数，得到干净原图地址（避免重复编辑越堆越长）
+      function imgBaseSrc(src) {
+        return String(src || '')
+          .replace(/([?#&])w=[^&#]*/gi, '$1')
+          .replace(/([?#&])f=[^&#]*/gi, '$1')
+          .replace(/[?&]+$/, '');
+      }
+      function imgFrom(n) {
+        var src = n.getAttribute('src') || '';
+        var w = n.getAttribute('data-wb-w') || '';
+        var f = n.getAttribute('data-wb-f') || '';
+        // data 属性若被编辑器擦掉，退回从地址参数解析，保证点开还能改
+        if (!w) { var mw = src.match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i); if (mw) w = mw[1] + (mw[2] === 'px' ? 'px' : '%'); }
+        if (!f) { var mf = src.match(/[?#&]f=([a-z]+)/i); if (mf) f = mf[1]; }
+        return { src: imgBaseSrc(src), width: w, float: f || 'c', alt: n.getAttribute('alt') || '' };
+      }
+      function buildImg(d) {
+        d = d || {};
+        var base = imgBaseSrc(d.src || '') || '/img/example.png';
+        var w = String(d.width || '').trim();
+        var f = d.float || 'c';
+        var extra = [];
+        if (w) extra.push('w=' + encodeURIComponent(w));
+        if (f && f !== 'auto') extra.push('f=' + f);
+        var src = base + (extra.length ? (base.indexOf('?') >= 0 ? '&' : '?') + extra.join('&') : '');
+        return el('img', {
+          'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
+          'src': src, 'alt': d.alt || ''
+        });
       }
       function buildTable(d) {
         d = d || {};
