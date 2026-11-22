@@ -273,7 +273,29 @@ collections:
             name: editor_components
             widget: list
             required: false
-            hint: 一行一个，可拖动排序；删掉某一行＝在正文「插入」菜单里隐藏它。可选：wb-em-html 强调文字、wb-clear-html 清除格式、wb-ic-color 彩色文字、wb-ic-size 文字大小、wb-combo-html 整段排版、wb-align-html 段落对齐、wb-callout-html 提示卡片、wb-button-html 按钮链接、wb-caption-html 图注、wb-hr-html 分割线、wb-table-html 表格、wb-postlink-html 站内链接、wb-color-html 旧彩色文字、wb-size-html 旧字号、code-block 代码块、image 图片
+            label_singular: 一个插入菜单项
+            hint: 每一行点下拉框选中文名称；上下拖动改正文「插入」菜单顺序，删掉某一行＝隐藏它。
+            field:
+              label: 插入菜单项
+              name: component
+              widget: select
+              options:
+                - { label: "🎯 强调文字（一次设颜色+字号，点它能改）", value: wb-em-html }
+                - { label: "🧹 清除格式", value: wb-clear-html }
+                - { label: "🖍 彩色文字（点已插入的文字可改颜色）", value: wb-ic-color }
+                - { label: "🔤 文字大小（点已插入的文字可改字号）", value: wb-ic-size }
+                - { label: "🎨 综合排版（居中+颜色+字号+加粗）", value: wb-combo-html }
+                - { label: "段落对齐（居中/左/右）", value: wb-align-html }
+                - { label: "💡 提示卡片（提示/注意/重点/警告/金句）", value: wb-callout-html }
+                - { label: "🔘 按钮链接（圆角大按钮）", value: wb-button-html }
+                - { label: "🖼 图注（图片下方小字）", value: wb-caption-html }
+                - { label: "➖ 分割线", value: wb-hr-html }
+                - { label: "📊 表格（填行列自动生成）", value: wb-table-html }
+                - { label: "🔗 插入站内文章链接", value: wb-postlink-html }
+                - { label: "🖍 旧版彩色文字（固定颜色）", value: wb-color-html }
+                - { label: "🔤 旧版字号（固定大小）", value: wb-size-html }
+                - { label: "代码块", value: code-block }
+                - { label: "图片", value: image }
 
       # ============ 2 联系方式 ============
       - label: 联系方式

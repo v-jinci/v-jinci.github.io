@@ -413,38 +413,185 @@
         });
       }
 
-      /* 弹窗里点「恢复默认」：把当前选中的（内联组件）节点替换成同内容的纯文本。
-         Lexical 对 beforeinput insertText 的处理就是把选区换成普通文本节点，
-         和 Ctrl+Shift+M 之外的第三方库无关，不需要额外权限。 */
-      function fireClearFormat(text) {
-        var ed = null;
-        var a = document.activeElement;
-        if (a && a.matches && a.matches('.lexical-root[contenteditable="true"]')) ed = a;
-        if (!ed) {
-          var list = document.querySelectorAll('.lexical-root[contenteditable="true"]');
+      /* ---------- 清除格式：记住真实选区，点菜单/「恢复默认」时原地换成纯文本 ----------
+         旧实现有两个坑：
+         1) 用 .lexical-root 找编辑器，0.270 实际是 [data-lexical-editor]，找不到就乱发事件；
+         2) 用 Sveltia 传进来的 selectedText，选中原子组件时它是空字符串，组件会被直接删掉。
+         现在统一用「记录下来的 DOM 选区 + 纯文本 paste」：Lexical 对 RangeSelection 和
+         NodeSelection（内联组件）都会用纯文本替换，内容留在原来的位置。 */
+      var wbSel = { range: null, text: '', editor: null, component: null };
+      function wbComponentFromRange(ed, r, s) {
+        var start = r.startContainer;
+        var host = start && (start.nodeType === 1 ? start : start.parentElement);
+        var direct = host && host.closest ? host.closest('[data-component-name]') : null;
+        if (direct && ed.contains(direct)) return direct;
+        // 选中整个原子组件时，range 的起点是它的父节点，toString() 还是空字符串
+        if ((!s || !s.toString()) && r.intersectsNode) {
+          var hits = [];
+          var list = ed.querySelectorAll('[data-component-name]');
           for (var i = 0; i < list.length; i++) {
-            if (list[i].getClientRects && list[i].getClientRects().length) { ed = list[i]; break; }
+            if (r.intersectsNode(list[i])) hits.push(list[i]);
+          }
+          if (hits.length === 1) return hits[0];
+        }
+        return null;
+      }
+      // 在正文里按下鼠标＝用户重新定位了选区，清掉上一次的记录
+      document.addEventListener('mousedown', function (ev) {
+        var t = ev.target;
+        var ed = (t && t.closest) ? t.closest('[data-lexical-editor]') : null;
+        if (ed) { wbSel.range = null; wbSel.text = ''; wbSel.editor = ed; wbSel.component = null; }
+      }, true);
+      document.addEventListener('selectionchange', function () {
+        var s = window.getSelection();
+        if (!s || !s.rangeCount) return;
+        var r = s.getRangeAt(0);
+        var node = r.startContainer;
+        var host = node && (node.nodeType === 1 ? node : node.parentElement);
+        var ed = host && host.closest ? host.closest('[data-lexical-editor]') : null;
+        if (!ed) return;
+        var comp = wbComponentFromRange(ed, r, s);
+        var txt = s.toString();
+        // 点工具栏会让浏览器把选区收成空，这时保留上一次真正选中的文字
+        if (!txt && !comp) return;
+        wbSel.range = r.cloneRange();
+        wbSel.text = txt;
+        wbSel.editor = ed;
+        wbSel.component = comp;
+      });
+
+      function wbActiveEditor() {
+        var a = document.activeElement;
+        if (a && a.matches && a.matches('[data-lexical-editor]')) return a;
+        return (wbSel.editor && document.contains(wbSel.editor)) ? wbSel.editor
+          : document.querySelector('[data-lexical-editor]');
+      }
+
+      /* 在编辑器里按文字重新找范围：点工具栏后 Lexical 会重建文本节点，旧 Range 会失效 */
+      function wbFindTextRange(ed, text) {
+        if (!text) return null;
+        var walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+        var n, r = document.createRange();
+        while ((n = walker.nextNode())) {
+          var v = n.nodeValue || '';
+          var i = v.indexOf(text);
+          if (i >= 0) {
+            try { r.setStart(n, i); r.setEnd(n, i + text.length); return r; } catch (e) {}
           }
         }
-        if (!ed) ed = document.querySelector('.lexical-root[contenteditable="true"]');
+        return null;
+      }
+
+      /* 把指定范围换成纯文本；component 非空时选中整个组件节点（Lexical 的 NodeSelection） */
+      function wbReplaceWithPlainText(ed, text, saved, component) {
         if (!ed) return false;
+        // 先聚焦，再按聚焦后的 DOM 重建选区（聚焦会让旧 Range 失效）
         try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+        var r;
+        if (component && ed.contains(component)) {
+          r = document.createRange();
+          r.selectNode(component);
+        } else {
+          r = wbFindTextRange(ed, text);
+          if (!r && saved && saved.range && ed.contains(saved.range.commonAncestorContainer)) {
+            r = saved.range.cloneRange();
+          }
+        }
+        if (!r) return false;
+        var s = window.getSelection();
+        try { s.removeAllRanges(); s.addRange(r); } catch (e3) { return false; }
+        // 让 Lexical 同步到新的 DOM 选区，否则它会用上一次的旧插入点
+        try { document.dispatchEvent(new Event('selectionchange')); } catch (e3b) {}
+        var plain = String(text == null ? '' : text);
         var ev;
+        if (!component) {
+          // 普通文字选区：Lexical 的 beforeinput insertText 会就地换成无格式文本
+          try {
+            ev = new InputEvent('beforeinput', {
+              inputType: 'insertText', data: plain, bubbles: true, cancelable: true, composed: true
+            });
+          } catch (e4) {
+            ev = document.createEvent('Event');
+            ev.initEvent('beforeinput', true, true);
+            try { Object.defineProperty(ev, 'inputType', { value: 'insertText' }); } catch (e5) {}
+            try { Object.defineProperty(ev, 'data', { value: plain }); } catch (e6) {}
+          }
+          ed.dispatchEvent(ev);
+          return true;
+        }
+        // 原子组件（NodeSelection）：beforeinput 会被忽略，只能走纯文本 paste
+        var dt;
         try {
-          ev = new InputEvent('beforeinput', {
-            inputType: 'insertText', data: String(text || ''),
-            bubbles: true, cancelable: true, composed: true
-          });
-        } catch (e) {
+          dt = new DataTransfer();
+          dt.setData('text/plain', plain);
+        } catch (e7) { return false; }
+        try {
+          ev = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
+        } catch (e8) {
           ev = document.createEvent('Event');
-          ev.initEvent('beforeinput', true, true);
-          try { Object.defineProperty(ev, 'inputType', { value: 'insertText' }); } catch (e2) {}
-          try { Object.defineProperty(ev, 'data', { value: String(text || '') }); } catch (e3) {}
+          ev.initEvent('paste', true, true);
+          try { Object.defineProperty(ev, 'clipboardData', { value: dt }); } catch (e9) {}
         }
         ed.dispatchEvent(ev);
         return true;
       }
-      window.__wbFireClearFormat = fireClearFormat;
+
+      function clearFormatSelected() {
+        if (!wbSel.editor || !document.contains(wbSel.editor)) return false;
+        var comp = wbSel.component && wbSel.component.isConnected ? wbSel.component : null;
+        if (!comp && wbSel.range) comp = wbComponentFromRange(wbSel.editor, wbSel.range, null);
+        var text = comp
+          ? (comp.innerText || comp.textContent || '').replace(/\n+$/, '')
+          : wbSel.text;
+        if (!text && !comp) return false;
+        return wbReplaceWithPlainText(wbSel.editor, text, wbSel, comp);
+      }
+
+      /* 弹窗「恢复默认」：只处理刚才点开的那一个组件，不再全局找编辑器 */
+      var wbEditingComponent = null;
+      function rememberClickedComponent(ev) {
+        var t = ev && ev.target;
+        var c = (t && t.closest) ? t.closest('[data-component-name]') : null;
+        if (c) wbEditingComponent = c;
+      }
+      document.addEventListener('pointerdown', rememberClickedComponent, true);
+      document.addEventListener('mousedown', rememberClickedComponent, true);
+      function markEditingComponent() {
+        var a = document.activeElement;
+        var c = (a && a.closest) ? a.closest('[data-component-name]') : null;
+        if (c) wbEditingComponent = c;
+      }
+      function clearFormatEditingComponent() {
+        var comp = wbEditingComponent && wbEditingComponent.isConnected ? wbEditingComponent : null;
+        if (!comp) {
+          var a = document.activeElement;
+          comp = (a && a.closest) ? a.closest('[data-component-name]') : null;
+        }
+        if (!comp) return false;
+        var ed = comp.closest('[data-lexical-editor]') || wbActiveEditor();
+        var text = (comp.innerText || comp.textContent || '').replace(/\n+$/, '');
+        return wbReplaceWithPlainText(ed, text, null, comp);
+      }
+      window.__wbFireClearFormat = clearFormatEditingComponent;
+
+      /* 插入菜单里的「清除格式」：拦在 Sveltia 建组件之前，避免空 selectedText 删内容 */
+      document.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        var btn = t.closest('[role="menuitem"]');
+        if (!btn) return;
+        var label = btn.textContent || '';
+        if (label.indexOf('清除格式') < 0) return;
+        // 普通文字选区交给 Sveltia 自己的 onInsert（它保存了点工具栏前的 Lexical 选区）；
+        // 只有点到原子组件时它拿不到文字，才需要我们拦下来原地替换。
+        if (!wbSel.component) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        clearFormatSelected();
+        try {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        } catch (e) {}
+      }, true);
 
       function safeReg(def) {
         try {
@@ -689,7 +836,7 @@
               return pickStyle(current, text, kind).then(function (p) {
                 if (!p) return null;
                 // 恢复默认：插入时返回空值让 Sveltia 换成纯文本；编辑时主动派发 insertText
-                if (p.clear) { if (editing) fireClearFormat(text); return null; }
+                if (p.clear) { if (editing) clearFormatEditingComponent(); return null; }
                 var out = {
                   text: text || (kind === 'color' ? '彩色文字' : '示例文字'),
                   color: (current && current.color) || '',
@@ -721,6 +868,7 @@
                 onInsert: function (ctx) { return pick(null, (ctx && ctx.selectedText) || '', false); },
                 onEdit: function (ctx) {
                   var data = (ctx && ctx.data) || {};
+                  markEditingComponent();
                   return pick(data, data.text, true);
                 }
               },
@@ -771,9 +919,10 @@
               },
               onEdit: function (ctx) {
                 var data = (ctx && ctx.data) || {};
+                markEditingComponent();
                 return pickStyle(data, data.text).then(function (p) {
                   if (!p) return null;
-                  if (p.clear) { fireClearFormat(data.text); return null; }
+                  if (p.clear) { clearFormatEditingComponent(); return null; }
                   return { text: data.text || '强调文字', color: p.color, size: p.size };
                 });
               }
