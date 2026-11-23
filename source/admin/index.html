@@ -133,6 +133,122 @@
   <!-- 性能优化：尽早开始下载 2.6MB 主脚本（不等 HTML 解析到 body 中间） -->
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
+  <script>
+    /* 图片排版预览宽度 v6：进页面就显示徽标；全页面找字段；按文件名命中所有预览图 */
+    (function () {
+      var VER = 'v6';
+      var styleEl = document.createElement('style');
+      styleEl.id = 'wb-img-force-style';
+      (document.head || document.documentElement).appendChild(styleEl);
+      var badge = document.createElement('div');
+      badge.id = 'wb-img-preview-badge';
+      badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
+      badge.textContent = '🖼 图片预览脚本 ' + VER + ' 已加载（等待组件…）';
+      (document.body || document.documentElement).appendChild(badge);
+
+      function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
+      function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+      function keyOf(src) {
+        src = String(src || '').split(/[?#]/)[0];
+        var k = src.split('/').pop() || '';
+        try { k = decodeURIComponent(k); } catch (e) {}
+        return k;
+      }
+      function floatCss(f) {
+        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
+        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
+        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
+        return '';
+      }
+      function decl(w, f) { return 'width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f); }
+      function fromSrc(img) {
+        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
+        var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
+        var n = (img.getAttribute('src') || '').match(/[?#&]f=([a-z]+)/i);
+        return { w: validW(w), f: n ? n[1] : 'c' };
+      }
+
+      /* 全页面找「显示宽度」字段，不假设组件卡片的层级 */
+      function readLive() {
+        var nodes = [];
+        document.querySelectorAll('input, select, textarea').forEach(function (inp) {
+          if (inp.type === 'file') return;
+          var box = inp.closest('[data-field-type], label, .field') || inp.parentElement || inp;
+          nodes.push({ inp: inp, txt: (box.textContent || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.name || '') });
+        });
+        var w = '', f = '';
+        for (var i = 0; i < nodes.length; i++) {
+          if (!w && /显示宽度/.test(nodes[i].txt) && validW(nodes[i].inp.value)) w = validW(nodes[i].inp.value);
+          if (!f && /位置|环绕/.test(nodes[i].txt) && ['c', 'l', 'r', 'auto'].indexOf(nodes[i].inp.value) >= 0) f = nodes[i].inp.value;
+        }
+        if (!w) {
+          for (var j = 0; j < nodes.length; j++) { w = validW(nodes[j].inp.value); if (w) break; }
+        }
+        var key = '';
+        document.querySelectorAll('[data-component-name]').forEach(function (card) {
+          if (key || !/显示宽度/.test(card.textContent || '')) return;
+          var th = card.querySelector('img[src]');
+          if (th) key = keyOf(th.getAttribute('src'));
+        });
+        if (!key) {
+          document.querySelectorAll('img[data-wb-img]').forEach(function (im) { if (!key) key = keyOf(im.getAttribute('src')); });
+        }
+        return { w: w, f: f || 'c', key: key };
+      }
+
+      var lastCss = '', applied = 0, lastLive = '', badgeText = '';
+      function ensureBadge() { if (document.body && badge.parentNode !== document.body) document.body.appendChild(badge); }
+      function setBadge(t) {
+        if (t === badgeText) return;   // 必须幂等，否则改文本会触发 MutationObserver 自激
+        badgeText = t;
+        if (badge.firstChild) badge.firstChild.nodeValue = t;
+        else badge.textContent = t;
+      }
+      function apply() {
+        ensureBadge();
+        var live = readLive();
+        var sig = live.w + '|' + live.f + '|' + live.key;
+        var rules = [];
+        if (live.w && live.key) rules.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
+        var css = rules.join('\n');
+        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
+
+        applied = 0;
+        document.querySelectorAll('img').forEach(function (img) {
+          // 组件卡片里的缩略图会被写回正文，绝不改它
+          if (img.closest('[data-component-name], [data-component-path]')) return;
+          var src = img.getAttribute('src') || '';
+          var key = keyOf(src);
+          var w = '', f = 'c';
+          if (live.key && key === live.key && live.w) { w = live.w; f = live.f; }
+          else {
+            w = validW((img.getAttribute('data-wb-w') || '').trim());
+            f = (img.getAttribute('data-wb-f') || 'c').trim();
+            if (!w) { var q = fromSrc(img); w = q.w; f = q.f; }
+          }
+          if (!w) return;
+          try {
+            img.style.setProperty('width', w, 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('height', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
+            img.style.setProperty('margin', f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+            applied++;
+          } catch (e) {}
+        });
+        window.__wbImgPreview = live;
+        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
+        lastLive = sig;
+      }
+      var mo = new MutationObserver(function () { apply(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
+      document.addEventListener('input', apply, true);
+      document.addEventListener('change', apply, true);
+      setInterval(apply, 250);
+      apply();
+    })();
+  </script>
   <script>window.CMS_MANUAL_INIT = true;</script>
   <!-- 性能优化：注册 Service Worker，把 CMS 脚本缓存到本机，第二次进后台秒开 -->
   <script>
@@ -1926,120 +2042,7 @@
     })();
   </script>
 
-  <script>
-    /* 图片排版预览宽度 v6：进页面就显示徽标；全页面找字段；按文件名命中所有预览图 */
-    (function () {
-      var VER = 'v6';
-      var styleEl = document.createElement('style');
-      styleEl.id = 'wb-img-force-style';
-      (document.head || document.documentElement).appendChild(styleEl);
-      var badge = document.createElement('div');
-      badge.id = 'wb-img-preview-badge';
-      badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
-      badge.textContent = '🖼 图片预览脚本 ' + VER + ' 已加载（等待组件…）';
-      (document.body || document.documentElement).appendChild(badge);
 
-      function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
-      function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
-      function keyOf(src) {
-        src = String(src || '').split(/[?#]/)[0];
-        var k = src.split('/').pop() || '';
-        try { k = decodeURIComponent(k); } catch (e) {}
-        return k;
-      }
-      function floatCss(f) {
-        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
-        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
-        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
-        return '';
-      }
-      function decl(w, f) { return 'width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f); }
-      function fromSrc(img) {
-        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
-        var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
-        var n = (img.getAttribute('src') || '').match(/[?#&]f=([a-z]+)/i);
-        return { w: validW(w), f: n ? n[1] : 'c' };
-      }
-
-      /* 全页面找「显示宽度」字段，不假设组件卡片的层级 */
-      function readLive() {
-        var nodes = [];
-        document.querySelectorAll('input, select, textarea').forEach(function (inp) {
-          if (inp.type === 'file') return;
-          var box = inp.closest('[data-field-type], label, .field') || inp.parentElement || inp;
-          nodes.push({ inp: inp, txt: (box.textContent || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.name || '') });
-        });
-        var w = '', f = '';
-        for (var i = 0; i < nodes.length; i++) {
-          if (!w && /显示宽度/.test(nodes[i].txt) && validW(nodes[i].inp.value)) w = validW(nodes[i].inp.value);
-          if (!f && /位置|环绕/.test(nodes[i].txt) && ['c', 'l', 'r', 'auto'].indexOf(nodes[i].inp.value) >= 0) f = nodes[i].inp.value;
-        }
-        if (!w) {
-          for (var j = 0; j < nodes.length; j++) { w = validW(nodes[j].inp.value); if (w) break; }
-        }
-        var key = '';
-        document.querySelectorAll('[data-component-name]').forEach(function (card) {
-          if (key || !/显示宽度/.test(card.textContent || '')) return;
-          var th = card.querySelector('img[src]');
-          if (th) key = keyOf(th.getAttribute('src'));
-        });
-        if (!key) {
-          document.querySelectorAll('img[data-wb-img]').forEach(function (im) { if (!key) key = keyOf(im.getAttribute('src')); });
-        }
-        return { w: w, f: f || 'c', key: key };
-      }
-
-      var lastCss = '', applied = 0, lastLive = '', badgeText = '';
-      function setBadge(t) {
-        if (t === badgeText) return;   // 必须幂等，否则改文本会触发 MutationObserver 自激
-        badgeText = t;
-        if (badge.firstChild) badge.firstChild.nodeValue = t;
-        else badge.textContent = t;
-      }
-      function apply() {
-        var live = readLive();
-        var sig = live.w + '|' + live.f + '|' + live.key;
-        var rules = [];
-        if (live.w && live.key) rules.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
-        var css = rules.join('\n');
-        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
-
-        applied = 0;
-        document.querySelectorAll('img').forEach(function (img) {
-          // 组件卡片里的缩略图会被写回正文，绝不改它
-          if (img.closest('[data-component-name], [data-component-path]')) return;
-          var src = img.getAttribute('src') || '';
-          var key = keyOf(src);
-          var w = '', f = 'c';
-          if (live.key && key === live.key && live.w) { w = live.w; f = live.f; }
-          else {
-            w = validW((img.getAttribute('data-wb-w') || '').trim());
-            f = (img.getAttribute('data-wb-f') || 'c').trim();
-            if (!w) { var q = fromSrc(img); w = q.w; f = q.f; }
-          }
-          if (!w) return;
-          try {
-            img.style.setProperty('width', w, 'important');
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('height', 'auto', 'important');
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
-            img.style.setProperty('margin', f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
-            applied++;
-          } catch (e) {}
-        });
-        window.__wbImgPreview = live;
-        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
-        lastLive = sig;
-      }
-      var mo = new MutationObserver(function () { apply(); });
-      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
-      document.addEventListener('input', apply, true);
-      document.addEventListener('change', apply, true);
-      setInterval(apply, 250);
-      apply();
-    })();
-  </script>
 
   <script>
     setTimeout(function () {
