@@ -134,22 +134,17 @@
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>
-    /* 图片排版预览 v11：跨 Shadow DOM / iframe 通吃。
-       v10「命中1张但现宽0」说明主文档命中的是隐藏图，用户看到的大图在 shadow DOM 里
-       （Sveltia 基于 Lit，组件预览常渲染在 shadow root）。本版遍历主文档 + 所有 shadow root
-       + 同源 iframe，每个上下文都注入 CSS 规则 + 直接改 inline style。 */
+    /* 图片排版预览 v12：恢复 v7 已验证机制（CSS 规则按文件名锁死 + 从 src 的 #w= 读尺寸）。
+       尺寸走 URL 片段，能穿过编辑器清洗又不触发重新下载。 */
     (function () {
-      var VER = 'v11';
-      var baseCss =
-        'img.wb-img-prev{box-sizing:border-box!important;min-width:0!important;max-width:100%!important;height:auto!important}' +
-        'img.wb-img-prev-c{display:block!important;float:none!important;margin:10px auto!important}' +
-        'img.wb-img-prev-l{display:block!important;float:left!important;margin:6px 18px 14px 0!important}' +
-        'img.wb-img-prev-r{display:block!important;float:right!important;margin:6px 0 14px 18px!important}';
-
+      var VER = 'v12';
+      var styleEl = document.createElement('style');
+      styleEl.id = 'wb-img-force-style';
+      (document.head || document.documentElement).appendChild(styleEl);
       var badge = document.createElement('div');
       badge.id = 'wb-img-preview-badge';
       badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
-      badge.textContent = '🖼 图片预览 ' + VER + ' 已加载（等待组件…）';
+      badge.textContent = '🖼 图片预览脚本 ' + VER + ' 已加载（等待组件…）';
       (document.body || document.documentElement).appendChild(badge);
 
       function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
@@ -160,67 +155,32 @@
         try { k = decodeURIComponent(k); } catch (e) {}
         return k;
       }
-      function decl(w, f) {
-        return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' +
-          'display:block!important;float:' + (f === 'l' ? 'left' : f === 'r' ? 'right' : 'none') + '!important;' +
-          'margin:' + (f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px') + '!important;';
+      function floatCss(f) {
+        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
+        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
+        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
+        return '';
+      }
+      function decl(w, f) { return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' + floatCss(f); }
+      function fromSrc(img) {
+        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
+        var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
+        var n = (img.getAttribute('src') || '').match(/[?#&]f=([a-z]+)/i);
+        return { w: validW(w), f: n ? n[1] : 'c' };
       }
 
-      // 收集所有渲染上下文：主文档 + 每个 shadow root + 同源 iframe
-      function contexts() {
-        var out = [];
-        function walk(doc, root, tag, depth) {
-          if (depth > 8) return;
-          out.push({ d: doc, r: root, tag: tag });
-          var nodes;
-          try { nodes = root.querySelectorAll('*'); } catch (e) { return; }
-          var i, el;
-          for (i = 0; i < nodes.length; i++) {
-            el = nodes[i];
-            if (el.shadowRoot) walk(doc, el.shadowRoot, tag + '>s', depth + 1);
-          }
-          var frames;
-          try { frames = root.querySelectorAll('iframe'); } catch (e) { frames = []; }
-          for (i = 0; i < frames.length; i++) {
-            try {
-              var fd = frames[i].contentDocument;
-              if (fd && fd.body) walk(fd, fd, tag + '>i', depth + 1);
-            } catch (e) {}
-          }
-        }
-        try { walk(document, document, 'M', 0); } catch (e) { out.push({ d: document, r: document, tag: 'M' }); }
-        return out;
-      }
-      function ensureStyle(ctx, css) {
-        var host = ctx.r.head || ctx.r.documentElement || ctx.r;
-        var s = null;
-        try { s = host.querySelector('#wb-img-force-style-v11'); } catch (e) {}
-        if (!s) {
-          try { s = ctx.d.createElement('style'); s.id = 'wb-img-force-style-v11'; host.appendChild(s); } catch (e) { return; }
-        }
-        try { if (s.textContent !== css) s.textContent = css; } catch (e) {}
-      }
-      function styleImg(im, live) {
-        try {
-          var st = im.style;
-          st.setProperty('width', live.w, 'important');
-          st.setProperty('min-width', '0', 'important');
-          st.setProperty('max-width', '100%', 'important');
-          st.setProperty('box-sizing', 'border-box', 'important');
-          st.setProperty('height', 'auto', 'important');
-          st.setProperty('display', 'block', 'important');
-          st.setProperty('float', live.f === 'l' ? 'left' : live.f === 'r' ? 'right' : 'none', 'important');
-          st.setProperty('margin', live.f === 'c' ? '10px auto' : live.f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
-          return true;
-        } catch (e) { return false; }
-      }
-
+      /* 只认「当前正在编辑」的图片组件，避免多个组件时一直读第一个 */
+      var activeCard = null;
       function cardOf(el) {
         if (!el || !el.closest) return null;
         var c = el.closest('[data-component-name]');
         return (c && /显示宽度/.test(c.textContent || '')) ? c : null;
       }
-      var activeCard = null;
+      function keepActive(el) {
+        var c = cardOf(el);
+        if (c) activeCard = c;
+        return c;
+      }
       function readCard(card) {
         if (!card) return null;
         var w = '', f = '';
@@ -231,97 +191,94 @@
           if (!w && /显示宽度/.test(txt)) w = validW(inp.value);
           if (!f && /位置|环绕/.test(txt) && ['c', 'l', 'r', 'auto'].indexOf(inp.value) >= 0) f = inp.value;
         });
-        var th = card.querySelector('img[data-wb-img]') || card.querySelector('img.wb-img-prev') || card.querySelector('img[src]');
-        return w ? { w: w, f: f || 'c', key: th ? keyOf(th.getAttribute('src')) : '' } : null;
+        var key = '', th = card.querySelector('img[src]');
+        if (th) key = keyOf(th.getAttribute('src'));
+        return w ? { w: w, f: f || 'c', key: key } : null;
       }
-      function curCard() {
-        var c = activeCard && activeCard.isConnected ? activeCard : null;
-        if (!c && document.activeElement) c = cardOf(document.activeElement);
-        if (!c) {
+      function readLive() {
+        var card = activeCard && activeCard.isConnected ? activeCard : null;
+        if (!card && document.activeElement) card = cardOf(document.activeElement);
+        if (!card) {
           var cards = [].slice.call(document.querySelectorAll('[data-component-name]'))
-            .filter(function (x) { return /显示宽度/.test(x.textContent || ''); });
-          c = cards[cards.length - 1] || null;
+            .filter(function (c) { return /显示宽度/.test(c.textContent || ''); });
+          card = cards[cards.length - 1] || null;
         }
-        return c;
+        if (card) {
+          var v = readCard(card);
+          if (v) return v;
+        }
+        // 兜底：从预览图上已有的 ?w= / data-wb-w 读，绝不猜其它字段的百分比
+        var w = '';
+        document.querySelectorAll('img[data-wb-img]').forEach(function (im) {
+          if (!w) w = validW((im.getAttribute('data-wb-w') || '').trim()) || fromSrc(im).w;
+        });
+        return { w: w, f: 'c', key: '' };
       }
 
-      var badgeText = '', lastSig = '';
+      var lastCss = '', applied = 0, lastLive = '', badgeText = '';
+      function ensureBadge() { if (document.body && badge.parentNode !== document.body) document.body.appendChild(badge); }
       function setBadge(t) {
-        if (t === badgeText) return;
+        if (t === badgeText) return;   // 必须幂等，否则改文本会触发 MutationObserver 自激
         badgeText = t;
         if (badge.firstChild) badge.firstChild.nodeValue = t;
         else badge.textContent = t;
       }
-
       function apply() {
-        var card = curCard();
-        var live = card ? readCard(card) : null;
-        if (!live || !live.w) {
-          setBadge('🖼 ' + VER + '｜未读到宽度字段（点一下图片组件）');
-          return;
-        }
-        var rule = live.key ? ('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}') : '';
-        var css = baseCss + rule;
-        var ctxs = contexts();
-        ctxs.forEach(function (c) { ensureStyle(c, css); });
-
-        var hitMain = 0, hitShadow = 0, hitIframe = 0, visible = 0, firstW = '', changed = 0;
-        ctxs.forEach(function (c) {
-          var imgs = [];
-          try { c.r.querySelectorAll('img[src]').forEach(function (im) { imgs.push(im); }); } catch (e) {}
-          imgs.forEach(function (im) {
-            if (!live.key || keyOf(im.getAttribute('src')).indexOf(live.key) < 0 && live.key.indexOf(keyOf(im.getAttribute('src'))) < 0) return;
-            if (c.tag.indexOf('s') >= 0 && c.tag.indexOf('>') >= 0) hitShadow++;
-            else if (c.tag.indexOf('>i') >= 0) hitIframe++;
-            else hitMain++;
-            var rect = null;
-            try { rect = im.getBoundingClientRect(); } catch (e) {}
-            var vis = rect && rect.width > 30 && rect.height > 30;
-            if (vis) {
-              visible++;
-              if (!firstW) { try { firstW = c.d.defaultView.getComputedStyle(im).width; } catch (e) {} }
-            }
-            if (styleImg(im, live)) changed++;
-          });
-        });
-        window.__wbImgPreview = live;
-        setBadge('🖼 ' + VER + '｜' + live.w + '｜命中 主' + hitMain + '/影' + hitShadow + '/框' + hitIframe +
-          '｜可见 ' + visible + '｜现宽 ' + (firstW || '-') + (live.key ? '｜' + live.key.slice(0, 12) : ''));
-        lastSig = live.w + '|' + live.f + '|' + live.key;
-      }
-
-      var raf = 0, deb = 0;
-      function schedule() {
-        if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(function () { raf = 0; if (deb) clearTimeout(deb); deb = setTimeout(apply, 24); });
-      }
-      ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
-        document.addEventListener(ev, function (e) { var c = cardOf(e.target); if (c) activeCard = c; schedule(); }, true);
-      });
-      // 极轻兜底：签名变化才 apply；另外每 700ms 检查可见命中图的现宽是否等于目标，不等则补
-      setInterval(function () {
-        var c = curCard();
-        if (!c) return;
-        var live = readCard(c);
-        if (!live || !live.w) return;
+        ensureBadge();
+        var live = readLive();
         var sig = live.w + '|' + live.f + '|' + live.key;
-        if (sig !== lastSig) { apply(); return; }
-        var need = false;
-        contexts().forEach(function (cx) {
+        var rules = [];
+        if (live.w && live.key) rules.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
+        var css = rules.join('\n');
+        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
+
+        applied = 0;
+        var firstW = '';
+        document.querySelectorAll('img').forEach(function (img) {
+          // 组件卡片里的缩略图会被写回正文，绝不改它
+          if (img.closest('[data-component-name], [data-component-path]')) return;
+          var src = img.getAttribute('src') || '';
+          var key = keyOf(src);
+          var w = '', f = 'c';
+          if (live.key && key === live.key && live.w) { w = live.w; f = live.f; }
+          else {
+            w = validW((img.getAttribute('data-wb-w') || '').trim());
+            f = (img.getAttribute('data-wb-f') || 'c').trim();
+            if (!w) { var q = fromSrc(img); w = q.w; f = q.f; }
+          }
+          if (!w) return;
           try {
-            cx.r.querySelectorAll('img[src]').forEach(function (im) {
-              if (!live.key) return;
-              var k = keyOf(im.getAttribute('src'));
-              if (k.indexOf(live.key) < 0 && live.key.indexOf(k) < 0) return;
-              var rect = null; try { rect = im.getBoundingClientRect(); } catch (e) {}
-              if (rect && rect.width > 30 && (im.style.getPropertyValue('width') || '') !== live.w) need = true;
-            });
+            img.style.setProperty('width', w, 'important');
+            img.style.setProperty('min-width', '0', 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('box-sizing', 'border-box', 'important');
+            img.style.setProperty('height', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
+            img.style.setProperty('margin', f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+            applied++;
+            if (!firstW) {
+              try {
+                var rr = img.getBoundingClientRect();
+                if (rr && rr.width > 2) firstW = (img.ownerDocument.defaultView || window).getComputedStyle(img).width;
+              } catch (e) {}
+            }
           } catch (e) {}
         });
-        if (need) apply();
-      }, 700);
-      document.addEventListener('DOMContentLoaded', apply);
-      setTimeout(apply, 300);
+        window.__wbImgPreview = live;
+        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张｜现宽 ' + (firstW || '-') + (live.key ? '｜' + live.key.slice(0, 12) : ''));
+        lastLive = sig;
+      }
+      function onChange(e) {
+        keepActive(e.target);
+        apply();
+      }
+      var mo = new MutationObserver(function () { apply(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
+      ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
+        document.addEventListener(ev, onChange, true);
+      });
+      setInterval(apply, 120);
       apply();
     })();
   </script>
@@ -1701,7 +1658,7 @@
         return String(src || '')
           .replace(/([?#&])w=[^&#]*/gi, '$1')
           .replace(/([?#&])f=[^&#]*/gi, '$1')
-          .replace(/[?&]+$/, '');
+          .replace(/[?&#]+$/, '');
       }
       function imgFrom(n) {
         var src = n.getAttribute('src') || '';
@@ -1717,16 +1674,20 @@
         d = d || {};
         // src 来自 image widget（上传/图库），srcText 是手填兜底；两者取其一
         var raw = d.src || d.srcText || '';
-        // 【性能关键 v8】src 保持纯净，绝不把尺寸/对齐拼进地址。
-        // 之前把 ?w=25% 拼进 src，改一次尺寸就换一个图片 URL，浏览器会把它当成
-        // 新资源重新下载整张图（实测 GitHub Pages 只有 6.5KB/s，一张 1.6MB 要 4 分钟）。
-        // 现在尺寸只写 data-* 属性 + inline style，URL 始终不变 → 改尺寸零下载、即时生效。
+        // 【v12】尺寸用 URL 片段（#）传递：能穿过编辑器清洗，又不触发重新下载。
         var base = imgBaseSrc(raw) || '/img/example.png';
         var w = String(d.width || '').trim();
         var f = d.float || 'c';
+        // 【v12 关键】尺寸写进 URL 片段（#w=5%25&f=c）：
+        // 片段是 src 的一部分，能穿过 Sveltia 的 DOMPurify 清洗到达右侧预览图；
+        // 浏览器不会把片段发给服务器，改尺寸零下载 → 既准又快。
+        var extra = [];
+        if (w) extra.push('w=' + encodeURIComponent(w));
+        if (f && f !== 'auto') extra.push('f=' + f);
+        var src = base + (extra.length ? '#' + extra.join('&') : '');
         var attrs = {
           'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
-          'src': base, 'alt': d.alt || ''
+          'src': src, 'alt': d.alt || ''
         };
         // 宽度写进 inline style（Sveltia DOMPurify 白名单保留 width），这样右侧整篇预览
         // 和正文都能立即看到 50%/25%；对齐靠 class + 预览脚本/前台脚本兜底。
