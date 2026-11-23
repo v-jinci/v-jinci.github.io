@@ -1927,16 +1927,13 @@
   </script>
 
   <script>
-    /* 图片排版预览宽度：三层保险
-       1) 全局 CSS：按 img[data-wb-w] 生成规则，任何位置（含 Lexical 内部）都生效，且不改正文数据
-       2) 直接样式：只作用于预览区（组件卡片里的 DOM 会被写回正文，绝对不碰）
-       3) 实时字段：正在编辑「图片排版」时直接读表单里的宽度/位置应用到预览图，
-          解决「字段改了但整篇预览还读正文旧 HTML」的问题 */
+    /* 图片排版预览宽度：按「图片文件名」强制，不依赖 Sveltia 是否保留 data-wb-* */
     (function () {
       var styleEl = document.createElement('style');
       styleEl.id = 'wb-img-force-style';
       (document.head || document.documentElement).appendChild(styleEl);
       var lastCss = '';
+      var live = { w: '', f: 'c', key: '' };   // 当前正在编辑的图片：宽度 / 位置 / 文件名
 
       function validW(w) { w = String(w || '').trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
       function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
@@ -1950,6 +1947,8 @@
         var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
         return m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
       }
+      function decl(w, f) { return 'width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f); }
+
       function refreshCss() {
         var out = [], seen = {};
         document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
@@ -1958,16 +1957,26 @@
           var sel = 'img[data-wb-img][data-wb-w="' + esc(w) + '"]';
           if (!w || seen[sel + f]) return;
           seen[sel + f] = 1;
-          out.push(sel + '{width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f) + '}');
+          out.push(sel + '{' + decl(w, f) + '}');
         });
+        // 关键：按文件名再生成一条规则。即使预览把 data-wb-* 洗掉，只要还是同一张图就生效。
+        if (live.w && live.key) {
+          out.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
+        }
         var css = out.join('\n');
         if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
       }
+
       function applyImg(img) {
         try {
+          // 组件卡片里的缩略图 DOM 会被写回正文，绝对不碰
           if (img.closest('[data-component-name], [data-component-path]')) return;
-          var w = validW((img.getAttribute('data-wb-w') || '').trim()) || validW(widthFromSrc(img));
-          var f = (img.getAttribute('data-wb-f') || 'c').trim();
+          var src = img.getAttribute('src') || '';
+          var isWb = img.hasAttribute('data-wb-img');
+          var byName = !!(live.key && src.indexOf(live.key) >= 0);
+          if (!isWb && !byName) return;
+          var w = byName ? live.w : (validW((img.getAttribute('data-wb-w') || '').trim()) || validW(widthFromSrc(img)));
+          var f = byName ? live.f : (img.getAttribute('data-wb-f') || 'c').trim();
           if (w) {
             img.style.setProperty('width', w, 'important');
             img.style.setProperty('max-width', '100%', 'important');
@@ -1982,15 +1991,19 @@
           img.setAttribute('data-wb-preview-applied', '1');
         } catch (e) {}
       }
+
       function scan() {
         refreshCss();
         document.querySelectorAll('img[data-wb-img]:not([data-wb-preview-applied])').forEach(applyImg);
+        if (live.key) document.querySelectorAll('img:not([data-wb-preview-applied])').forEach(applyImg);
       }
       function rescan() {
         refreshCss();
         document.querySelectorAll('img[data-wb-img]').forEach(applyImg);
+        if (live.key) document.querySelectorAll('img').forEach(applyImg);
       }
-      // 从当前打开的「图片排版」卡片读取用户刚改的宽度 / 位置
+
+      // 从当前打开的「图片排版」卡片读宽度 / 位置 / 图片文件名
       function fieldValues(card) {
         var out = { width: '', float: '' };
         var inputs = card.querySelectorAll('input, select, textarea');
@@ -2001,7 +2014,6 @@
           if (!validW(out.width) && /显示宽度/.test(txt) && validW(inp.value)) out.width = inp.value;
           if (!out.float && /位置|环绕/.test(txt)) out.float = inp.value;
         });
-        // 兜底：卡片里长得像宽度的输入框取最后一个（避免 image widget 额外 input 干扰下标）
         if (!validW(out.width)) inputs.forEach(function (inp) { if (validW(inp.value)) out.width = inp.value; });
         if (!out.float) {
           var sel = card.querySelector('select');
@@ -2018,22 +2030,19 @@
         if (!w) return;
         var thumb = card.querySelector('img[src]');
         var base = thumb ? (thumb.getAttribute('src') || '').split(/[?#]/)[0] : '';
-        document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
-          if (img.closest('[data-component-name], [data-component-path]')) return;
-          if (base && (img.getAttribute('src') || '').split(/[?#]/)[0] !== base) return;
-          // 只在值真的变化时才写属性，否则 MutationObserver 会自激循环
-          if ((img.getAttribute('data-wb-w') || '') !== w) img.setAttribute('data-wb-w', w);
-          var wantF = vals.float || img.getAttribute('data-wb-f') || 'c';
-          if ((img.getAttribute('data-wb-f') || '') !== wantF) img.setAttribute('data-wb-f', wantF);
-          applyImg(img);
-        });
-        refreshCss();
+        var key = base.split('/').pop() || '';
+        var f = vals.float || 'c';
+        var changed = (live.w !== w || live.f !== f || live.key !== key);
+        live = { w: w, f: f, key: key };
+        window.__wbImgPreview = live; // 便于控制台核对：`__wbImgPreview`
+        if (!changed && !document.getElementById('wb-img-force-style').textContent) changed = true;
+        rescan();
       }
       var mo = new MutationObserver(function () { scan(); applyLive(); });
       mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-wb-w', 'data-wb-f', 'src', 'data-component-name'] });
       document.addEventListener('input', applyLive, true);
       document.addEventListener('change', applyLive, true);
-      setInterval(function () { rescan(); applyLive(); }, 350);
+      setInterval(function () { rescan(); applyLive(); }, 300);
       scan();
     })();
   </script>
