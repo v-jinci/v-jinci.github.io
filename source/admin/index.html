@@ -1995,13 +1995,18 @@
         var out = { width: '', float: '' };
         var inputs = card.querySelectorAll('input, select, textarea');
         inputs.forEach(function (inp) {
+          if (inp.type === 'file') return;
           var box = inp.closest('[data-field-type], label, .field') || inp.parentElement;
           var txt = box ? (box.textContent || '') : '';
-          if (!out.width && /显示宽度/.test(txt)) out.width = inp.value;
+          if (!validW(out.width) && /显示宽度/.test(txt) && validW(inp.value)) out.width = inp.value;
           if (!out.float && /位置|环绕/.test(txt)) out.float = inp.value;
         });
-        if (!out.width && inputs[2]) out.width = inputs[2].value;
-        if (!out.float && inputs[3]) out.float = inputs[3].value;
+        // 兜底：卡片里长得像宽度的输入框取最后一个（避免 image widget 额外 input 干扰下标）
+        if (!validW(out.width)) inputs.forEach(function (inp) { if (validW(inp.value)) out.width = inp.value; });
+        if (!out.float) {
+          var sel = card.querySelector('select');
+          if (sel && ['c', 'l', 'r', 'auto'].indexOf(sel.value) >= 0) out.float = sel.value;
+        }
         return out;
       }
       function applyLive() {
@@ -2016,8 +2021,10 @@
         document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
           if (img.closest('[data-component-name], [data-component-path]')) return;
           if (base && (img.getAttribute('src') || '').split(/[?#]/)[0] !== base) return;
-          img.setAttribute('data-wb-w', w);
-          img.setAttribute('data-wb-f', vals.float || 'c');
+          // 只在值真的变化时才写属性，否则 MutationObserver 会自激循环
+          if ((img.getAttribute('data-wb-w') || '') !== w) img.setAttribute('data-wb-w', w);
+          var wantF = vals.float || img.getAttribute('data-wb-f') || 'c';
+          if ((img.getAttribute('data-wb-f') || '') !== wantF) img.setAttribute('data-wb-f', wantF);
           applyImg(img);
         });
         refreshCss();
