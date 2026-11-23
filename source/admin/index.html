@@ -1927,58 +1927,107 @@
   </script>
 
   <script>
-    /* 图片排版预览宽度兜底：
-       Sveltia 的预览有多层清洗（qm/$oe），组件预览和「中间整篇预览」渲染链路不同，
-       且工具栏改宽度时整篇预览读的是正文旧 HTML。这里直接监听最终 DOM，
-       用 data-wb-w / data-wb-f 这两个一定会被保留的属性强制应用宽度与对齐，
-       覆盖组件弹窗预览、中间预览栏、编辑器内所有出现的位置。 */
+    /* 图片排版预览宽度：三层保险
+       1) 全局 CSS：按 img[data-wb-w] 生成规则，任何位置（含 Lexical 内部）都生效，且不改正文数据
+       2) 直接样式：只作用于预览区（组件卡片里的 DOM 会被写回正文，绝对不碰）
+       3) 实时字段：正在编辑「图片排版」时直接读表单里的宽度/位置应用到预览图，
+          解决「字段改了但整篇预览还读正文旧 HTML」的问题 */
     (function () {
+      var styleEl = document.createElement('style');
+      styleEl.id = 'wb-img-force-style';
+      (document.head || document.documentElement).appendChild(styleEl);
+      var lastCss = '';
+
+      function validW(w) { w = String(w || '').trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
+      function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+      function floatCss(f) {
+        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
+        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
+        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
+        return '';
+      }
+      function widthFromSrc(img) {
+        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
+        return m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
+      }
+      function refreshCss() {
+        var out = [], seen = {};
+        document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
+          var w = validW((img.getAttribute('data-wb-w') || '').trim()) || validW(widthFromSrc(img));
+          var f = (img.getAttribute('data-wb-f') || 'c').trim();
+          var sel = 'img[data-wb-img][data-wb-w="' + esc(w) + '"]';
+          if (!w || seen[sel + f]) return;
+          seen[sel + f] = 1;
+          out.push(sel + '{width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f) + '}');
+        });
+        var css = out.join('\n');
+        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
+      }
       function applyImg(img) {
         try {
-          // 编辑器主区（会被序列化回正文）不碰，避免把预览样式写进文章数据
-          if (img.closest('[data-lexical-editor]')) return;
-          var w = (img.getAttribute('data-wb-w') || '').trim();
+          if (img.closest('[data-component-name], [data-component-path]')) return;
+          var w = validW((img.getAttribute('data-wb-w') || '').trim()) || validW(widthFromSrc(img));
           var f = (img.getAttribute('data-wb-f') || 'c').trim();
-          if (!w) {
-            // 兜底：从 src 的 ?w= 参数里读
-            var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9.]+)(%25|%|px)?/i);
-            if (m) w = m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%');
-          }
           if (w) {
             img.style.setProperty('width', w, 'important');
             img.style.setProperty('max-width', '100%', 'important');
             img.style.setProperty('height', 'auto', 'important');
+            img.setAttribute('data-wb-force-w', w);
           }
-          if (f === 'c') {
+          if (f === 'c' || f === 'l' || f === 'r') {
             img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('margin', '10px auto', 'important');
-            img.style.setProperty('float', 'none', 'important');
-          } else if (f === 'l') {
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('float', 'left', 'important');
-            img.style.setProperty('margin', '6px 18px 14px 0', 'important');
-          } else if (f === 'r') {
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('float', 'right', 'important');
-            img.style.setProperty('margin', '6px 0 14px 18px', 'important');
+            img.style.setProperty('float', f === 'c' ? 'none' : f, 'important');
+            img.style.setProperty('margin', f === 'c' ? '10px auto' : (f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px'), 'important');
           }
           img.setAttribute('data-wb-preview-applied', '1');
         } catch (e) {}
       }
       function scan() {
+        refreshCss();
         document.querySelectorAll('img[data-wb-img]:not([data-wb-preview-applied])').forEach(applyImg);
       }
-      // 字段/预览变化时 data-wb-w 会更新，需要重新应用：清除标记后重扫
       function rescan() {
-        document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
-          var want = (img.getAttribute('data-wb-w') || '').trim();
-          var applied = img.getAttribute('data-wb-applied-w');
-          if (want !== applied) { img.removeAttribute('data-wb-preview-applied'); applyImg(img); img.setAttribute('data-wb-applied-w', want); }
-        });
+        refreshCss();
+        document.querySelectorAll('img[data-wb-img]').forEach(applyImg);
       }
-      var mo = new MutationObserver(function () { scan(); rescan(); });
-      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-wb-w', 'data-wb-f', 'src'] });
-      setInterval(rescan, 400);
+      // 从当前打开的「图片排版」卡片读取用户刚改的宽度 / 位置
+      function fieldValues(card) {
+        var out = { width: '', float: '' };
+        var inputs = card.querySelectorAll('input, select, textarea');
+        inputs.forEach(function (inp) {
+          var box = inp.closest('[data-field-type], label, .field') || inp.parentElement;
+          var txt = box ? (box.textContent || '') : '';
+          if (!out.width && /显示宽度/.test(txt)) out.width = inp.value;
+          if (!out.float && /位置|环绕/.test(txt)) out.float = inp.value;
+        });
+        if (!out.width && inputs[2]) out.width = inputs[2].value;
+        if (!out.float && inputs[3]) out.float = inputs[3].value;
+        return out;
+      }
+      function applyLive() {
+        var cards = document.querySelectorAll('[data-component-name="wb-image-html"]');
+        if (!cards.length) return;
+        var card = cards[cards.length - 1];
+        var vals = fieldValues(card);
+        var w = validW(vals.width);
+        if (!w) return;
+        var thumb = card.querySelector('img[src]');
+        var base = thumb ? (thumb.getAttribute('src') || '').split(/[?#]/)[0] : '';
+        document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
+          if (img.closest('[data-component-name], [data-component-path]')) return;
+          if (base && (img.getAttribute('src') || '').split(/[?#]/)[0] !== base) return;
+          img.setAttribute('data-wb-w', w);
+          img.setAttribute('data-wb-f', vals.float || 'c');
+          applyImg(img);
+        });
+        refreshCss();
+      }
+      var mo = new MutationObserver(function () { scan(); applyLive(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-wb-w', 'data-wb-f', 'src', 'data-component-name'] });
+      document.addEventListener('input', applyLive, true);
+      document.addEventListener('change', applyLive, true);
+      setInterval(function () { rescan(); applyLive(); }, 350);
+      scan();
     })();
   </script>
 
