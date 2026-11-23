@@ -1,14 +1,32 @@
 # 站点设置：本地 http://localhost:4000/site 与远程 /admin 编辑的都是这一份
 # 保存后提交到 hexo-src，等自动部署完成就上线。
 
-hexo:
-  title: 玮's Blog
-  subtitle: What can happen will happen
-  description: 记录思考、学习与生活的个人博客
-  keywords: 玮,博客,日志,生活记录,读书笔记
-  author: 玮
-  language: zh-CN
-mail: 599676700@qq.com
+sections:
+  index: ''
+  about: ''
+  link: ''
+  history: ''
+  messageBoard: ''
+  downloads: '1227'
+  archives: ''
+  tags: ''
+  categories: ''
+admin_password: '19981227.'
+contacts:
+  - href: https://github.com/v-jinci
+    icon: fab fa-github
+    label: GitHub
+    value: '@v-jinci'
+  - href: mailto:599676700@qq.com
+    icon: fas fa-envelope
+    label: 邮箱
+    value: 599676700@qq.com
+  - icon: fab fa-weixin
+    label: 微信
+    value: RVV19981227
+  - icon: fab fa-qq
+    label: QQ
+    value: '599676700'
 editor_components:
   - wb-ic-size
   - wb-ic-color
@@ -33,29 +51,11 @@ editor_components:
   - wb-video-html
   - wb-quote2-html
   - wb-prog-html
-admin_password: '19981227.'
-contacts:
-  - href: https://github.com/v-jinci
-    icon: fab fa-github
-    label: GitHub
-    value: '@v-jinci'
-  - href: mailto:599676700@qq.com
-    icon: fas fa-envelope
-    label: 邮箱
-    value: 599676700@qq.com
-  - icon: fab fa-weixin
-    label: 微信
-    value: RVV19981227
-  - icon: fab fa-qq
-    label: QQ
-    value: '599676700'
-sections:
-  about: ''
-  archives: ''
-  categories: ''
-  downloads: eeafcf2e9d8037ab51da8788043fdd0829500b7d8cc36aeb4503128b8a864cc5
-  history: ''
-  index: ''
-  link: ''
-  messageBoard: ''
-  tags: ''
+hexo:
+  author: 玮
+  description: 记录思考、学习与生活的个人博客
+  keywords: 玮,博客,日志,生活记录,读书笔记
+  language: zh-CN
+  subtitle: What can happen will happen
+  title: 玮's Blog
+mail: 599676700@qq.com
