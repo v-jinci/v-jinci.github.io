@@ -2,7 +2,7 @@
    只缓存同源 /libs/sveltia-270/ 下的静态文件，不拦截任何动态请求。
    升级 Sveltia 时把 CACHE 版本号 +1 即可让旧缓存失效。 */
 'use strict';
-var CACHE = 'wb-cms-v2';
+var CACHE = 'wb-cms-v3';
 var BASE = '/libs/sveltia-270/';
 var PRECACHE = [
   BASE + 'sveltia-cms.js',
@@ -21,11 +21,14 @@ var PRECACHE = [
 ];
 
 self.addEventListener('install', function (e) {
-  // 后台预下载，单个失败不影响整体（addAll 全失败才 reject）
+  // 后台预缓存，单个失败不影响整体。
+  // 用 force-cache：优先复用浏览器 HTTP 缓存，不强制 reload——
+  // 避免和页面正在下载的主脚本抢带宽、把 2.6MB 重复下载两遍。
+  // 真正缺的（HTTP 缓存没命中）才会走网络；已缓存的几乎零成本入库。
   e.waitUntil(
     caches.open(CACHE).then(function (c) {
       return Promise.all(PRECACHE.map(function (u) {
-        return c.add(new Request(u, { cache: 'reload' })).catch(function () {});
+        return c.add(new Request(u, { cache: 'force-cache' })).catch(function () {});
       }));
     }).catch(function () {})
   );

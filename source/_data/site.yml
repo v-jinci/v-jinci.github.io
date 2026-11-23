@@ -1,47 +1,41 @@
 # 站点设置：本地 http://localhost:4000/site 与远程 /admin 编辑的都是这一份
 # 保存后提交到 hexo-src，等自动部署完成就上线。
 
-sections:
-  index: ''
-  about: ''
-  link: ''
-  history: ''
-  messageBoard: ''
-  downloads: '1227'
-  archives: ''
-  tags: ''
-  categories: ''
-admin_password: '19981227.'
-contacts:
-  - href: https://github.com/v-jinci
-    icon: fab fa-github
-    label: GitHub
-    value: '@v-jinci'
-  - href: mailto:599676700@qq.com
-    icon: fas fa-envelope
-    label: 邮箱
-    value: 599676700@qq.com
-  - icon: fab fa-weixin
-    label: 微信
-    value: RVV19981227
-  - icon: fab fa-qq
-    label: QQ
-    value: '599676700'
+# 站点文字：写了什么键就覆盖 _config.yml 的同名键（构建时由 scripts/wb-settings.js 应用）
+hexo:
+  title: "玮's Blog"
+  subtitle: "What can happen will happen"
+  description: "记录思考、学习与生活的个人博客"
+  keywords: "玮,博客,日志,生活记录,读书笔记"
+  author: "玮"
+  language: "zh-CN"
+
+mail: "599676700@qq.com"
+
+# 写作后台 /admin 的访问密码（明文填写，构建时自动转成 SHA-256）
+# 留空＝不要密码，点导航「写作」直接进。这层只挡随手点进来的人，真正保护靠 GitHub 令牌。
+admin_password: "19981227."
+
+# 写作后台 /admin 正文「插入」菜单的顺序。
+# 也可以在 /admin → 站点设置 → 基本信息 →「正文工具栏顺序」里上下拖动调整，
+# 保存后等自动部署完成，其他设备打开就是新顺序。删掉某一行＝在菜单里隐藏它。
 editor_components:
-  - wb-ic-size
-  - wb-ic-color
+  - wb-em-html
   - wb-clear-html
+  - wb-ic-color
+  - wb-ic-size
+  - wb-combo-html
+  - wb-align-html
   - wb-callout-html
   - wb-button-html
-  - image
   - wb-caption-html
   - wb-hr-html
   - wb-table-html
   - wb-postlink-html
+  - wb-color-html
+  - wb-size-html
   - code-block
-  - wb-align-html
-  - wb-combo-html
-  - wb-em-html
+  - image
   - wb-image-html
   - wb-fold-html
   - wb-2col-html
@@ -51,11 +45,32 @@ editor_components:
   - wb-video-html
   - wb-quote2-html
   - wb-prog-html
-hexo:
-  author: 玮
-  description: 记录思考、学习与生活的个人博客
-  keywords: 玮,博客,日志,生活记录,读书笔记
-  language: zh-CN
-  subtitle: What can happen will happen
-  title: 玮's Blog
-mail: 599676700@qq.com
+
+sections:
+  index: ''
+  about: ''
+  link: ''
+  history: ''
+  messageBoard: ''
+  downloads: "eeafcf2e9d8037ab51da8788043fdd0829500b7d8cc36aeb4503128b8a864cc5"
+  archives: ''
+  tags: ''
+  categories: ''
+
+# 关于页的联系方式卡片：写 <!--WB_CONTACTS--> 的地方会显示它们
+# hidden: true = 暂时不显示，但内容留着
+contacts:
+  - label: "GitHub"
+    icon: "fab fa-github"
+    value: "@v-jinci"
+    href: "https://github.com/v-jinci"
+  - label: "邮箱"
+    icon: "fas fa-envelope"
+    value: "599676700@qq.com"
+    href: "mailto:599676700@qq.com"
+  - label: "微信"
+    icon: "fab fa-weixin"
+    value: "RVV19981227"
+  - label: "QQ"
+    icon: "fab fa-qq"
+    value: "599676700"

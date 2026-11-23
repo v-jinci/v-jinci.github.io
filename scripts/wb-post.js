@@ -75,6 +75,19 @@ function addClass(tag, cls) {
  * 宽度小于 70% 且没指定排版时，自动「左环绕」——文字会绕到图片右侧，
  * 而不是缩成半宽、右边留一大片空白。
  */
+// 从 img 标签属性里读尺寸：新组件把尺寸写在 data-wb-w / inline style（src 保持纯净，
+// 避免改尺寸触发浏览器重新下载）；老组件/手写地址仍在 src 的 ?w= / ?f= 里。
+function attrOf(tag, name) {
+  const m = tag.match(new RegExp('\\b' + name + '=("([^"]*)"|\'([^\']*)\')', 'i'));
+  return m ? (m[2] || m[3] || '') : '';
+}
+function widthFromStyle(tag) {
+  const m = tag.match(/\bstyle=("([^"]*)"|'([^']*)')/i);
+  if (!m) return '';
+  const st = m[2] || m[3] || '';
+  const w = st.match(/(?:^|;)\s*width\s*:\s*([0-9.]+(?:%|px))/i);
+  return w ? w[1] : '';
+}
 function applyImgLayout(html, defaultWidth, defaultFloat) {
   const dW = pctOf(defaultWidth) || 100;
   const dF = normFloat(defaultFloat) || 'auto';
@@ -82,11 +95,13 @@ function applyImgLayout(html, defaultWidth, defaultFloat) {
     const srcM = tag.match(/\bsrc=("([^"]*)"|'([^']*)')/i);
     const src = srcM ? srcM[2] || srcM[3] || '' : '';
 
-    let w = widthFromSrc(src);
+    // 优先级：data-wb-w > inline style width > src 的 ?w= > 全站默认
+    let w = attrOf(tag, 'data-wb-w') || widthFromStyle(tag) || widthFromSrc(src);
     if (!w && dW > 0 && dW < 100) w = dW + '%';
     if (!w) return tag;
 
-    let f = floatFromSrc(src) || dF;
+    // 优先级：data-wb-f > src 的 ?f= > 全站默认
+    let f = normFloat(attrOf(tag, 'data-wb-f')) || floatFromSrc(src) || dF;
     if (f === 'auto') f = pctOf(w) > 0 && pctOf(w) <= 70 ? 'l' : 'c'; // 小图环绕、大图居中
 
     const decls = [];

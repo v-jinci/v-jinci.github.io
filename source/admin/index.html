@@ -134,12 +134,21 @@
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>
-    /* 图片排版预览宽度 v7：只认当前编辑的组件，输入即生效；不误读其它组件的百分比 */
+    /* 图片排版预览 v8：事件驱动 + 防抖。
+       改尺寸即时生效；不再每 120ms 全量扫描整页 img（那是卡顿/慢半拍的主因）。
+       只认「当前正在编辑」的图片组件，绝不猜其它组件的百分比。 */
     (function () {
-      var VER = 'v7';
+      var VER = 'v8';
       var styleEl = document.createElement('style');
       styleEl.id = 'wb-img-force-style';
+      // 通用对齐规则用 class 固化；宽度由 img 自带 inline style / 本脚本按字段写入
+      styleEl.textContent =
+        'img.wb-img-prev{box-sizing:border-box!important;min-width:0!important;max-width:100%!important;height:auto!important}' +
+        'img.wb-img-prev-c{display:block!important;float:none!important;margin:10px auto!important}' +
+        'img.wb-img-prev-l{display:block!important;float:left!important;margin:6px 18px 14px 0!important}' +
+        'img.wb-img-prev-r{display:block!important;float:right!important;margin:6px 0 14px 18px!important}';
       (document.head || document.documentElement).appendChild(styleEl);
+
       var badge = document.createElement('div');
       badge.id = 'wb-img-preview-badge';
       badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
@@ -147,39 +156,19 @@
       (document.body || document.documentElement).appendChild(badge);
 
       function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
-      function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
       function keyOf(src) {
         src = String(src || '').split(/[?#]/)[0];
         var k = src.split('/').pop() || '';
         try { k = decodeURIComponent(k); } catch (e) {}
         return k;
       }
-      function floatCss(f) {
-        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
-        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
-        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
-        return '';
-      }
-      function decl(w, f) { return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' + floatCss(f); }
-      function fromSrc(img) {
-        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
-        var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
-        var n = (img.getAttribute('src') || '').match(/[?#&]f=([a-z]+)/i);
-        return { w: validW(w), f: n ? n[1] : 'c' };
-      }
 
-      /* 只认「当前正在编辑」的图片组件，避免多个组件时一直读第一个 */
-      var activeCard = null;
       function cardOf(el) {
         if (!el || !el.closest) return null;
         var c = el.closest('[data-component-name]');
         return (c && /显示宽度/.test(c.textContent || '')) ? c : null;
       }
-      function keepActive(el) {
-        var c = cardOf(el);
-        if (c) activeCard = c;
-        return c;
-      }
+      var activeCard = null;
       function readCard(card) {
         if (!card) return null;
         var w = '', f = '';
@@ -194,7 +183,7 @@
         if (th) key = keyOf(th.getAttribute('src'));
         return w ? { w: w, f: f || 'c', key: key } : null;
       }
-      function readLive() {
+      function curCard() {
         var card = activeCard && activeCard.isConnected ? activeCard : null;
         if (!card && document.activeElement) card = cardOf(document.activeElement);
         if (!card) {
@@ -202,75 +191,77 @@
             .filter(function (c) { return /显示宽度/.test(c.textContent || ''); });
           card = cards[cards.length - 1] || null;
         }
-        if (card) {
-          var v = readCard(card);
-          if (v) return v;
-        }
-        // 兜底：从预览图上已有的 ?w= / data-wb-w 读，绝不猜其它字段的百分比
-        var w = '';
-        document.querySelectorAll('img[data-wb-img]').forEach(function (im) {
-          if (!w) w = validW((im.getAttribute('data-wb-w') || '').trim()) || fromSrc(im).w;
-        });
-        return { w: w, f: 'c', key: '' };
+        return card;
       }
 
-      var lastCss = '', applied = 0, lastLive = '', badgeText = '';
+      var badgeText = '', lastSig = '', applied = 0;
       function ensureBadge() { if (document.body && badge.parentNode !== document.body) document.body.appendChild(badge); }
       function setBadge(t) {
-        if (t === badgeText) return;   // 必须幂等，否则改文本会触发 MutationObserver 自激
+        if (t === badgeText) return; // 必须幂等，否则改文本会触发自身变化
         badgeText = t;
         if (badge.firstChild) badge.firstChild.nodeValue = t;
         else badge.textContent = t;
       }
+
       function apply() {
         ensureBadge();
-        var live = readLive();
+        var card = curCard();
+        var live = card ? readCard(card) : null;
+        if (!live || !live.w) {
+          setBadge('🖼 预览宽度 ' + VER + '｜未读到宽度字段（点一下图片组件）');
+          return;
+        }
         var sig = live.w + '|' + live.f + '|' + live.key;
-        var rules = [];
-        if (live.w && live.key) rules.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
-        var css = rules.join('\n');
-        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
-
         applied = 0;
         document.querySelectorAll('img').forEach(function (img) {
           // 组件卡片里的缩略图会被写回正文，绝不改它
           if (img.closest('[data-component-name], [data-component-path]')) return;
-          var src = img.getAttribute('src') || '';
-          var key = keyOf(src);
-          var w = '', f = 'c';
-          if (live.key && key === live.key && live.w) { w = live.w; f = live.f; }
-          else {
-            w = validW((img.getAttribute('data-wb-w') || '').trim());
-            f = (img.getAttribute('data-wb-f') || 'c').trim();
-            if (!w) { var q = fromSrc(img); w = q.w; f = q.f; }
-          }
-          if (!w) return;
+          var key = keyOf(img.getAttribute('src'));
+          if (live.key && key !== live.key) return; // 只应用当前这张，避免误改别的图
           try {
-            img.style.setProperty('width', w, 'important');
+            img.style.setProperty('width', live.w, 'important');
             img.style.setProperty('min-width', '0', 'important');
             img.style.setProperty('max-width', '100%', 'important');
             img.style.setProperty('box-sizing', 'border-box', 'important');
             img.style.setProperty('height', 'auto', 'important');
             img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
-            img.style.setProperty('margin', f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+            img.style.setProperty('float', live.f === 'l' ? 'left' : live.f === 'r' ? 'right' : 'none', 'important');
+            img.style.setProperty('margin', live.f === 'c' ? '10px auto' : live.f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
             applied++;
           } catch (e) {}
         });
         window.__wbImgPreview = live;
-        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
-        lastLive = sig;
+        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + live.w + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
+        lastSig = sig;
       }
-      function onChange(e) {
-        keepActive(e.target);
-        apply();
+
+      // 事件驱动 + 防抖：用户改字段才算一次，不再常驻高频轮询
+      var raf = 0, debounce = 0;
+      function schedule() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(function () {
+          raf = 0;
+          if (debounce) clearTimeout(debounce);
+          debounce = setTimeout(apply, 24);
+        });
       }
-      var mo = new MutationObserver(function () { apply(); });
-      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
       ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
-        document.addEventListener(ev, onChange, true);
+        document.addEventListener(ev, function (e) {
+          var c = cardOf(e.target);
+          if (c) activeCard = c;
+          schedule();
+        }, true);
       });
-      setInterval(apply, 120);
+      // 极轻兜底：只有签名变化才写 DOM，绝大多数 tick 空转，不造成卡顿
+      setInterval(function () {
+        var card = curCard();
+        if (!card) return;
+        var live = readCard(card);
+        if (!live || !live.w) return;
+        var sig = live.w + '|' + live.f + '|' + live.key;
+        if (sig !== lastSig) apply();
+      }, 1200);
+      document.addEventListener('DOMContentLoaded', apply);
       apply();
     })();
   </script>
@@ -321,8 +312,8 @@
     <div class="wb-load-card">
       <div class="wb-load-spinner"></div>
       <h1>写作后台正在加载…</h1>
-      <p>正在载入编辑器组件（约 2.6MB）。<br>首次打开需要十几秒，稍等一下就好。</p>
-      <p class="wb-load-sub">加载过一次会自动缓存到本机，以后再进就秒开。</p>
+      <p>正在载入编辑器组件（约 2.6MB）。<br>首次打开或刚更新后较慢，取决于网络，请耐心等待。</p>
+      <p class="wb-load-sub">加载过一次会缓存到本机，之后正常进入（不要按 Ctrl+F5 强制刷新）即可秒开。</p>
       <div class="wb-load-bar"><span></span></div>
     </div>
   </div>
@@ -1666,22 +1657,19 @@
         d = d || {};
         // src 来自 image widget（上传/图库），srcText 是手填兜底；两者取其一
         var raw = d.src || d.srcText || '';
+        // 【性能关键 v8】src 保持纯净，绝不把尺寸/对齐拼进地址。
+        // 之前把 ?w=25% 拼进 src，改一次尺寸就换一个图片 URL，浏览器会把它当成
+        // 新资源重新下载整张图（实测 GitHub Pages 只有 6.5KB/s，一张 1.6MB 要 4 分钟）。
+        // 现在尺寸只写 data-* 属性 + inline style，URL 始终不变 → 改尺寸零下载、即时生效。
         var base = imgBaseSrc(raw) || '/img/example.png';
         var w = String(d.width || '').trim();
         var f = d.float || 'c';
-        var extra = [];
-        if (w) extra.push('w=' + encodeURIComponent(w));
-        if (f && f !== 'auto') extra.push('f=' + f);
-        var src = base + (extra.length ? (base.indexOf('?') >= 0 ? '&' : '?') + extra.join('&') : '');
         var attrs = {
           'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
-          'src': src, 'alt': d.alt || ''
+          'src': base, 'alt': d.alt || ''
         };
-        // 宽度/对齐写进 inline style + class。Sveltia 整篇预览（右侧「预览」）渲染的是
-        // toBlock 保存的 HTML，不走前台脚本；只有 HTML 自带 width 才能在预览里看到 50%/25%。
-        // style 白名单含 width/max-width/height（不含 float/margin/display），
-        // 所以宽度靠 inline style、对齐靠 class + 后台预览 CSS 兜底。
-        // 保存到正文后，前台 wb-post.js 会补齐环绕声明（已改为逐条补齐，不会因已有 width 而漏掉）。
+        // 宽度写进 inline style（Sveltia DOMPurify 白名单保留 width），这样右侧整篇预览
+        // 和正文都能立即看到 50%/25%；对齐靠 class + 预览脚本/前台脚本兜底。
         var st = [];
         if (w) st.push('width:' + w, 'max-width:100%', 'height:auto');
         if (st.length) attrs['style'] = st.join(';');
