@@ -134,9 +134,9 @@
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>
-    /* 图片排版预览宽度 v6：进页面就显示徽标；全页面找字段；按文件名命中所有预览图 */
+    /* 图片排版预览宽度 v7：只认当前编辑的组件，输入即生效；不误读其它组件的百分比 */
     (function () {
-      var VER = 'v6';
+      var VER = 'v7';
       var styleEl = document.createElement('style');
       styleEl.id = 'wb-img-force-style';
       (document.head || document.documentElement).appendChild(styleEl);
@@ -160,7 +160,7 @@
         if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
         return '';
       }
-      function decl(w, f) { return 'width:' + w + '!important;max-width:100%!important;height:auto!important;' + floatCss(f); }
+      function decl(w, f) { return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' + floatCss(f); }
       function fromSrc(img) {
         var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
         var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
@@ -168,32 +168,50 @@
         return { w: validW(w), f: n ? n[1] : 'c' };
       }
 
-      /* 全页面找「显示宽度」字段，不假设组件卡片的层级 */
-      function readLive() {
-        var nodes = [];
-        document.querySelectorAll('input, select, textarea').forEach(function (inp) {
+      /* 只认「当前正在编辑」的图片组件，避免多个组件时一直读第一个 */
+      var activeCard = null;
+      function cardOf(el) {
+        if (!el || !el.closest) return null;
+        var c = el.closest('[data-component-name]');
+        return (c && /显示宽度/.test(c.textContent || '')) ? c : null;
+      }
+      function keepActive(el) {
+        var c = cardOf(el);
+        if (c) activeCard = c;
+        return c;
+      }
+      function readCard(card) {
+        if (!card) return null;
+        var w = '', f = '';
+        card.querySelectorAll('input, select, textarea').forEach(function (inp) {
           if (inp.type === 'file') return;
           var box = inp.closest('[data-field-type], label, .field') || inp.parentElement || inp;
-          nodes.push({ inp: inp, txt: (box.textContent || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.name || '') });
+          var txt = (box.textContent || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.name || '');
+          if (!w && /显示宽度/.test(txt)) w = validW(inp.value);
+          if (!f && /位置|环绕/.test(txt) && ['c', 'l', 'r', 'auto'].indexOf(inp.value) >= 0) f = inp.value;
         });
-        var w = '', f = '';
-        for (var i = 0; i < nodes.length; i++) {
-          if (!w && /显示宽度/.test(nodes[i].txt) && validW(nodes[i].inp.value)) w = validW(nodes[i].inp.value);
-          if (!f && /位置|环绕/.test(nodes[i].txt) && ['c', 'l', 'r', 'auto'].indexOf(nodes[i].inp.value) >= 0) f = nodes[i].inp.value;
+        var key = '', th = card.querySelector('img[src]');
+        if (th) key = keyOf(th.getAttribute('src'));
+        return w ? { w: w, f: f || 'c', key: key } : null;
+      }
+      function readLive() {
+        var card = activeCard && activeCard.isConnected ? activeCard : null;
+        if (!card && document.activeElement) card = cardOf(document.activeElement);
+        if (!card) {
+          var cards = [].slice.call(document.querySelectorAll('[data-component-name]'))
+            .filter(function (c) { return /显示宽度/.test(c.textContent || ''); });
+          card = cards[cards.length - 1] || null;
         }
-        if (!w) {
-          for (var j = 0; j < nodes.length; j++) { w = validW(nodes[j].inp.value); if (w) break; }
+        if (card) {
+          var v = readCard(card);
+          if (v) return v;
         }
-        var key = '';
-        document.querySelectorAll('[data-component-name]').forEach(function (card) {
-          if (key || !/显示宽度/.test(card.textContent || '')) return;
-          var th = card.querySelector('img[src]');
-          if (th) key = keyOf(th.getAttribute('src'));
+        // 兜底：从预览图上已有的 ?w= / data-wb-w 读，绝不猜其它字段的百分比
+        var w = '';
+        document.querySelectorAll('img[data-wb-img]').forEach(function (im) {
+          if (!w) w = validW((im.getAttribute('data-wb-w') || '').trim()) || fromSrc(im).w;
         });
-        if (!key) {
-          document.querySelectorAll('img[data-wb-img]').forEach(function (im) { if (!key) key = keyOf(im.getAttribute('src')); });
-        }
-        return { w: w, f: f || 'c', key: key };
+        return { w: w, f: 'c', key: '' };
       }
 
       var lastCss = '', applied = 0, lastLive = '', badgeText = '';
@@ -229,7 +247,9 @@
           if (!w) return;
           try {
             img.style.setProperty('width', w, 'important');
+            img.style.setProperty('min-width', '0', 'important');
             img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('box-sizing', 'border-box', 'important');
             img.style.setProperty('height', 'auto', 'important');
             img.style.setProperty('display', 'block', 'important');
             img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
@@ -241,11 +261,16 @@
         setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
         lastLive = sig;
       }
+      function onChange(e) {
+        keepActive(e.target);
+        apply();
+      }
       var mo = new MutationObserver(function () { apply(); });
       mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
-      document.addEventListener('input', apply, true);
-      document.addEventListener('change', apply, true);
-      setInterval(apply, 250);
+      ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
+        document.addEventListener(ev, onChange, true);
+      });
+      setInterval(apply, 120);
       apply();
     })();
   </script>
@@ -253,7 +278,7 @@
   <!-- 性能优化：注册 Service Worker，把 CMS 脚本缓存到本机，第二次进后台秒开 -->
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
+      (function registerSW() {
         // 先注销旧版 /admin/sw.js（作用域太小，拦不到 /libs/），再注册根目录新版
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           return Promise.all(regs.map(function (r) {
@@ -266,7 +291,7 @@
         }).catch(function () {}).then(function () {
           return navigator.serviceWorker.register('/sw.js');
         }).catch(function () {});
-      });
+      })();
     }
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
@@ -379,7 +404,7 @@
   </script>
 
   <!-- 体验沙盒专用：Sveltia 0.270 最新版（正式 /cms/ 仍用 0.265，互不影响） -->
-  <script src="/libs/sveltia-270/sveltia-cms.js"></script>
+  <script defer src="/libs/sveltia-270/sveltia-cms.js"></script>
   <script>
     (function () {
       var LOADED = [];
@@ -1876,10 +1901,20 @@
       // 真正启动 CMS。密码门验证通过后才会调用它（没设密码则立即调用）。
       window.__wbStartCMS = function () {
         if (window.__wbCMSStarted) return;
-        try {
-          if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
-            throw new Error('CMS 对象未就绪');
+        if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+          // 主脚本 2.6MB，可能还没下载完：等它就绪再启动，而不是直接失败
+          if (!window.__wbStartTimer) {
+            window.__wbStartTimer = setInterval(function () {
+              if (typeof window.CMS !== 'undefined' && typeof window.CMS.init === 'function') {
+                clearInterval(window.__wbStartTimer);
+                window.__wbStartTimer = null;
+                window.__wbStartCMS();
+              }
+            }, 150);
           }
+          return;
+        }
+        try {
           applyToolbarOrder();
           window.CMS.init();
           window.__wbCMSStarted = true;
