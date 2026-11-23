@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>写文章 · Sveltia</title>
+  <style>
+    body{margin:0;font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f6f7fb;color:#1f2430}
+    #fallback{max-width:560px;margin:60px auto;padding:24px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,23,42,.08)}
+    #fallback h1{font-size:18px;margin:0 0 12px}
+    #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
+    #fallback a{color:#4a6cf7}
+  </style>
+  <!-- 手动初始化：等自定义排版组件注册完再启动 CMS（注册脚本在页面底部） -->
+  <script>window.CMS_MANUAL_INIT = true;</script>
+</head>
+<body>
+  <div id="fallback">
+    <h1>Sveltia 正在加载…</h1>
+    <p>如果一直停在这一页，通常是脚本没加载成功。请确认 <code>/libs/sveltia/sveltia-cms.js</code> 能打开；
+       还不行就看下面的说明。</p>
+    <p><a href="/admin/config.yml">查看配置文件</a></p>
+  </div>
+
+  <!-- Sveltia 主程序（保持在 body 末尾加载，确保 DOM 就绪） -->
+  <script src="/libs/sveltia/sveltia-cms.js"></script>
+
+  <script>
+  /* ==========================================================================
+     自定义排版组件（正文工具栏「插入(Insert)」菜单）
+     --------------------------------------------------------------------------
+     原有 3 个 Word 式内联样式：段落对齐 / 彩色文字 / 字号
+     新增 6 个写作助手：提示卡片 / 按钮链接 / 图注 / 分割线 / 表格 / 文章内链
+     --------------------------------------------------------------------------
+     原理：每个组件 = 一个带字段的表单，填好后由 toBlock() 生成一段 Markdown
+     文本插进正文。全部是标准 Markdown / 主题识别的写法，不含富文本 HTML，
+     所以和现有文章、Butterfly 主题完全兼容，也不会触发 0.270 那种严格校验。
+     ========================================================================== */
+  (function () {
+    function safeRegister(def) {
+      try {
+        window.CMS.registerEditorComponent(def);
+      } catch (e) {
+        console.error('[排版组件注册失败] ' + (def && def.id), e);
+      }
+    }
+
+    /* ---------- 1. 段落对齐（居中 / 左 / 右） ---------- */
+    safeRegister({
+      id: 'wb-align',
+      label: '段落对齐（居中/左/右）',
+      icon: 'format_align_center',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'text' },
+        { name: 'align', label: '对齐方式', widget: 'select', default: 'center', options: [
+          { label: '居中', value: 'center' },
+          { label: '左对齐', value: 'left' },
+          { label: '右对齐', value: 'right' }
+        ] }
+      ],
+      pattern: /^<div style="text-align:\s*(?:left|center|right);?">([\s\S]*?)<\/div>$/m,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var am = html.match(/text-align:\s*(left|center|right)/);
+        return { align: am ? am[1] : 'center', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var a = (d && d.align) || 'center';
+        return '<div style="text-align: ' + a + '">' + ((d && d.text) || '') + '</div>';
+      },
+      toPreview: function (d) {
+        var a = (d && d.align) || 'center';
+        return '<div style="text-align: ' + a + '">' + ((d && d.text) || '') + '</div>';
+      }
+    });
+
+    /* ---------- 2. 彩色文字 ---------- */
+    safeRegister({
+      id: 'wb-color',
+      label: '彩色文字',
+      icon: 'format_color_text',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'string' },
+        { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
+          { label: '红色', value: '#e60000' },
+          { label: '橙色', value: '#ea580c' },
+          { label: '绿色', value: '#16a34a' },
+          { label: '蓝色', value: '#2563eb' },
+          { label: '紫色', value: '#7c3aed' },
+          { label: '深灰', value: '#334155' }
+        ] }
+      ],
+      pattern: /<span style="color:\s*#[0-9a-fA-F]{3,6};?">([\s\S]*?)<\/span>/,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var cm = html.match(/color:\s*(#[0-9a-fA-F]{3,6})/);
+        return { color: cm ? cm[1] : '#e60000', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var c = (d && d.color) || '#e60000';
+        return '<span style="color: ' + c + '">' + ((d && d.text) || '') + '</span>';
+      },
+      toPreview: function (d) {
+        var c = (d && d.color) || '#e60000';
+        return '<span style="color: ' + c + '">' + ((d && d.text) || '') + '</span>';
+      }
+    });
+
+    /* ---------- 3. 字号 ---------- */
+    safeRegister({
+      id: 'wb-size',
+      label: '字号（大/小）',
+      icon: 'format_size',
+      fields: [
+        { name: 'text', label: '文字内容', widget: 'string' },
+        { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
+          { label: '小字 14px', value: '14px' },
+          { label: '正文 16px', value: '16px' },
+          { label: '大字 20px', value: '20px' },
+          { label: '特大 26px', value: '26px' },
+          { label: '标题 32px', value: '32px' }
+        ] }
+      ],
+      pattern: /<span style="font-size:\s*[0-9]+px;?">([\s\S]*?)<\/span>/,
+      fromBlock: function (m) {
+        var html = m[0] || '';
+        var sm = html.match(/font-size:\s*([0-9]+px)/);
+        return { size: sm ? sm[1] : '20px', text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        var s = (d && d.size) || '20px';
+        return '<span style="font-size: ' + s + '">' + ((d && d.text) || '') + '</span>';
+      },
+      toPreview: function (d) {
+        var s = (d && d.size) || '20px';
+        return '<span style="font-size: ' + s + '">' + ((d && d.text) || '') + '</span>';
+      }
+    });
+
+    /* ---------- 3.5 综合排版（对齐 + 颜色 + 字号 + 加粗 一次搞定） ----------
+       单独的居中/颜色/字号三个按钮只能各插各的，无法叠加。
+       这个组件一个表单同时设置，生成一个同时带多种样式的 div，
+       发布后浏览器直接生效；文字内容里还能手写 <span> 做局部混色。 */
+    safeRegister({
+      id: 'wb-combo',
+      label: '综合排版（居中+颜色+字号+加粗）',
+      icon: 'format_paint',
+      fields: [
+        { name: 'text', label: '文字内容（可含 <span> 等 HTML 做局部混色）', widget: 'text' },
+        { name: 'align', label: '对齐', widget: 'select', default: 'center', options: [
+          { label: '居中', value: 'center' },
+          { label: '左对齐', value: 'left' },
+          { label: '右对齐', value: 'right' }
+        ] },
+        { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: [
+          { label: '红色', value: '#e60000' },
+          { label: '橙色', value: '#ea580c' },
+          { label: '绿色', value: '#16a34a' },
+          { label: '蓝色', value: '#2563eb' },
+          { label: '紫色', value: '#7c3aed' },
+          { label: '深灰', value: '#334155' }
+        ] },
+        { name: 'size', label: '字号', widget: 'select', default: '20px', options: [
+          { label: '小字 14px', value: '14px' },
+          { label: '正文 16px', value: '16px' },
+          { label: '大字 20px', value: '20px' },
+          { label: '特大 26px', value: '26px' },
+          { label: '标题 32px', value: '32px' }
+        ] },
+        { name: 'bold', label: '加粗', widget: 'boolean', default: false }
+      ],
+      pattern: /<div style="text-align:\s*(left|center|right);\s*color:\s*(#[0-9a-fA-F]{3,6});\s*font-size:\s*([0-9]+px)(?:;\s*font-weight:\s*bold)?;?">([\s\S]*?)<\/div>/,
+      fromBlock: function (m) {
+        return {
+          align: m[1] || 'center',
+          color: m[2] || '#e60000',
+          size: m[3] || '20px',
+          bold: /font-weight:\s*bold/.test(m[0] || ''),
+          text: (m[4] || '').trim()
+        };
+      },
+      toBlock: function (d) {
+        var a = (d && d.align) || 'center';
+        var c = (d && d.color) || '#e60000';
+        var s = (d && d.size) || '20px';
+        var b = (d && d.bold) ? '; font-weight: bold' : '';
+        return '<div style="text-align: ' + a + '; color: ' + c + '; font-size: ' + s + b + '">' + ((d && d.text) || '') + '</div>';
+      },
+      toPreview: function (d) {
+        var a = (d && d.align) || 'center';
+        var c = (d && d.color) || '#e60000';
+        var s = (d && d.size) || '20px';
+        var b = (d && d.bold) ? '; font-weight: bold' : '';
+        return '<div style="text-align: ' + a + '; color: ' + c + '; font-size: ' + s + b + '">' + ((d && d.text) || '') + '</div>';
+      }
+    });
+
+    /* ---------- 4. 提示卡片（提示/注意/重点/警告/折叠/金句） ----------
+       主题规则：引用块第一行写「提示：/注意：/重点：/警告：」= 彩色卡片；
+       「折叠：标题」+ 后续引用行 = 折叠块；引用块里只写一句短话 = 金句。 */
+    safeRegister({
+      id: 'wb-callout',
+      label: '💡 提示卡片（提示/注意/重点/警告/折叠/金句）',
+      icon: 'lightbulb',
+      fields: [
+        { name: 'type', label: '卡片类型', widget: 'select', default: '提示', options: [
+          { label: '💡 提示（蓝色）', value: '提示' },
+          { label: '⚠️ 注意（黄色）', value: '注意' },
+          { label: '📌 重点（紫色）', value: '重点' },
+          { label: '🚫 警告（红色）', value: '警告' },
+          { label: '📂 折叠块（点标题展开）', value: '折叠' },
+          { label: '💬 金句（居中大字，一句话）', value: '金句' }
+        ] },
+        { name: 'title', label: '折叠标题（仅「折叠块」用，其它类型可留空）', widget: 'string', required: false },
+        { name: 'content', label: '内容', widget: 'text' }
+      ],
+      pattern: /^> (?:(提示|注意|重点|警告|折叠)：[^\n]*|💬[^\n]*)(?:\n> [^\n]*)*/m,
+      fromBlock: function (m) {
+        var first = (m[0] || '').split('\n');
+        var head = first[0] || '';
+        var typeMatch = head.match(/^>\s*(提示|注意|重点|警告|折叠)：/);
+        var isGold = !typeMatch && /^>\s*💬/.test(head);
+        var type = typeMatch ? typeMatch[1] : (isGold ? '金句' : '提示');
+        var headText = typeMatch
+          ? head.replace(/^>\s*(提示|注意|重点|警告|折叠)：\s*/, '')
+          : head.replace(/^>\s*💬\s*/, '');
+        var rest = first.slice(1).map(function (l) { return l.replace(/^>\s?/, ''); }).join('\n');
+        if (type === '折叠') {
+          return { type: '折叠', title: headText, content: rest };
+        }
+        return { type: type, title: '', content: (headText + (rest ? '\n' + rest : '')).trim() };
+      },
+      toBlock: function (d) {
+        var type = (d && d.type) || '提示';
+        var content = ((d && d.content) || '').trim();
+        if (type === '金句') {
+          return '> 💬 ' + content.replace(/\n/g, '\n> ');
+        }
+        if (type === '折叠') {
+          var title = ((d && d.title) || '点我展开').replace(/\n/g, ' ');
+          return '> 折叠：' + title + '\n> ' + content.replace(/\n/g, '\n> ');
+        }
+        var lines = content.split('\n');
+        lines[0] = '> ' + type + '：' + lines[0];
+        for (var i = 1; i < lines.length; i++) lines[i] = '> ' + lines[i];
+        return lines.join('\n');
+      },
+      toPreview: function (d) {
+        var type = (d && d.type) || '提示';
+        var content = ((d && d.content) || '').replace(/\n/g, '<br>');
+        var colors = { '提示': '#2563eb', '注意': '#d97706', '重点': '#7c3aed', '警告': '#dc2626' };
+        var c = colors[type];
+        if (type === '金句') {
+          return '<div style="text-align:center;font-size:1.25em;color:#64748b">' + content + '</div>';
+        }
+        if (type === '折叠') {
+          return '<div><b>📂 ' + ((d && d.title) || '点我展开') + '</b><br>' + content + '</div>';
+        }
+        return '<div style="border-left:4px solid ' + (c || '#2563eb') + ';padding-left:10px">' +
+               (type === '提示' ? '💡 ' : type === '注意' ? '⚠️ ' : type === '重点' ? '📌 ' : '🚫 ') +
+               type + '：' + content + '</div>';
+      }
+    });
+
+    /* ---------- 5. 按钮链接（圆角大按钮） ----------
+       主题规则：单独一行写【按钮】[文字](网址)，发布后变成居中圆角按钮。 */
+    safeRegister({
+      id: 'wb-button',
+      label: '🔘 按钮链接（圆角大按钮）',
+      icon: 'smart_button',
+      fields: [
+        { name: 'text', label: '按钮上的文字', widget: 'string', default: '点这里' },
+        { name: 'url', label: '链接网址', widget: 'string', default: 'https://' }
+      ],
+      pattern: /^【按钮】\[([^\]]+)\]\(([^)]+)\)$/m,
+      fromBlock: function (m) {
+        return { text: (m[1] || '').trim(), url: (m[2] || '').trim() };
+      },
+      toBlock: function (d) {
+        return '【按钮】[' + ((d && d.text) || '点这里') + '](' + ((d && d.url) || 'https://') + ')';
+      },
+      toPreview: function (d) {
+        return '<div style="text-align:center"><span style="display:inline-block;padding:8px 20px;' +
+               'border-radius:9999px;background:#4a6cf7;color:#fff">' +
+               ((d && d.text) || '点这里') + '</span></div>';
+      }
+    });
+
+    /* ---------- 6. 图注（图片下方小字） ----------
+       主题规则：图片的下一行写 *说明文字*（前后各一个星号）。 */
+    safeRegister({
+      id: 'wb-caption',
+      label: '🖼 图注（图片下方小字）',
+      icon: 'image',
+      fields: [
+        { name: 'text', label: '图注文字', widget: 'string' }
+      ],
+      pattern: /^\*([^*\n]{1,120})\*$/m,
+      fromBlock: function (m) {
+        return { text: (m[1] || '').trim() };
+      },
+      toBlock: function (d) {
+        return '*' + ((d && d.text) || '').trim() + '*';
+      },
+      toPreview: function (d) {
+        return '<div style="text-align:center;font-size:0.85em;color:#94a3b8">' +
+               ((d && d.text) || '') + '</div>';
+      }
+    });
+
+    /* ---------- 7. 分割线 ----------
+       主题/标准 Markdown：单独一行 --- 生成一条水平分割线。 */
+    safeRegister({
+      id: 'wb-hr',
+      label: '➖ 分割线',
+      icon: 'remove',
+      fields: [
+        { name: 'note', label: '备注（可不填，仅提示自己，不会写进文章）', widget: 'string', required: false }
+      ],
+      pattern: /^---$/m,
+      fromBlock: function () { return { note: '' }; },
+      toBlock: function () { return '---'; },
+      toPreview: function () { return '<hr>'; }
+    });
+
+    /* ---------- 8. 表格骨架 ----------
+       生成带表头的 Markdown 表格，填几行几列即可，不用手敲竖线。 */
+    safeRegister({
+      id: 'wb-table',
+      label: '📊 表格（填行列自动生成）',
+      icon: 'grid_on',
+      fields: [
+        { name: 'cols', label: '列数（2-6）', widget: 'select', default: '3', options: [
+          { label: '2 列', value: '2' }, { label: '3 列', value: '3' },
+          { label: '4 列', value: '4' }, { label: '5 列', value: '5' }, { label: '6 列', value: '6' }
+        ] },
+        { name: 'rows', label: '数据行数（1-10）', widget: 'select', default: '2', options: [
+          { label: '1 行', value: '1' }, { label: '2 行', value: '2' }, { label: '3 行', value: '3' },
+          { label: '4 行', value: '4' }, { label: '5 行', value: '5' }, { label: '6 行', value: '6' },
+          { label: '7 行', value: '7' }, { label: '8 行', value: '8' },
+          { label: '9 行', value: '9' }, { label: '10 行', value: '10' }
+        ] }
+      ],
+      pattern: /^\|[\s\S]*?\|\s*\n\|\s*:?-+:?\s*\|/m,
+      fromBlock: function (m) {
+        var lines = (m[0] || '').split('\n');
+        var cols = (lines[0] || '').split('|').length - 2;
+        return { cols: String(Math.max(2, Math.min(6, cols))), rows: '2' };
+      },
+      toBlock: function (d) {
+        var cols = Math.max(2, Math.min(6, parseInt((d && d.cols), 10) || 3));
+        var rows = Math.max(1, Math.min(10, parseInt((d && d.rows), 10) || 2));
+        var heads = [], seps = [], empty = [];
+        for (var c = 1; c <= cols; c++) {
+          heads.push('列' + c);
+          seps.push('---');
+          empty.push('   ');
+        }
+        var head = '| ' + heads.join(' | ') + ' |';
+        var sep = '| ' + seps.join(' | ') + ' |';
+        var body = [];
+        for (var r = 0; r < rows; r++) body.push('| ' + empty.join(' | ') + ' |');
+        return [head, sep].concat(body).join('\n');
+      },
+      toPreview: function () { return '<div style="color:#94a3b8">📊 表格（发布后显示）</div>'; }
+    });
+
+    /* ---------- 9. 文章内链 ----------
+       下拉选已有文章 → 插入 [标题](真实网址)。列表按当前 10 篇文章生成；
+       以后新增文章，按同样格式在 options 里加一条即可（或手动打链接）。 */
+    safeRegister({
+      id: 'wb-postlink',
+      label: '🔗 插入站内文章链接',
+      icon: 'link',
+      fields: [
+        { name: 'post', label: '选择文章', widget: 'select', default: '/2026/11/10/你好，世界/', options: [
+          { label: '你好，世界', value: '/2026/11/10/你好，世界/' },
+          { label: '一点闲言碎语', value: '/2026/11/11/一点闲言碎语/' },
+          { label: '测试', value: '/2026/11/18/测试/' }
+        ] },
+        { name: 'text', label: '显示的文字（留空＝用文章标题）', widget: 'string', required: false }
+      ],
+      pattern: /\[([^\]]+)\]\((\/(?:20\d{2}|2021|2022)\/[^\s)]+)\)/,
+      fromBlock: function (m) {
+        return { text: '', post: (m[2] || '').trim() };
+      },
+      toBlock: function (d) {
+        var url = (d && d.post) || '/';
+        var label = (d && d.text) || '';
+        if (!label) {
+          var opts = [
+            ['/2026/11/10/你好，世界/', '你好，世界'],
+            ['/2026/11/11/一点闲言碎语/', '一点闲言碎语'],
+            ['/2026/11/18/测试/', '测试']
+          ];
+          for (var i = 0; i < opts.length; i++) if (opts[i][0] === url) { label = opts[i][1]; break; }
+          if (!label) label = url;
+        }
+        return '[' + label + '](' + url + ')';
+      },
+      toPreview: function (d) {
+        return '<a href="' + ((d && d.post) || '#') + '">' + ((d && d.label) || '站内文章链接') + '</a>';
+      }
+    });
+
+    // 无论注册是否成功，都必须启动 CMS，保证后台能打开。
+    try {
+      if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+        throw new Error('CMS 对象未就绪');
+      }
+      window.CMS.init();
+      window.__wbCmsComponentsReady = true;
+    } catch (e) {
+      console.error('[CMS 启动失败]', e);
+      window.__wbCmsComponentsReady = false;
+    }
+  })();
+  </script>
+
+  <script>
+    // CMS 正常挂载后会接管整个 body，这里只做兜底提示
+    setTimeout(function () {
+      if (!document.querySelector('[class*="sveltia"], #sveltiacms, .sc-app')) {
+        var tip = document.getElementById('fallback');
+        if (tip) {
+          tip.querySelector('h1').textContent = '脚本已加载，但界面没起来';
+          tip.querySelector('p').innerHTML =
+            '多半是 <code>config.yml</code> 写错了（缩进/字段名），' +
+            '或者自定义排版脚本报错。按 F12 打开控制台看红色报错，' +
+            '或者把报错发我。';
+        }
+      }
+    }, 8000);
+  </script>
+</body>
+</html>

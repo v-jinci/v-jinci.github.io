@@ -1,0 +1,627 @@
+# ==========================================================
+#  主力写作后台（/admin）—— Sveltia 0.270 HTML 富文本模式
+#  打开：https://v-jinci.github.io/admin/
+#  登录：点「Sign In with Token」→ 粘贴 GitHub 令牌（勾选 repo）
+#
+#  正文用 richtext + format: html：所见即所得，工具栏带对齐/下划线/
+#  任务清单等 17 个按钮，「插入」菜单里还有 10 个一键排版组件。
+#  编辑的是正式文章 source/_posts，保存自动提交到 hexo-src 分支。
+#
+#  /cms/ 仍是 Markdown 后台（保持不变）；/tina/ 是 Tina（辅助）。
+#  三套后台都指向同一批文章，但正文格式不同，切勿混用保存同一篇，
+#  否则会互相覆盖正文格式。日常写作请用本后台 /admin。
+# ==========================================================
+
+backend:
+  name: github
+  repo: v-jinci/v-jinci.github.io
+  branch: hexo-src
+
+site_url: https://v-jinci.github.io
+display_url: https://v-jinci.github.io
+
+# 图片：上传进 source/img/，正文里写成 /img/xxx.png
+media_folder: source/img
+public_folder: /img
+
+locale: zh_Hans
+
+collections:
+  # ---------------- 文章 ----------------
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    icon: edit_note
+    folder: source/_posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    slug: "{{year}}-{{month}}-{{day}}-{{slug}}"
+    sortable_fields: [date, title]
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+        hint: 显示在首页卡片和浏览器标签上
+
+      - label: 发布日期
+        name: date
+        widget: datetime
+        date_format: "YYYY-MM-DD"
+        time_format: "HH:mm:ss"
+        format: "YYYY-MM-DD HH:mm:ss"
+        hint: 决定首页排序和网址里的日期
+
+      - label: 摘要（首页卡片的两行简介）
+        name: description
+        widget: text
+        required: false
+        hint: 不填会自动截正文开头，常常是半句话，建议自己写一两句
+
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        hint: 想加几个就加几个，回车分隔（例：Hexo、折腾记录）
+
+      - label: 分类
+        name: categories
+        widget: list
+        required: false
+        hint: 一般只填一个（例：技术）
+
+      - label: 封面图（可不填）
+        name: cover
+        widget: image
+        required: false
+        hint: 首页卡片和「上一篇/下一篇」用这张图打底；建议横图 1200×675
+
+      - label: 🔒 这篇文章的访问密码（可不填）
+        name: password
+        widget: string
+        required: false
+        hint: 留空＝所有人能看。填了之后，别人打开这一篇要先输密码才能看正文。
+
+      # ---------- 排版与显示开关（都可以不填） ----------
+      - label: 系列 / 专栏
+        name: series
+        widget: string
+        required: false
+        hint: 填一个名字，同名文章会在文末自动生成「系列合集」目录
+
+      - label: 置顶
+        name: sticky
+        widget: select
+        required: false
+        default: "0"
+        options:
+          - label: 不置顶（默认）
+            value: "0"
+          - label: 置顶 1（最优先）
+            value: "1"
+          - label: 置顶 2
+            value: "2"
+          - label: 置顶 3
+            value: "3"
+
+      - label: 显示评论区
+        name: comments
+        widget: boolean
+        required: false
+        default: true
+
+      - label: 显示右侧目录
+        name: toc
+        widget: boolean
+        required: false
+        default: true
+
+      - label: 正文图片宽度（只影响这一篇）
+        name: img_width
+        widget: string
+        required: false
+        hint: 填数字＝百分比，40 就是 40%；留空跟随全站默认
+
+      - label: 正文图片排版（文字在图的哪一侧）
+        name: img_float
+        widget: select
+        required: false
+        options:
+          - label: 自动（窄图左环绕，文字在右）
+            value: auto
+          - label: 左环绕 —— 图片在左，文字在右边
+            value: l
+          - label: 右环绕 —— 图片在右，文字在左边
+            value: r
+          - label: 居中 —— 图片单独一行
+            value: c
+
+      # ---------- 转载 ----------
+      - label: 自定义链接（一般不用改）
+        name: permalink
+        widget: string
+        required: false
+        hint: 锁定这篇文章的网址，防止旧链接失效；不知道是什么就别动它
+
+      - label: 转载来源名称
+        name: reprint_name
+        widget: string
+        required: false
+
+      - label: 转载原文链接
+        name: reprint_url
+        widget: string
+        required: false
+
+      # ---------- 老文章里常见的字段（保留，防止保存时被删） ----------
+      - label: 顶部大图 top_img（老字段）
+        name: top_img
+        widget: string
+        required: false
+
+      - label: 更新时间 updated（老字段）
+        name: updated
+        widget: datetime
+        required: false
+        date_format: "YYYY-MM-DD HH:mm:ss"
+        time_format: "HH:mm:ss"
+        format: "YYYY-MM-DD HH:mm:ss"
+
+      - label: 作者 author（老字段）
+        name: author
+        widget: string
+        required: false
+
+      # ---------- 正文：HTML 富文本 ----------
+      - label: 正文
+        name: body
+        widget: richtext
+        format: html
+        buttons:
+          - bold
+          - italic
+          - underline
+          - strikethrough
+          - code
+          - link
+          - heading-one
+          - heading-two
+          - heading-three
+          - heading-four
+          - heading-five
+          - heading-six
+          - bulleted-list
+          - numbered-list
+          - task-list
+          - quote
+          - align
+        hint: >-
+          所见即所得编辑：选中文字点工具栏即可加粗/斜体/下划线/对齐/列表等。
+          「插入」菜单里还有 19 个一键组件：综合排版/对齐/颜色/字号、💡提示卡片、🔘按钮链接、
+          🖼图片排版（手输 50%/25% 宽度，居中或左右环绕）、图注、分割线、表格、站内文章链接，
+          以及 📂折叠块 / ▥双栏卡片 / 🏷标签徽章 / 🔖跳转目录 / 🕒时间线 / 🎬视频卡片 / 💬金句大卡片 / 📊进度条。
+          点右上角「源码/Raw」可看生成的 HTML。
+
+  # ---------------- 独立页面 ----------------
+  - name: pages
+    label: 独立页面
+    icon: article
+    files:
+      - label: 关于
+        name: about
+        icon: info
+        file: source/about/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: richtext, format: html }
+
+      - label: 友链
+        name: link
+        icon: link
+        file: source/link/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: richtext, format: html }
+
+      - label: 留言板
+        name: messageBoard
+        icon: forum
+        file: source/messageBoard/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文（留言板本身是空的，评论会渲染在下面）, name: body, widget: richtext, format: html }
+
+      - label: 编年史
+        name: history
+        icon: history
+        file: source/history/index.md
+        format: yaml-frontmatter
+        fields:
+          - { label: 标题, name: title, widget: string }
+          - { label: 正文, name: body, widget: richtext, format: html }
+
+  # ---------------- 站点设置（出门在外也能改网页） ----------------
+  #  这里改的就是本机 http://localhost:4000/site 的那一套设置，
+  #  下面十个分区和 /site 的十个标签一一对应，数据仍是原来的四份 yml：
+  #  site.yml / look.yml / downloads.yml / comments.yml。
+  - name: settings
+    label: 站点设置
+    icon: settings
+    description: 和本机 localhost:4000/site 用的是同一份数据、同样的十个分区。保存后等自动部署完成就上线
+    files:
+      # ============ 1 基本信息 ============
+      - label: 基本信息
+        name: basic
+        icon: info
+        file: source/_data/site.yml
+        format: yaml
+        fields:
+          - label: 站点文字
+            name: hexo
+            widget: object
+            fields:
+              - { label: 站点标题（浏览器标签 / 左上角）, name: title, widget: string, required: false }
+              - { label: 副标题（标题旁边那句）, name: subtitle, widget: string, required: false }
+              - { label: 站点描述（给搜索引擎）, name: description, widget: string, required: false }
+              - { label: 关键词（逗号分隔，给搜索引擎）, name: keywords, widget: string, required: false }
+              - { label: 作者名字, name: author, widget: string, required: false }
+              - { label: 语言, name: language, widget: string, required: false }
+          - { label: 联系邮箱（关于页和联系方式卡片共用）, name: mail, widget: string, required: false }
+          - label: 正文工具栏顺序（上下拖动改顺序，保存后所有设备同步）
+            name: editor_components
+            widget: list
+            required: false
+            label_singular: 一个插入菜单项
+            hint: 每一行点下拉框选中文名称；上下拖动改正文「插入」菜单顺序，删掉某一行＝隐藏它。
+            field:
+              label: 插入菜单项
+              name: component
+              widget: select
+              options:
+                - { label: "🎯 强调文字（一次设颜色+字号，点它能改）", value: wb-em-html }
+                - { label: "🧹 清除格式", value: wb-clear-html }
+                - { label: "🖍 彩色文字（点已插入的文字可改颜色）", value: wb-ic-color }
+                - { label: "🔤 文字大小（点已插入的文字可改字号）", value: wb-ic-size }
+                - { label: "🎨 综合排版（居中+颜色+字号+加粗）", value: wb-combo-html }
+                - { label: "段落对齐（居中/左/右）", value: wb-align-html }
+                - { label: "💡 提示卡片（提示/注意/重点/警告/金句）", value: wb-callout-html }
+                - { label: "🔘 按钮链接（圆角大按钮）", value: wb-button-html }
+                - { label: "🖼 图注（图片下方小字）", value: wb-caption-html }
+                - { label: "➖ 分割线", value: wb-hr-html }
+                - { label: "📊 表格（填行列自动生成）", value: wb-table-html }
+                - { label: "🔗 插入站内文章链接", value: wb-postlink-html }
+                - { label: "🖍 旧版彩色文字（固定颜色）", value: wb-color-html }
+                - { label: "🔤 旧版字号（固定大小）", value: wb-size-html }
+                - { label: "代码块", value: code-block }
+                - { label: "图片", value: image }
+                - { label: "🖼 图片排版（大小/居中/左右环绕）", value: wb-image-html }
+                - { label: "📂 折叠块（点开看更多）", value: wb-fold-html }
+                - { label: "▥ 双栏卡片（左右并排）", value: wb-2col-html }
+                - { label: "🏷 彩色标签徽章", value: wb-tag-html }
+                - { label: "🔖 文章内跳转目录（锚点按钮）", value: wb-jump-html }
+                - { label: "🕒 时间线（一条记录）", value: wb-tl-html }
+                - { label: "🎬 视频卡片（B站/本地 mp4）", value: wb-video-html }
+                - { label: "💬 金句大卡片（醒目引文）", value: wb-quote2-html }
+                - { label: "📊 进度条 / 技能条", value: wb-prog-html }
+
+      # ============ 2 联系方式 ============
+      - label: 联系方式
+        name: ct
+        icon: contact_support
+        file: source/_data/site.yml
+        format: yaml
+        fields:
+          - label: 联系方式卡片（显示在关于页）
+            name: contacts
+            widget: list
+            required: false
+            fields:
+              - { label: 名称, name: label, widget: string, required: false }
+              - { label: 图标类名（如 fab fa-github）, name: icon, widget: string, required: false }
+              - { label: 内容（账号 / 号码 / 邮箱）, name: value, widget: string, required: false }
+              - { label: 链接（留空＝点击弹窗显示）, name: href, widget: string, required: false }
+              - { label: 二维码图片（弹窗里显示，点图标选）, name: qr, widget: image, required: false }
+              - { label: 备注 / 提示文字, name: hint, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
+
+      # ============ 3 外观图片 ============
+      - label: 外观图片
+        name: look
+        icon: palette
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - { label: 首页 / 内页顶部大图（点图标选）, name: index_img, widget: image, required: false }
+          - { label: 文章页默认顶部大图（点图标选）, name: default_top_img, widget: image, required: false }
+          - { label: 浏览器标签小图标 favicon（点图标选）, name: favicon, widget: image, required: false }
+          - { label: 页脚背景图（点图标选，留空＝纯色页脚）, name: footer_img, widget: image, required: false }
+          - label: 侧边栏头像（点图标选）
+            name: avatar
+            widget: object
+            fields:
+              - { label: 头像图片, name: img, widget: image, required: false }
+          - label: 页脚文字
+            name: footer
+            widget: object
+            fields:
+              - label: 版权信息
+                name: owner
+                widget: object
+                fields:
+                  - { label: 起始年份, name: since, widget: string, required: false }
+              - { label: 页脚附加文字, name: custom_text, widget: string, required: false }
+          - label: 首页标语（打字机）
+            name: subtitle
+            widget: object
+            fields:
+              - { label: 轮播标语（一行一句，会逐字打出来）, name: sub, widget: list, required: false }
+              - label: 打字机参数
+                name: typed_option
+                widget: object
+                fields:
+                  - { label: 打字速度（毫秒/字，越小越快）, name: typeSpeed, widget: number, value_type: int, required: false }
+                  - { label: 删字速度（毫秒/字）, name: backSpeed, widget: number, value_type: int, required: false }
+                  - { label: 每句停多久（毫秒）, name: backDelay, widget: number, value_type: int, required: false }
+                  - { label: 一直循环, name: loop, widget: boolean, required: false }
+          - label: 首页背景与标语样式
+            name: wb_look
+            widget: object
+            fields:
+              - label: 首页背景图轮播（一行一张，点图标上传，可多张）
+                name: hero_images
+                widget: list
+                required: false
+                label_singular: 一张背景图
+                hint: 点每张右侧的图标从媒体库选图（上传到 source/img），删掉某一行＝移除那张。
+                field:
+                  { label: 背景图, name: src, widget: image, required: false }
+              - { label: 首页背景视频（点「选择文件」从媒体库挑，填了就用视频，图片只当封面）, name: hero_video, widget: file, required: false }
+              - { label: 轮播间隔（秒）, name: hero_interval, widget: number, value_type: int, required: false }
+              - label: 背景范围
+                name: hero_scope
+                widget: select
+                required: false
+                options:
+                  - { label: 全站都显示, value: all }
+                  - { label: 只在首页显示, value: home }
+              - { label: 遮罩深浅（0-60 百分比）, name: hero_overlay, widget: number, value_type: int, required: false }
+              - { label: 上一篇/下一篇卡片背景（点图标选）, name: nav_bg, widget: image, required: false }
+              - { label: 标语字号（0＝跟随主题）, name: sub_size, widget: number, value_type: int, required: false }
+              - { label: 标语字间距, name: sub_spacing, widget: number, value_type: int, required: false }
+              - { label: 标语颜色（留空＝跟随主题）, name: sub_color, widget: string, required: false }
+              - { label: 标语字重（0＝跟随主题）, name: sub_weight, widget: number, value_type: int, required: false }
+              - { label: 正文图片宽度（百分比）, name: post_img_width, widget: number, value_type: int, required: false }
+              - label: 正文图片排版
+                name: post_img_float
+                widget: select
+                required: false
+                options:
+                  - { label: 自动, value: auto }
+                  - { label: 左环绕, value: l }
+                  - { label: 右环绕, value: r }
+                  - { label: 居中单独一行, value: c }
+              - { label: 图片点击放大, name: img_zoom, widget: boolean, required: false }
+              - { label: 页脚显示「已运行多少天」, name: uptime_enable, widget: boolean, required: false }
+              - { label: 起始年份, name: uptime_since, widget: string, required: false }
+              - { label: "运行时长文字（{days} 会被替换成天数）", name: uptime_text, widget: string, required: false }
+              - { label: 自定义 404 页面, name: notfound_enable, widget: boolean, required: false }
+              - { label: 404 标题, name: notfound_title, widget: string, required: false }
+              - { label: 404 副标题, name: notfound_subtitle, widget: string, required: false }
+              - { label: 404 说明文字, name: notfound_text, widget: text, required: false }
+              - { label: 404 按钮文字, name: notfound_btn, widget: string, required: false }
+              - { label: 头像旋转特效, name: avatar_spin, widget: boolean, required: false }
+              - { label: 上传图片 / 视频时自动压缩, name: upload_shrink, widget: boolean, required: false }
+
+      # ============ 4 导航菜单 ============
+      - label: 导航菜单
+        name: nav
+        icon: menu
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - label: '导航菜单（一行一条：名称: 链接 || 图标）'
+            name: menu
+            widget: list
+            required: false
+          - label: '社交链接（一行一条：图标类名: 链接 || 名字）'
+            name: social
+            widget: list
+            required: false
+
+      # ============ 5 下载区 ============
+      - label: 下载区
+        name: dl
+        icon: download
+        file: source/_data/downloads.yml
+        format: yaml
+        fields:
+          - label: 文件清单
+            name: downloads
+            widget: list
+            required: false
+            fields:
+              - { label: 名称, name: name, widget: string }
+              - { label: 说明, name: desc, widget: string, required: false }
+              - label: 本站文件（点上传选文件，存进 source/files/）
+                name: file
+                widget: file
+                required: false
+                media_folder: /source/files
+                public_folder: /files
+                hint: 上传的文件会提交进仓库的 source/files/，自动填成 /files/xxx。超过 90MB 请改用下面的外部链接。
+              - { label: 或外部链接（网盘等，不占仓库体积）, name: url, widget: string, required: false }
+              - { label: 大小（留空＝自动显示）, name: size, widget: string, required: false }
+              - { label: 日期, name: date, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
+
+      # ============ 6 页面密码 ============
+      - label: 页面密码
+        name: pw
+        icon: lock
+        file: source/_data/site.yml
+        format: yaml
+        fields:
+          - label: 首页 / 各页面（留空＝公开；填明文即可，构建时自动转成哈希）
+            name: sections
+            widget: object
+            fields:
+              - { label: 首页（整个首页）, name: index, widget: string, required: false }
+              - { label: 关于页, name: about, widget: string, required: false }
+              - { label: 友链页, name: link, widget: string, required: false }
+              - { label: 编年史, name: history, widget: string, required: false }
+              - { label: 留言板, name: messageBoard, widget: string, required: false }
+              - { label: 下载页, name: downloads, widget: string, required: false }
+              - { label: 归档页, name: archives, widget: string, required: false }
+              - { label: 标签页, name: tags, widget: string, required: false }
+              - { label: 分类页, name: categories, widget: string, required: false }
+          - label: 🔒 写作后台访问密码（首页导航「写作」）
+            name: admin_password
+            widget: string
+            required: false
+            hint: 点导航「写作」进后台时先要输这个密码；填明文即可，构建时自动加密。留空＝不要密码。注意：这是公开仓库，密码别人也能在源码里看到，只挡随手点进来的人，真正保护靠 GitHub 令牌。
+
+      # ============ 7 评论区 ============
+      - label: 评论区
+        name: cm
+        icon: forum
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - label: 评论系统
+            name: comments
+            widget: object
+            fields:
+              - label: 评论系统
+                name: use
+                widget: select
+                required: false
+                options:
+                  - { label: 开启（Waline）, value: Waline }
+                  - { label: 关闭，全站不显示评论, value: '' }
+          - label: Waline 评论服务
+            name: waline
+            widget: object
+            fields:
+              - { label: 服务地址, name: serverURL, widget: string, required: false, hint: 填固定的服务地址，别用带一长串随机字符的临时地址 }
+              - label: 访客留言
+                name: option
+                widget: object
+                fields:
+                  - label: 是否需要登录
+                    name: login
+                    widget: select
+                    required: false
+                    options:
+                      - { label: 不用登录，填昵称即可, value: disable }
+                      - { label: 必须登录, value: enable }
+
+      # ============ 8 留言管理 ============
+      - label: 留言管理
+        name: msg
+        icon: chat_bubble
+        file: source/_data/comments.yml
+        format: yaml
+        fields:
+          - label: 留言列表
+            name: comments
+            widget: list
+            required: false
+            fields:
+              - { label: 昵称, name: name, widget: string }
+              - { label: 日期, name: date, widget: string, required: false }
+              - { label: 内容, name: content, widget: text }
+              - { label: 回复, name: reply, widget: string, required: false }
+              - { label: 暂时隐藏, name: hidden, widget: boolean, required: false }
+
+      # ============ 9 正文图片 ============
+      - label: 正文图片
+        name: img
+        icon: image
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - label: 正文图片与排版（默认宽度；想单独调某张图在文章里选）
+            name: wb_look
+            widget: object
+            fields:
+              - { label: 正文图片宽度（百分比）, name: post_img_width, widget: number, value_type: int, required: false }
+              - label: 正文图片排版
+                name: post_img_float
+                widget: select
+                required: false
+                options:
+                  - { label: 自动, value: auto }
+                  - { label: 左环绕, value: l }
+                  - { label: 右环绕, value: r }
+                  - { label: 居中单独一行, value: c }
+              - { label: 图片点击放大, name: img_zoom, widget: boolean, required: false }
+
+      # ============ 10 细节开关 ============
+      - label: 细节开关
+        name: misc
+        icon: tune
+        file: source/_data/look.yml
+        format: yaml
+        fields:
+          - label: 文章目录
+            name: toc
+            widget: object
+            fields:
+              - { label: 文章右侧显示目录, name: post, widget: boolean, required: false }
+          - label: 首页摘要
+            name: index_post_content
+            widget: object
+            fields:
+              - { label: 摘要字数, name: length, widget: number, value_type: int, required: false }
+          - label: 首页文章排版
+            name: index_layout
+            widget: select
+            required: false
+            options:
+              - { label: 交错小卡片（当前）, value: 3 }
+              - { label: 图文大卡片 · 图在左, value: 1 }
+              - { label: 图文大卡片 · 图在右, value: 2 }
+              - { label: 瀑布流 A, value: 6 }
+              - { label: 瀑布流 B（更紧凑）, value: 7 }
+          - label: 深色模式
+            name: darkmode
+            widget: object
+            fields:
+              - { label: 启用深色模式, name: enable, widget: boolean, required: false }
+              - { label: 显示切换按钮, name: button, widget: boolean, required: false }
+              - { label: 跟随系统（1＝是）, name: autoChangeMode, widget: number, value_type: int, required: false }
+          - { label: 阅读模式（文章页）, name: readmode, widget: boolean, required: false }
+          - label: 侧边栏
+            name: aside
+            widget: object
+            fields:
+              - { label: 启用侧边栏, name: enable, widget: boolean, required: false }
+              - { label: 显示收起按钮, name: button, widget: boolean, required: false }
+              - { label: 手机上也显示, name: mobile, widget: boolean, required: false }
+              - label: 作者卡片
+                name: card_author
+                widget: object
+                fields:
+                  - { label: 作者简介（头像下面一句）, name: description, widget: string, required: false }
+              - label: 公告卡片
+                name: card_announcement
+                widget: object
+                fields:
+                  - { label: 公告文字, name: content, widget: string, required: false }
+          - label: 其它开关
+            name: wb_look
+            widget: object
+            fields:
+              - { label: 页脚显示「已运行多少天」, name: uptime_enable, widget: boolean, required: false }
+              - { label: 起始年份, name: uptime_since, widget: string, required: false }
+              - { label: "运行时长文字（{days} 会被替换成天数）", name: uptime_text, widget: string, required: false }
+              - { label: 自定义 404 页面, name: notfound_enable, widget: boolean, required: false }
+              - { label: 404 标题, name: notfound_title, widget: string, required: false }
+              - { label: 404 副标题, name: notfound_subtitle, widget: string, required: false }
+              - { label: 404 说明文字, name: notfound_text, widget: text, required: false }
+              - { label: 404 按钮文字, name: notfound_btn, widget: string, required: false }
+              - { label: 头像旋转特效, name: avatar_spin, widget: boolean, required: false }
+              - { label: 上传图片 / 视频时自动压缩, name: upload_shrink, widget: boolean, required: false }

@@ -1,0 +1,2106 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>写作后台 · Sveltia（HTML 富文本 · 主力）</title>
+  <style>
+    body{margin:0;font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:#f6f7fb;color:#1f2430}
+    #fallback{max-width:560px;margin:60px auto;padding:24px 26px;background:#fff;border-radius:14px;box-shadow:0 6px 24px rgba(15,23,42,.08)}
+    #fallback h1{font-size:18px;margin:0 0 12px}
+    #fallback code{background:#eef2ff;color:#3f5fe0;padding:1px 5px;border-radius:4px}
+    #fallback a{color:#4a6cf7}
+
+    /* 加载骨架屏：脚本 2.6MB 下载期间显示，避免白屏干等 */
+    #fallback{text-align:center}
+    .wb-load-card{max-width:460px;margin:0 auto}
+    .wb-load-spinner{width:44px;height:44px;margin:6px auto 20px;border-radius:50%;
+      border:4px solid #e3e8f7;border-top-color:#4a6cf7;animation:wb-spin .8s linear infinite}
+    @keyframes wb-spin{to{transform:rotate(360deg)}}
+    .wb-load-card h1{font-size:19px;color:#1f2430;margin:0 0 10px}
+    .wb-load-card p{font-size:13.5px;color:#7c8493;line-height:1.75;margin:0 0 8px}
+    .wb-load-card .wb-load-sub{color:#a3abb9;font-size:12.5px}
+    .wb-load-bar{margin:20px auto 0;width:100%;height:5px;background:#eef2ff;border-radius:99px;overflow:hidden}
+    .wb-load-bar span{display:block;height:100%;width:38%;border-radius:99px;
+      background:linear-gradient(90deg,#4a6cf7,#8aa2f7,#4a6cf7);background-size:200% 100%;
+      animation:wb-load 1.4s ease-in-out infinite}
+    @keyframes wb-load{0%{transform:translateX(-110%)}100%{transform:translateX(370%)}}
+    @media (prefers-reduced-motion: reduce){.wb-load-spinner,.wb-load-bar span{animation:none}}
+
+    /* ============================================================
+       富文本预览兜底样式
+       关键：Sveltia 0.270 的 HTML 转换器在渲染预览时会清洗 style，
+       白名单里有 color / text-align / font-weight，但没有 font-size，
+       所以 inline 的 font-size 在「编辑区预览」里会失效。
+       解决：组件同时写入 class，由这里用 !important 兜底显示；
+       同时 inline 的 font-size 仍保留，保证保存到文件 / 发布后正常。
+       ============================================================ */
+    .wb-fs-14{font-size:14px!important}
+    .wb-fs-16{font-size:16px!important}
+    .wb-fs-20{font-size:20px!important}
+    .wb-fs-26{font-size:26px!important}
+    .wb-fs-32{font-size:32px!important}
+    [data-wb-combo],[data-wb-align],[data-wb-size],[data-wb-color]{margin:6px 0}
+    /* 图片排版预览：宽度走 inline style，对齐靠这里的 class 兜底（float/display 会被清洗） */
+    .wb-img-prev{max-width:100%;height:auto}
+    .wb-img-prev-c{display:block;margin:10px auto}
+    .wb-img-prev-l{float:left;margin:6px 18px 14px 0}
+    .wb-img-prev-r{float:right;margin:6px 0 14px 18px}
+    .wb-callout-hl{border-left:4px solid #2563eb;padding:8px 14px;background:#eff6ff;border-radius:6px;margin:8px 0}
+    .wb-callout-hl[data-wb-callout="注意"]{border-color:#d97706;background:#fffbeb}
+    .wb-callout-hl[data-wb-callout="重点"]{border-color:#7c3aed;background:#f5f3ff}
+    .wb-callout-hl[data-wb-callout="警告"]{border-color:#dc2626;background:#fef2f2}
+    .wb-callout-hl[data-wb-callout="金句"]{border-color:#94a3b8;background:#f8fafc;text-align:center;font-size:1.2em;color:#64748b}
+    .wb-btn-hl{display:inline-block;padding:8px 20px;border-radius:9999px;background:#4a6cf7;color:#fff!important;text-decoration:none}
+    .wb-cap-hl{display:block;text-align:center;font-size:.85em;color:#94a3b8;margin:4px 0}
+    .wb-table-hl{border-collapse:collapse;width:100%;margin:8px 0}
+    .wb-table-hl th,.wb-table-hl td{border:1px solid #cbd5e1;padding:6px 10px}
+    .wb-table-hl th{background:#f1f5f9}
+    /* 新组件后台预览 */
+    [data-wb-2col]{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+    [data-wb-tag]{display:inline-block;padding:2px 10px;border-radius:999px;background:#eef2ff;color:#4a6cf7;font-size:13px;margin:2px 4px 2px 0}
+    [data-wb-jump]{padding:8px 12px;border-radius:8px;background:#f1f5f9;margin:8px 0}
+    [data-wb-jump] a{display:inline-block;padding:3px 10px;margin:2px;border-radius:6px;background:#4a6cf7;color:#fff;text-decoration:none}
+    [data-wb-tl]{border-left:2px solid #93c5fd;padding-left:14px;margin:8px 0}
+    [data-wb-tl] .wb-tl-h{font-weight:600;color:#2563eb}
+    [data-wb-video]{padding:10px;border:1px dashed #cbd5e1;border-radius:8px;margin:8px 0;color:#64748b;font-size:13px}
+    [data-wb-quote2]{margin:12px 0;padding:14px 18px;border-radius:12px;background:linear-gradient(120deg,#eff6ff,#ecfeff);text-align:center;font-size:1.15em;font-weight:600;color:#334155}
+    [data-wb-prog]{margin:8px 0}
+    [data-wb-prog] .wb-prog-t{height:9px;border-radius:99px;background:#eef2ff;overflow:hidden}
+    [data-wb-prog] .wb-prog-t i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2563eb,#06b6d4)}
+    [data-wb-prog] .wb-prog-h{display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:3px}
+    /* 进度条颜色：inline background 会被 Sveltia 清洗，用 class + !important 兜底 */
+    .wb-bar-2563eb,.wb-bar-06b6d4,.wb-bar-16a34a,.wb-bar-ea580c,.wb-bar-7c3aed,.wb-bar-dc2626{
+      background-image:none!important}
+    .wb-bar-2563eb{background-color:#2563eb!important}
+    .wb-bar-06b6d4{background-color:#06b6d4!important}
+    .wb-bar-16a34a{background-color:#16a34a!important}
+    .wb-bar-ea580c{background-color:#ea580c!important}
+    .wb-bar-7c3aed{background-color:#7c3aed!important}
+    .wb-bar-dc2626{background-color:#dc2626!important}
+
+    /* 撤销/恢复悬浮按钮：Sveltia 0.270 工具栏没有这两个按钮，
+       这里浮在正文编辑区旁边，用 Lexical 原生 historyUndo/historyRedo 命令。
+       注意：必须用 beforeinput 事件触发，合成 KeyboardEvent 不会生效。 */
+    #wb-history-dock{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:6px;
+      padding:6px;background:rgba(255,255,255,.96);border:1px solid #d8dee9;border-radius:12px;
+      box-shadow:0 4px 18px rgba(15,23,42,.18)}
+    #wb-history-dock button{font:600 13px/1 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+      padding:9px 13px;border:0;border-radius:8px;background:#4a6cf7;color:#fff;cursor:pointer;
+      box-shadow:0 1px 3px rgba(15,23,42,.15)}
+    #wb-history-dock button:hover{background:#3453d4}
+    #wb-history-dock button:disabled{background:#c3cad6;cursor:not-allowed}
+    #wb-history-dock .wb-hb-redo{background:#64748b}
+    #wb-history-dock .wb-hb-redo:hover{background:#475569}
+    /* 拖动手柄 + 复位按钮：避免悬浮条挡住正文 */
+    #wb-history-dock .wb-hb-handle{display:flex;align-items:center;padding:0 4px;
+      font:600 14px/1 sans-serif;color:#94a3b8;cursor:grab;user-select:none;touch-action:none}
+    #wb-history-dock .wb-hb-handle:active{cursor:grabbing}
+    #wb-history-dock .wb-hb-reset{background:#94a3b8;padding:9px 10px}
+    #wb-history-dock .wb-hb-reset:hover{background:#64748b}
+    #wb-history-dock.wb-hb-dragging{opacity:.92;box-shadow:0 8px 28px rgba(15,23,42,.28)}
+
+    /* 写作后台访问密码门：验证通过前隐藏写作界面 */
+    #wb-admin-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;
+      background:linear-gradient(135deg,#eef2ff 0%,#f6f7fb 50%,#eef2ff 100%);padding:20px}
+    .wb-gate-card{width:100%;max-width:420px;background:#fff;border:1px solid #e3e8f7;border-radius:18px;
+      box-shadow:0 18px 50px rgba(31,36,48,.14);padding:34px 30px 30px;text-align:center}
+    .wb-gate-ico{width:58px;height:58px;margin:0 auto 16px;border-radius:16px;background:#eef2ff;color:#4a6cf7;
+      display:flex;align-items:center;justify-content:center;font-size:28px}
+    .wb-gate-card h1{font-size:19px;margin:0 0 8px;color:#1f2430}
+    .wb-gate-card p{font-size:13.5px;color:#7c8493;line-height:1.7;margin:0 0 22px}
+    .wb-gate-card form{display:block}
+    .wb-gate-row{display:flex;gap:8px}
+    .wb-gate-card input{flex:1 1 auto;min-width:0;padding:11px 13px;border:1px solid #dfe3ee;border-radius:10px;
+      font:inherit;background:#fbfcff;color:#1f2430}
+    .wb-gate-card input:focus{outline:none;border-color:#8aa2f7;background:#fff;box-shadow:0 0 0 3px rgba(74,108,247,.12)}
+    .wb-gate-card button{flex:0 0 auto;border:0;border-radius:10px;padding:11px 22px;background:#4a6cf7;color:#fff;
+      font:inherit;font-weight:600;cursor:pointer}
+    .wb-gate-card button:hover{background:#3453d4}
+    .wb-gate-card button:disabled{opacity:.6;cursor:default}
+    .wb-gate-rem{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:12px;
+      font-size:13px;color:#7c8493;cursor:pointer;user-select:none}
+    .wb-gate-rem input{width:16px;height:16px;flex:0 0 auto;accent-color:#4a6cf7;cursor:pointer}
+    .wb-gate-msg{min-height:20px;font-size:13px;color:#c62828;margin-top:12px}
+    .wb-gate-foot{margin-top:18px;font-size:12px;color:#a3abb9;line-height:1.6}
+    .wb-lock-float{position:fixed;right:18px;bottom:18px;z-index:99999;border:1px solid #dfe3ee;
+      background:rgba(255,255,255,.95);color:#64748b;border-radius:9999px;padding:9px 15px;
+      font:600 12px/1 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;cursor:pointer;
+      box-shadow:0 4px 16px rgba(31,36,48,.14)}
+    .wb-lock-float:hover{color:#4a6cf7;border-color:#8aa2f7;background:#fff}
+  </style>
+  <!-- 性能优化：尽早开始下载 2.6MB 主脚本（不等 HTML 解析到 body 中间） -->
+  <link rel="preconnect" href="/libs/">
+  <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
+  <script>
+    /* 图片排版预览 v12：恢复 v7 已验证机制（CSS 规则按文件名锁死 + 从 src 的 #w= 读尺寸）。
+       尺寸走 URL 片段，能穿过编辑器清洗又不触发重新下载。 */
+    (function () {
+      var VER = 'v12';
+      var styleEl = document.createElement('style');
+      styleEl.id = 'wb-img-force-style';
+      (document.head || document.documentElement).appendChild(styleEl);
+      var badge = document.createElement('div');
+      badge.id = 'wb-img-preview-badge';
+      badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
+      badge.textContent = '🖼 图片预览脚本 ' + VER + ' 已加载（等待组件…）';
+      (document.body || document.documentElement).appendChild(badge);
+
+      function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
+      function esc(s) { return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+      function keyOf(src) {
+        src = String(src || '').split(/[?#]/)[0];
+        var k = src.split('/').pop() || '';
+        try { k = decodeURIComponent(k); } catch (e) {}
+        return k;
+      }
+      function floatCss(f) {
+        if (f === 'c') return 'display:block!important;float:none!important;margin:10px auto!important;';
+        if (f === 'l') return 'display:block!important;float:left!important;margin:6px 18px 14px 0!important;';
+        if (f === 'r') return 'display:block!important;float:right!important;margin:6px 0 14px 18px!important;';
+        return '';
+      }
+      function decl(w, f) { return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' + floatCss(f); }
+      function fromSrc(img) {
+        var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i);
+        var w = m ? m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%') : '';
+        var n = (img.getAttribute('src') || '').match(/[?#&]f=([a-z]+)/i);
+        return { w: validW(w), f: n ? n[1] : 'c' };
+      }
+
+      /* 只认「当前正在编辑」的图片组件，避免多个组件时一直读第一个 */
+      var activeCard = null;
+      function cardOf(el) {
+        if (!el || !el.closest) return null;
+        var c = el.closest('[data-component-name]');
+        return (c && /显示宽度/.test(c.textContent || '')) ? c : null;
+      }
+      function keepActive(el) {
+        var c = cardOf(el);
+        if (c) activeCard = c;
+        return c;
+      }
+      function readCard(card) {
+        if (!card) return null;
+        var w = '', f = '';
+        card.querySelectorAll('input, select, textarea').forEach(function (inp) {
+          if (inp.type === 'file') return;
+          var box = inp.closest('[data-field-type], label, .field') || inp.parentElement || inp;
+          var txt = (box.textContent || '') + ' ' + (inp.getAttribute('aria-label') || '') + ' ' + (inp.name || '');
+          if (!w && /显示宽度/.test(txt)) w = validW(inp.value);
+          if (!f && /位置|环绕/.test(txt) && ['c', 'l', 'r', 'auto'].indexOf(inp.value) >= 0) f = inp.value;
+        });
+        var key = '', th = card.querySelector('img[src]');
+        if (th) key = keyOf(th.getAttribute('src'));
+        return w ? { w: w, f: f || 'c', key: key } : null;
+      }
+      function readLive() {
+        var card = activeCard && activeCard.isConnected ? activeCard : null;
+        if (!card && document.activeElement) card = cardOf(document.activeElement);
+        if (!card) {
+          var cards = [].slice.call(document.querySelectorAll('[data-component-name]'))
+            .filter(function (c) { return /显示宽度/.test(c.textContent || ''); });
+          card = cards[cards.length - 1] || null;
+        }
+        if (card) {
+          var v = readCard(card);
+          if (v) return v;
+        }
+        // 兜底：从预览图上已有的 ?w= / data-wb-w 读，绝不猜其它字段的百分比
+        var w = '';
+        document.querySelectorAll('img[data-wb-img]').forEach(function (im) {
+          if (!w) w = validW((im.getAttribute('data-wb-w') || '').trim()) || fromSrc(im).w;
+        });
+        return { w: w, f: 'c', key: '' };
+      }
+
+      var lastCss = '', applied = 0, lastLive = '', badgeText = '';
+      function ensureBadge() { if (document.body && badge.parentNode !== document.body) document.body.appendChild(badge); }
+      function setBadge(t) {
+        if (t === badgeText) return;   // 必须幂等，否则改文本会触发 MutationObserver 自激
+        badgeText = t;
+        if (badge.firstChild) badge.firstChild.nodeValue = t;
+        else badge.textContent = t;
+      }
+      function apply() {
+        ensureBadge();
+        var live = readLive();
+        var sig = live.w + '|' + live.f + '|' + live.key;
+        var rules = [];
+        if (live.w && live.key) rules.push('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}');
+        var css = rules.join('\n');
+        if (css !== lastCss) { lastCss = css; styleEl.textContent = css; }
+
+        applied = 0;
+        var firstW = '';
+        document.querySelectorAll('img').forEach(function (img) {
+          // 组件卡片里的缩略图会被写回正文，绝不改它
+          if (img.closest('[data-component-name], [data-component-path]')) return;
+          var src = img.getAttribute('src') || '';
+          var key = keyOf(src);
+          var w = '', f = 'c';
+          if (live.key && key === live.key && live.w) { w = live.w; f = live.f; }
+          else {
+            w = validW((img.getAttribute('data-wb-w') || '').trim());
+            f = (img.getAttribute('data-wb-f') || 'c').trim();
+            if (!w) { var q = fromSrc(img); w = q.w; f = q.f; }
+          }
+          if (!w) return;
+          try {
+            img.style.setProperty('width', w, 'important');
+            img.style.setProperty('min-width', '0', 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('box-sizing', 'border-box', 'important');
+            img.style.setProperty('height', 'auto', 'important');
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('float', f === 'l' ? 'left' : f === 'r' ? 'right' : 'none', 'important');
+            img.style.setProperty('margin', f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+            applied++;
+            if (!firstW) {
+              try {
+                var rr = img.getBoundingClientRect();
+                if (rr && rr.width > 2) firstW = (img.ownerDocument.defaultView || window).getComputedStyle(img).width;
+              } catch (e) {}
+            }
+          } catch (e) {}
+        });
+        window.__wbImgPreview = live;
+        setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + (live.w || '未读到') + '｜已应用 ' + applied + ' 张｜现宽 ' + (firstW || '-') + (live.key ? '｜' + live.key.slice(0, 12) : ''));
+        lastLive = sig;
+      }
+      function onChange(e) {
+        keepActive(e.target);
+        apply();
+      }
+      var mo = new MutationObserver(function () { apply(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'data-wb-w', 'data-wb-f', 'value', 'data-component-name'] });
+      ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
+        document.addEventListener(ev, onChange, true);
+      });
+      setInterval(apply, 120);
+      apply();
+    })();
+  </script>
+  <script>window.CMS_MANUAL_INIT = true;</script>
+  <!-- 性能优化：注册 Service Worker，把 CMS 脚本缓存到本机，第二次进后台秒开 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        // 放到 load 之后再缓存：避免和 CMS 主脚本抢带宽，拖慢首次进入后台
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          return Promise.all(regs.map(function (r) {
+            try {
+              var u = (r.active && r.active.scriptURL) || (r.installing && r.installing.scriptURL) || '';
+              if (/\/admin\/sw\.js$/.test(u)) return r.unregister();
+            } catch (e) {}
+            return null;
+          }));
+        }).catch(function () {}).then(function () {
+          return navigator.serviceWorker.register('/sw.js');
+        }).catch(function () {});
+      });
+    }
+  </script>
+  <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
+  <!--WB_HASH_START--><script>window.__WB_ADMIN_HASH__="87af7229d6e32d18baedeac279d4327a0dfbd69d395b3b0b9cbe0ca6210716b7";</script><!--WB_HASH_END-->
+<!--WB_ORDER_START--><script>window.__WB_EDITOR_ORDER__=["wb-em-html","wb-clear-html","wb-ic-color","wb-ic-size","wb-combo-html","wb-align-html","wb-callout-html","wb-button-html","wb-caption-html","wb-hr-html","wb-table-html","wb-postlink-html","wb-color-html","wb-size-html","code-block","image","wb-image-html","wb-fold-html","wb-2col-html","wb-tag-html","wb-jump-html","wb-tl-html","wb-video-html","wb-quote2-html","wb-prog-html"];</script><!--WB_ORDER_END-->
+</head>
+<body>
+  <!-- 写作后台访问密码门：没设密码时不显示，设了就先挡住 -->
+  <div id="wb-admin-gate" style="display:none">
+    <div class="wb-gate-card">
+      <div class="wb-gate-ico">✍️</div>
+      <h1>这是写作后台</h1>
+      <p>输入访问密码后才能进入。<br>忘记密码去 <b>/admin</b> 的「站点设置 → 联系方式与页面密码」里看，或来问我。</p>
+      <form id="wb-gate-form" autocomplete="off">
+        <div class="wb-gate-row">
+          <input type="password" id="wb-gate-pw" placeholder="访问密码" autocomplete="current-password">
+          <button type="submit" id="wb-gate-go">进入</button>
+        </div>
+        <label class="wb-gate-rem"><input type="checkbox" id="wb-gate-remember"><span>记住密码（这台设备下次免输，公用电脑别勾）</span></label>
+      </form>
+      <div class="wb-gate-msg" id="wb-gate-msg"></div>
+      <div class="wb-gate-foot">写作后台本身还需要 GitHub 令牌登录，这层只是额外确认。</div>
+    </div>
+  </div>
+
+  <div id="fallback">
+    <div class="wb-load-card">
+      <div class="wb-load-spinner"></div>
+      <h1>写作后台正在加载…</h1>
+      <p>正在载入编辑器组件（约 2.6MB）。<br>首次打开或刚更新后较慢，取决于网络，请耐心等待。</p>
+      <p class="wb-load-sub">加载过一次会缓存到本机，之后正常进入（不要按 Ctrl+F5 强制刷新）即可秒开。</p>
+      <div class="wb-load-bar"><span></span></div>
+    </div>
+  </div>
+
+  <!-- 撤销/恢复悬浮按钮（正文工具栏没有这两个，靠原生 history 命令实现） -->
+  <div id="wb-history-dock" title="撤销 / 恢复（也可直接用 Ctrl+Z / Ctrl+Y）">
+    <span class="wb-hb-handle" id="wb-history-handle" title="拖动这里可以挪位置；双击手柄或点 ⟲ 复位">⠿</span>
+    <button type="button" id="wb-history-undo" title="撤销上一步（Ctrl+Z）">↶ 上一步</button>
+    <button type="button" id="wb-history-redo" class="wb-hb-redo" title="恢复下一步（Ctrl+Y）">↷ 下一步</button>
+    <button type="button" id="wb-history-reset" class="wb-hb-reset" title="复位到右下角">⟲</button>
+  </div>
+
+  <!-- 悬浮条位置可拖动：拖手柄移动，自动记住位置，点 ⟲ 复位 -->
+  <script>
+    (function () {
+      var dock = document.getElementById('wb-history-dock');
+      var handle = document.getElementById('wb-history-handle');
+      var resetBtn = document.getElementById('wb-history-reset');
+      if (!dock || !handle) return;
+      var KEY = 'wb-history-dock-pos-v1';
+
+      function save(p) { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
+      function load() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+
+      function clamp(x, y) {
+        var w = dock.offsetWidth || 240, h = dock.offsetHeight || 44;
+        return {
+          x: Math.max(8, Math.min(x, window.innerWidth - w - 8)),
+          y: Math.max(8, Math.min(y, window.innerHeight - h - 8))
+        };
+      }
+      function place(x, y) {
+        var p = clamp(x, y);
+        dock.style.left = p.x + 'px';
+        dock.style.top = p.y + 'px';
+        dock.style.right = 'auto';
+        dock.style.bottom = 'auto';
+        return p;
+      }
+      function resetPos() {
+        dock.style.left = ''; dock.style.top = '';
+        dock.style.right = ''; dock.style.bottom = '';
+        save(null);
+      }
+
+      var saved = load();
+      if (saved && typeof saved.x === 'number' && typeof saved.y === 'number') place(saved.x, saved.y);
+
+      var dragging = false, sx = 0, sy = 0, ox = 0, oy = 0;
+      handle.addEventListener('pointerdown', function (e) {
+        dragging = true;
+        var r = dock.getBoundingClientRect();
+        ox = r.left; oy = r.top; sx = e.clientX; sy = e.clientY;
+        dock.classList.add('wb-hb-dragging');
+        try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+        e.preventDefault();
+      });
+      handle.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        place(ox + (e.clientX - sx), oy + (e.clientY - sy));
+      });
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        dock.classList.remove('wb-hb-dragging');
+        var r = dock.getBoundingClientRect();
+        save(place(r.left, r.top));
+        try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
+      handle.addEventListener('pointerup', endDrag);
+      handle.addEventListener('pointercancel', endDrag);
+      handle.addEventListener('dblclick', function (e) { e.preventDefault(); resetPos(); });
+      if (resetBtn) resetBtn.addEventListener('click', function () { resetPos(); });
+      window.addEventListener('resize', function () {
+        var r = dock.getBoundingClientRect();
+        if (dock.style.left) save(place(r.left, r.top));
+      });
+    })();
+  </script>
+
+  <!-- 体验沙盒专用：Sveltia 0.270 最新版（正式 /cms/ 仍用 0.265，互不影响） -->
+  <script async src="/libs/sveltia-270/sveltia-cms.js"></script>
+  <script>
+    (function () {
+      var LOADED = [];
+
+      function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+          return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+      }
+      // 把 20px 这样的值转成 class 后缀 20
+      function sizeSuffix(s) {
+        return String(s || '20px').replace(/[^0-9]/g, '') || '20';
+      }
+      function sizeClass(s) { return 'wb-fs-' + sizeSuffix(s); }
+      function sizeFromClass(el) {
+        var m = String(el.getAttribute('class') || '').match(/wb-fs-(\d+)/);
+        return m ? m[1] + 'px' : '';
+      }
+      // 解析 style 里的某个属性
+      function styleVal(el, prop) {
+        var s = (el.getAttribute('style') || '').toLowerCase();
+        var m = s.match(new RegExp('(?:^|;)\\s*' + prop + '\\s*:\\s*([^;]+)'));
+        return m ? m[1].trim() : '';
+      }
+      // 用 template 安全地装入文字（允许内嵌简单 HTML）
+      function setHtml(el, text) {
+        var t = document.createElement('template');
+        t.innerHTML = text || '';
+        el.appendChild(t.content);
+        return el;
+      }
+      function el(tag, attrs, html) {
+        var e = document.createElement(tag);
+        Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+        if (html != null) setHtml(e, html);
+        return e;
+      }
+      var COLORS = [
+        { label: '红色', value: '#e60000' }, { label: '橙色', value: '#ea580c' },
+        { label: '绿色', value: '#16a34a' }, { label: '蓝色', value: '#2563eb' },
+        { label: '紫色', value: '#7c3aed' }, { label: '深灰', value: '#334155' }
+      ];
+      var SIZES = [
+        { label: '小字 14px', value: '14px' }, { label: '正文 16px', value: '16px' },
+        { label: '大字 20px', value: '20px' }, { label: '特大 26px', value: '26px' },
+        { label: '标题 32px', value: '32px' }
+      ];
+      var ALIGNS = [
+        { label: '居中', value: 'center' }, { label: '左对齐', value: 'left' }, { label: '右对齐', value: 'right' }
+      ];
+      var POSTS = [
+        { label: '你好，世界', value: '/2026/11/10/你好，世界/' },
+        { label: '一点闲言碎语', value: '/2026/11/11/一点闲言碎语/' },
+        { label: '测试', value: '/2026/11/18/测试/' }
+      ];
+
+      /* ---------- 组合强调：一次设颜色+字号，点击已插入的文字还能再改 ----------
+         Sveltia 内部对 inline 组件的 onInsert / onEdit 都是 `await` 调用的，
+         所以这里可以弹一个面板等用户选完再返回数据。 */
+      function emHtml(d) {
+        d = d || {};
+        var color = d.color || '#e60000', size = d.size || '20px';
+        var text = d.text == null ? '强调文字' : d.text;
+        var key = 'em-' + String(color).replace(/[^0-9a-zA-Z]/g, '') + '-' + String(size).replace(/[^0-9]/g, '');
+        var span = el('span', {
+          'data-wb-em': key,
+          'class': 'wb-inline ' + sizeClass(size),
+          'style': 'color:' + color + ';font-size:' + size + ';'
+        });
+        setHtml(span, (d.html != null && d.html !== '') ? d.html : esc(text));
+        return span.outerHTML;
+      }
+      function emFrom(node) {
+        return {
+          text: node.textContent || '',
+          html: node.innerHTML || '',
+          color: styleVal(node, 'color') || '#e60000',
+          size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px'
+        };
+      }
+      // mode = 'color' 只显示颜色、'size' 只显示字号、其它＝两者都显示
+      function pickStyle(current, sampleText, mode) {
+        return new Promise(function (resolve) {
+          if (!document.getElementById('wb-pick-style')) {
+            var st = document.createElement('style');
+            st.id = 'wb-pick-style';
+            st.textContent =
+              '.wb-pick-ov{position:fixed;inset:0;z-index:2147483000;background:rgba(15,23,42,.42);display:flex;align-items:center;justify-content:center;padding:20px}' +
+              '.wb-pick-card{width:100%;max-width:360px;background:#fff;border-radius:16px;padding:22px;box-shadow:0 18px 50px rgba(15,23,42,.28);font:14px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#1f2430}' +
+              '.wb-pick-card h3{margin:0 0 4px;font-size:16px}' +
+              '.wb-pick-card .sub{color:#8b93a1;font-size:12px;margin-bottom:14px}' +
+              '.wb-pick-prev{padding:14px;border:1px dashed #dfe3ee;border-radius:10px;text-align:center;margin-bottom:14px;min-height:46px;word-break:break-all}' +
+              '.wb-pick-label{font-size:12px;color:#8b93a1;margin:10px 0 6px}' +
+              '.wb-pick-colors{display:flex;gap:8px;flex-wrap:wrap}' +
+              '.wb-pick-colors button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer}' +
+              '.wb-pick-colors button.on{border-color:#1f2430;box-shadow:0 0 0 2px #fff inset}' +
+              '.wb-pick-sizes{display:flex;gap:6px;flex-wrap:wrap}' +
+              '.wb-pick-sizes button{border:1px solid #dfe3ee;background:#fbfcff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;color:#475569}' +
+              '.wb-pick-sizes button.on{border-color:#4a6cf7;background:#eef2ff;color:#3453d4}' +
+              '.wb-pick-fmts{display:flex;gap:6px;flex-wrap:wrap}' +
+              '.wb-pick-fmts button{border:1px solid #dfe3ee;background:#fbfcff;border-radius:8px;padding:5px 10px;cursor:pointer;font:inherit;color:#475569}' +
+              '.wb-pick-fmts button.on{border-color:#4a6cf7;background:#eef2ff;color:#3453d4;font-weight:600}' +
+              '.wb-pick-act{display:flex;gap:8px;margin-top:18px}' +
+              '.wb-pick-act button{flex:1;border:0;border-radius:10px;padding:10px;cursor:pointer;font:inherit;font-weight:600}' +
+              '.wb-pick-ok{background:#4a6cf7;color:#fff}' +
+              '.wb-pick-no{background:#f1f5f9;color:#64748b}' +
+              '.wb-pick-clear{background:#fff1f2;color:#e11d48;border:1px solid #fecdd3}' +
+              '.wb-pick-act.wb-pick-three button{font-size:13px;padding:9px 4px}';
+            document.head.appendChild(st);
+          }
+          var color = (current && current.color) || '#e60000';
+          var size = (current && current.size) || '20px';
+          var text = (sampleText == null || sampleText === '') ? '示例文字' : sampleText;
+          // 富文本内容：优先用组件里存下来的 html，没有就用纯文字
+          var baseHtml = (current && current.html) ? current.html : esc(text);
+          var baseFmt = (current && current.fmt) ? current.fmt : wbDetectFmt(baseHtml);
+          var fmt = {
+            bold: !!baseFmt.bold, italic: !!baseFmt.italic,
+            underline: !!baseFmt.underline, strike: !!baseFmt.strike
+          };
+          var ov = document.createElement('div');
+          ov.className = 'wb-pick-ov';
+          var card = document.createElement('div');
+          card.className = 'wb-pick-card';
+          var showColor = mode !== 'size', showSize = mode !== 'color';
+          var title = mode === 'color' ? '🖍 设置文字颜色' : mode === 'size' ? '🔤 设置文字大小' : '🎯 强调这段文字';
+          var sub = mode === 'color' ? '选一个颜色；勾选格式可与加粗、斜体叠加；以后点这段文字还能再改'
+            : mode === 'size' ? '选一个字号；勾选格式可与加粗、斜体叠加；以后点这段文字还能再改'
+              : '一次设好颜色、字号和格式；以后点这段文字还能再改';
+          var html = '<h3>' + title + '</h3>' +
+            '<div class="sub">' + sub + '</div>' +
+            '<div class="wb-pick-prev" id="wb-pick-prev"></div>';
+          if (showColor) {
+            html += '<div class="wb-pick-label">颜色</div><div class="wb-pick-colors">';
+            COLORS.forEach(function (c) {
+              html += '<button type="button" data-c="' + c.value + '" title="' + esc(c.label) + '" style="background:' + c.value + '"></button>';
+            });
+            html += '</div>';
+          }
+          if (showSize) {
+            html += '<div class="wb-pick-label">字号</div><div class="wb-pick-sizes">';
+            SIZES.forEach(function (s) {
+              html += '<button type="button" data-z="' + s.value + '">' + esc(s.label) + '</button>';
+            });
+            html += '</div>';
+          }
+          html += '<div class="wb-pick-label">格式（可与颜色、字号叠加）</div><div class="wb-pick-fmts">' +
+            '<button type="button" data-f="bold">加粗</button>' +
+            '<button type="button" data-f="italic">斜体</button>' +
+            '<button type="button" data-f="underline">下划线</button>' +
+            '<button type="button" data-f="strike">删除线</button></div>';
+          html += '<div class="wb-pick-act wb-pick-three">' +
+            '<button type="button" class="wb-pick-no" data-act="no">取消</button>' +
+            '<button type="button" class="wb-pick-clear" data-act="clear">🧹 恢复默认</button>' +
+            '<button type="button" class="wb-pick-ok" data-act="ok">应用</button></div>';
+          card.innerHTML = html;
+          ov.appendChild(card);
+          document.body.appendChild(ov);
+          function paint() {
+            var prev = card.querySelector('#wb-pick-prev');
+            if (prev) {
+              prev.innerHTML = wbApplyFmtDiff(baseHtml, baseFmt, fmt) || esc(text);
+              if (showColor) prev.style.color = color;
+              if (showSize) prev.style.fontSize = size;
+            }
+            var cs = card.querySelectorAll('[data-c]');
+            for (var i = 0; i < cs.length; i++) cs[i].className = (cs[i].getAttribute('data-c') === color ? 'on' : '');
+            var zs = card.querySelectorAll('[data-z]');
+            for (var j = 0; j < zs.length; j++) zs[j].className = (zs[j].getAttribute('data-z') === size ? 'on' : '');
+            var fs = card.querySelectorAll('[data-f]');
+            for (var k = 0; k < fs.length; k++) fs[k].className = (fmt[fs[k].getAttribute('data-f')] ? 'on' : '');
+          }
+          function done(v) {
+            if (ov.parentNode) ov.parentNode.removeChild(ov);
+            document.removeEventListener('keydown', onKey);
+            resolve(v);
+          }
+          function onKey(e) { if (e.key === 'Escape') done(null); }
+          card.addEventListener('click', function (ev) {
+            var t = ev.target;
+            if (!t || !t.getAttribute) return;
+            var c = t.getAttribute('data-c'); if (c) { color = c; paint(); return; }
+            var z = t.getAttribute('data-z'); if (z) { size = z; paint(); return; }
+            var f = t.getAttribute('data-f'); if (f) { fmt[f] = !fmt[f]; paint(); return; }
+            var a = t.getAttribute('data-act');
+            if (a === 'ok') done({ color: color, size: size, html: wbApplyFmtDiff(baseHtml, baseFmt, fmt), fmt: fmt });
+            else if (a === 'clear') done({ clear: true });
+            else if (a === 'no') done(null);
+          });
+          ov.addEventListener('click', function (ev) { if (ev.target === ov) done(null); });
+          document.addEventListener('keydown', onKey);
+          paint();
+        });
+      }
+
+      /* ---------- 组合格式：颜色/字号组件要保留选区里已有的加粗、斜体 ----------
+         问题：颜色、字号是「原子组件」，插入时整段替换选区，
+         选区里原有的斜体/加粗就被冲掉了，于是
+         「整体斜体 + 某个字加粗 + 某个字变大 + 某个字变色」没法共存。
+         做法：插入前把选区的真实 HTML（含 <em>/<strong> 等）抓下来存进组件的
+         html 属性，导出时再放回外层 span 里，颜色字号和斜体加粗就能一起生效。
+
+         注意：组件插入的那一刻，选区原文已经被替换掉了，
+         所以必须在「选中文字的时候」就把选区内容克隆一份快照存起来。 */
+      var WB_FMT_TAGS = { bold: 'strong', italic: 'em', underline: 'u', strike: 's' };
+      var WB_FMT_ORDER = ['strike', 'underline', 'italic', 'bold']; // 包裹顺序：加粗在最外层
+
+      // 行内样式：粗/斜/下划线/删除线改用标签表示，其余（颜色、字号）保留
+      function wbKeepStyle(st) {
+        if (!st) return '';
+        return String(st).split(';').map(function (p) {
+          var i = p.indexOf(':');
+          if (i < 0) return '';
+          var k = p.slice(0, i).trim().toLowerCase();
+          var v = p.slice(i + 1).trim();
+          if (!v) return '';
+          if (k === 'font-weight' || k === 'font-style' || k === 'text-decoration' ||
+            k === 'text-decoration-line' || k === 'white-space') return '';
+          return k + ':' + v;
+        }).filter(Boolean).join(';');
+      }
+      // 拼一个 span 片段
+      function wbSpanHtml(html, style, cls) {
+        var s = '<span';
+        if (cls) s += ' class="' + esc(cls) + '"';
+        if (style) s += ' style="' + esc(style) + '"';
+        return s + '>' + html + '</span>';
+      }
+      // 编辑器 DOM → 干净的富文本 HTML（<strong>/<em>/<u>/<s> + 带样式的 span）
+      function wbToHtml(node, out) {
+        if (!node) return;
+        if (node.nodeType === 3) { out.push(esc(node.nodeValue)); return; }
+        if (node.nodeType !== 1) return;
+        var tag = String(node.tagName || '').toLowerCase();
+        if (tag === 'br') { out.push('<br>'); return; }
+        // 内联组件（颜色/字号/强调）：取它自己的内容与样式，摊平成普通标签
+        if (node.hasAttribute && node.hasAttribute('data-component-name')) {
+          var pv = node.querySelector('.preview');
+          var own = (pv && pv.firstElementChild) ? pv.firstElementChild : (pv || node);
+          var cst = own.getAttribute('style') || node.getAttribute('style') || '';
+          var ccl = own.getAttribute('class') || '';
+          var ci = [];
+          for (var a = 0; a < own.childNodes.length; a++) wbToHtml(own.childNodes[a], ci);
+          out.push(wbSpanHtml(ci.join(''), wbKeepStyle(cst), ccl));
+          return;
+        }
+        var cls = String(node.getAttribute('class') || '');
+        var bold = tag === 'strong' || tag === 'b';
+        var italic = tag === 'em' || tag === 'i' || /(^|\s)italic(\s|$)/.test(cls);
+        var under = tag === 'u' || /(^|\s)underline(\s|$)/.test(cls);
+        var strike = tag === 's' || tag === 'del' || /(^|\s)strikethrough(\s|$)/.test(cls);
+        var inner = [];
+        for (var b = 0; b < node.childNodes.length; b++) wbToHtml(node.childNodes[b], inner);
+        var h = inner.join('');
+        if (strike) h = '<s>' + h + '</s>';
+        if (under) h = '<u>' + h + '</u>';
+        if (italic) h = '<em>' + h + '</em>';
+        if (bold) h = '<strong>' + h + '</strong>';
+        var st = node.getAttribute('style') || '';
+        var keep = wbKeepStyle(st);
+        var fs = (st.match(/font-size\s*:\s*(\d+(?:\.\d+)?)px/i) || [])[1];
+        var extra = '';
+        if (fs) {
+          keep = keep ? keep + ';font-size:' + fs + 'px' : 'font-size:' + fs + 'px';
+          extra = 'wb-fs-' + String(fs).replace('.', '_');
+        }
+        if (keep) h = wbSpanHtml(h, keep, extra);
+        out.push(h);
+      }
+      // 当前选区在编辑器里的真实范围（优先用记下来的 Range，失效时按文字重找）
+      function wbCurrentRange() {
+        var ed = wbActiveEditor();
+        if (!ed) return null;
+        if (wbSel.range && ed.contains(wbSel.range.commonAncestorContainer)) return wbSel.range;
+        if (wbSel.text) {
+          var r = wbFindTextRange(ed, wbSel.text);
+          if (r) return r;
+        }
+        return null;
+      }
+      // 取某个节点往上、直到编辑器根为止的格式链（外 → 内）。
+      // Range.cloneContents() 只克隆选中的内容，不会带上祖先的 <strong>/<em>，
+      // 所以选中「加粗的字」时必须靠这条链把格式补回来。
+      function wbFmtChain(node) {
+        var chain = [];
+        var el = node && node.parentElement;
+        while (el && !(el.hasAttribute && el.hasAttribute('data-lexical-editor'))) {
+          var t = String(el.tagName || '').toLowerCase();
+          var cls = String(el.getAttribute('class') || '');
+          var st = el.getAttribute('style') || '';
+          var bold = t === 'strong' || t === 'b';
+          var italic = t === 'em' || t === 'i' || /(^|\s)italic(\s|$)/.test(cls);
+          var under = t === 'u' || /(^|\s)underline(\s|$)/.test(cls);
+          var strike = t === 's' || t === 'del' || /(^|\s)strikethrough(\s|$)/.test(cls);
+          var fs = (st.match(/font-size\s*:\s*(\d+(?:\.\d+)?)px/i) || [])[1];
+          var color = (st.match(/color\s*:\s*([^;]+)/i) || [])[1];
+          if (bold || italic || under || strike || fs || color) {
+            chain.push({ bold: bold, italic: italic, underline: under, strike: strike, fs: fs, color: color });
+          }
+          el = el.parentElement;
+        }
+        chain.reverse(); // 外 → 内
+        return chain;
+      }
+      // 把格式链套到 html 外层（链里越靠外的套得越靠外）
+      function wbWrapChain(html, chain) {
+        var h = String(html || '');
+        for (var i = (chain || []).length - 1; i >= 0; i--) {
+          var c = chain[i];
+          if (c.strike) h = '<s>' + h + '</s>';
+          if (c.underline) h = '<u>' + h + '</u>';
+          if (c.italic) h = '<em>' + h + '</em>';
+          if (c.bold) h = '<strong>' + h + '</strong>';
+          var style = '';
+          if (c.color) style += 'color:' + c.color + ';';
+          if (c.fs) style += 'font-size:' + c.fs + 'px;';
+          if (style) {
+            var cls = c.fs ? 'wb-fs-' + String(c.fs).replace('.', '_') : '';
+            h = wbSpanHtml(h, style, cls);
+          }
+        }
+        return h;
+      }
+      // 把选区内容转成富文本 HTML。
+      // 组件插入时原文已被替换，所以优先用「选中时」存下的快照。
+      function wbCaptureRichHtml(expectedText) {
+        var want = expectedText == null ? '' : String(expectedText);
+        var frag = null, chain = null;
+        if (wbSel.snapFrag && want && wbSel.snapText === want) {
+          frag = wbSel.snapFrag;
+          chain = wbSel.snapChain;
+        } else {
+          var r = wbCurrentRange();
+          if (!r) return '';
+          frag = r.cloneContents();
+          chain = wbFmtChain(r.startContainer);
+        }
+        var out = [];
+        for (var i = 0; i < frag.childNodes.length; i++) wbToHtml(frag.childNodes[i], out);
+        return wbWrapChain(out.join(''), chain);
+      }
+      // 剥掉所有某个标签
+      function wbStripAll(html, tag) {
+        return String(html || '').replace(new RegExp('</?' + tag + '(?:\\s[^>]*)?>', 'gi'), '');
+      }
+      // 读出 html 里带了哪些格式
+      function wbDetectFmt(html) {
+        var h = String(html || '');
+        return {
+          bold: /<strong(\s[^>]*)?>/i.test(h),
+          italic: /<em(\s[^>]*)?>/i.test(h),
+          underline: /<u(\s[^>]*)?>/i.test(h),
+          strike: /<s(\s[^>]*)?>/i.test(h)
+        };
+      }
+      // 只把「用户改动过」的格式开关套到整段上。
+      // 没动过的保持原样，避免把「只有某个字加粗」压成「整段加粗」。
+      function wbApplyFmtDiff(html, baseFmt, fmt) {
+        var h = String(html || '');
+        WB_FMT_ORDER.forEach(function (k) {
+          if (fmt[k] === baseFmt[k]) return;
+          h = wbStripAll(h, WB_FMT_TAGS[k]);
+          if (fmt[k]) h = '<' + WB_FMT_TAGS[k] + '>' + h + '</' + WB_FMT_TAGS[k] + '>';
+        });
+        return h;
+      }
+      // 能匹配嵌套 span 的正则（最多 3 层），供组件的 pattern 使用
+      function wbSpanRe(attrPat) {
+        // T：任意文本与非 span 标签（<em>/<strong>/<br> 等），但不吃掉 span
+        var T = '(?:[^<]|<(?!/?span[\\s>])[^>]*>)*';
+        var L1 = '<span[^>]*>' + T + '<\\/span>';
+        var L2 = '<span[^>]*>(?:' + T + '|' + L1 + ')*<\\/span>';
+        return new RegExp('<span(?=[^>]*' + attrPat + ')[^>]*>(?:' + T + '|' + L2 + ')*<\\/span>');
+      }
+
+      /* ---------- 清除格式：记住真实选区，点菜单/「恢复默认」时原地换成纯文本 ----------
+         旧实现有两个坑：
+         1) 用 .lexical-root 找编辑器，0.270 实际是 [data-lexical-editor]，找不到就乱发事件；
+         2) 用 Sveltia 传进来的 selectedText，选中原子组件时它是空字符串，组件会被直接删掉。
+         现在统一用「记录下来的 DOM 选区 + 纯文本 paste」：Lexical 对 RangeSelection 和
+         NodeSelection（内联组件）都会用纯文本替换，内容留在原来的位置。 */
+      var wbSel = { range: null, text: '', editor: null, component: null, snapText: '', snapFrag: null, snapChain: null };
+      function wbComponentFromRange(ed, r, s) {
+        var start = r.startContainer;
+        var host = start && (start.nodeType === 1 ? start : start.parentElement);
+        var direct = host && host.closest ? host.closest('[data-component-name]') : null;
+        if (direct && ed.contains(direct)) return direct;
+        // 选中整个原子组件时，range 的起点是它的父节点，toString() 还是空字符串
+        if ((!s || !s.toString()) && r.intersectsNode) {
+          var hits = [];
+          var list = ed.querySelectorAll('[data-component-name]');
+          for (var i = 0; i < list.length; i++) {
+            if (r.intersectsNode(list[i])) hits.push(list[i]);
+          }
+          if (hits.length === 1) return hits[0];
+        }
+        return null;
+      }
+      // 在正文里按下鼠标＝用户重新定位了选区，清掉上一次的记录
+      document.addEventListener('mousedown', function (ev) {
+        var t = ev.target;
+        var ed = (t && t.closest) ? t.closest('[data-lexical-editor]') : null;
+        if (ed) { wbSel.range = null; wbSel.text = ''; wbSel.editor = ed; wbSel.component = null; wbSel.snapText = ''; wbSel.snapFrag = null; wbSel.snapChain = null; }
+      }, true);
+      document.addEventListener('selectionchange', function () {
+        var s = window.getSelection();
+        if (!s || !s.rangeCount) return;
+        var r = s.getRangeAt(0);
+        var node = r.startContainer;
+        var host = node && (node.nodeType === 1 ? node : node.parentElement);
+        var ed = host && host.closest ? host.closest('[data-lexical-editor]') : null;
+        if (!ed) return;
+        var comp = wbComponentFromRange(ed, r, s);
+        var txt = s.toString();
+        // 点工具栏会让浏览器把选区收成空，这时保留上一次真正选中的文字
+        if (!txt && !comp) return;
+        wbSel.range = r.cloneRange();
+        wbSel.text = txt;
+        wbSel.editor = ed;
+        wbSel.component = comp;
+        // 快照一份选区内容：组件插入后原文就被替换掉了，
+        // 靠这份快照才能保住选区里原有的加粗、斜体。
+        // 只在真的选中了文字时才更新 —— 组件刚插入时浏览器也会派发
+        // selectionchange，那时文字是空的，覆盖快照就把原文弄丢了。
+        if (txt) {
+          wbSel.snapText = txt;
+          try { wbSel.snapFrag = r.cloneContents(); } catch (e) { wbSel.snapFrag = null; }
+          wbSel.snapChain = wbFmtChain(r.startContainer);
+        }
+      });
+
+      function wbActiveEditor() {
+        var a = document.activeElement;
+        if (a && a.matches && a.matches('[data-lexical-editor]')) return a;
+        return (wbSel.editor && document.contains(wbSel.editor)) ? wbSel.editor
+          : document.querySelector('[data-lexical-editor]');
+      }
+
+      /* 在编辑器里按文字重新找范围：点工具栏后 Lexical 会重建文本节点，旧 Range 会失效 */
+      function wbFindTextRange(ed, text) {
+        if (!text) return null;
+        var walker = document.createTreeWalker(ed, NodeFilter.SHOW_TEXT);
+        var n, r = document.createRange();
+        while ((n = walker.nextNode())) {
+          var v = n.nodeValue || '';
+          var i = v.indexOf(text);
+          if (i >= 0) {
+            try { r.setStart(n, i); r.setEnd(n, i + text.length); return r; } catch (e) {}
+          }
+        }
+        return null;
+      }
+
+      /* 把指定范围换成纯文本；component 非空时选中整个组件节点（Lexical 的 NodeSelection） */
+      function wbReplaceWithPlainText(ed, text, saved, component) {
+        if (!ed) return false;
+        // 先聚焦，再按聚焦后的 DOM 重建选区（聚焦会让旧 Range 失效）
+        try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+        var r;
+        if (component && ed.contains(component)) {
+          r = document.createRange();
+          r.selectNode(component);
+        } else {
+          r = wbFindTextRange(ed, text);
+          if (!r && saved && saved.range && ed.contains(saved.range.commonAncestorContainer)) {
+            r = saved.range.cloneRange();
+          }
+        }
+        if (!r) return false;
+        var s = window.getSelection();
+        try { s.removeAllRanges(); s.addRange(r); } catch (e3) { return false; }
+        // 让 Lexical 同步到新的 DOM 选区，否则它会用上一次的旧插入点
+        try { document.dispatchEvent(new Event('selectionchange')); } catch (e3b) {}
+        var plain = String(text == null ? '' : text);
+        var ev;
+        if (!component) {
+          // 普通文字选区：Lexical 的 beforeinput insertText 会就地换成无格式文本
+          try {
+            ev = new InputEvent('beforeinput', {
+              inputType: 'insertText', data: plain, bubbles: true, cancelable: true, composed: true
+            });
+          } catch (e4) {
+            ev = document.createEvent('Event');
+            ev.initEvent('beforeinput', true, true);
+            try { Object.defineProperty(ev, 'inputType', { value: 'insertText' }); } catch (e5) {}
+            try { Object.defineProperty(ev, 'data', { value: plain }); } catch (e6) {}
+          }
+          ed.dispatchEvent(ev);
+          return true;
+        }
+        // 原子组件（NodeSelection）：beforeinput 会被忽略，只能走纯文本 paste
+        var dt;
+        try {
+          dt = new DataTransfer();
+          dt.setData('text/plain', plain);
+        } catch (e7) { return false; }
+        try {
+          ev = new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: dt });
+        } catch (e8) {
+          ev = document.createEvent('Event');
+          ev.initEvent('paste', true, true);
+          try { Object.defineProperty(ev, 'clipboardData', { value: dt }); } catch (e9) {}
+        }
+        ed.dispatchEvent(ev);
+        return true;
+      }
+
+      function clearFormatSelected() {
+        if (!wbSel.editor || !document.contains(wbSel.editor)) return false;
+        var comp = wbSel.component && wbSel.component.isConnected ? wbSel.component : null;
+        if (!comp && wbSel.range) comp = wbComponentFromRange(wbSel.editor, wbSel.range, null);
+        var text = comp
+          ? (comp.innerText || comp.textContent || '').replace(/\n+$/, '')
+          : wbSel.text;
+        if (!text && !comp) return false;
+        return wbReplaceWithPlainText(wbSel.editor, text, wbSel, comp);
+      }
+
+      /* 弹窗「恢复默认」：只处理刚才点开的那一个组件，不再全局找编辑器 */
+      var wbEditingComponent = null;
+      function rememberClickedComponent(ev) {
+        var t = ev && ev.target;
+        var c = (t && t.closest) ? t.closest('[data-component-name]') : null;
+        if (c) wbEditingComponent = c;
+      }
+      document.addEventListener('pointerdown', rememberClickedComponent, true);
+      document.addEventListener('mousedown', rememberClickedComponent, true);
+      function markEditingComponent() {
+        var a = document.activeElement;
+        var c = (a && a.closest) ? a.closest('[data-component-name]') : null;
+        if (c) wbEditingComponent = c;
+      }
+      function clearFormatEditingComponent() {
+        var comp = wbEditingComponent && wbEditingComponent.isConnected ? wbEditingComponent : null;
+        if (!comp) {
+          var a = document.activeElement;
+          comp = (a && a.closest) ? a.closest('[data-component-name]') : null;
+        }
+        if (!comp) return false;
+        var ed = comp.closest('[data-lexical-editor]') || wbActiveEditor();
+        var text = (comp.innerText || comp.textContent || '').replace(/\n+$/, '');
+        return wbReplaceWithPlainText(ed, text, null, comp);
+      }
+      window.__wbFireClearFormat = clearFormatEditingComponent;
+
+      /* 插入菜单里的「清除格式」：拦在 Sveltia 建组件之前，避免空 selectedText 删内容 */
+      document.addEventListener('click', function (ev) {
+        var t = ev.target;
+        if (!t || !t.closest) return;
+        var btn = t.closest('[role="menuitem"]');
+        if (!btn) return;
+        var label = btn.textContent || '';
+        if (label.indexOf('清除格式') < 0) return;
+        // 普通文字选区交给 Sveltia 自己的 onInsert（它保存了点工具栏前的 Lexical 选区）；
+        // 只有点到原子组件时它拿不到文字，才需要我们拦下来原地替换。
+        if (!wbSel.component) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        clearFormatSelected();
+        try {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        } catch (e) {}
+      }, true);
+
+      function safeReg(def) {
+        try {
+          window.CMS.registerEditorComponent(def);
+          LOADED.push(def.id);
+          return true;
+        } catch (e) {
+          window.__wbHtmlErrors = (window.__wbHtmlErrors || []).concat(def.id + ': ' + (e && e.message || e));
+          console.error('[组件注册失败] ' + def.id, e);
+          return false;
+        }
+      }
+
+      function registerAll() {
+        if (typeof window.CMS === 'undefined' || typeof window.CMS.registerEditorComponent !== 'function') return false;
+        try {
+
+          /* ---- 1. 综合排版（对齐+颜色+字号+加粗）：字号 class+inline 双写 ---- */
+          safeReg({
+            id: 'wb-combo-html',
+            label: '🎨 综合排版（居中+颜色+字号+加粗）',
+            icon: 'format_paint',
+            pattern: /<div[^>]*data-wb-combo[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'text', label: '文字内容（可含 <span> 局部混色）', widget: 'string' },
+              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: ALIGNS },
+              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: COLORS },
+              { name: 'size', label: '字号', widget: 'select', default: '20px', options: SIZES },
+              { name: 'bold', label: '加粗', widget: 'boolean', default: false }
+            ],
+            toBlock: function (d) { return buildCombo(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCombo(d).outerHTML; },
+            htmlSelector: 'div[data-wb-combo]',
+            fromBlockHTML: function (node) {
+              return {
+                align: styleVal(node, 'text-align') || 'center',
+                color: styleVal(node, 'color') || '#e60000',
+                size: styleVal(node, 'font-size') || sizeFromClass(node) || '20px',
+                bold: /font-weight\s*:\s*(bold|[6-9]00)/i.test(node.getAttribute('style') || ''),
+                text: node.innerHTML || ''
+              };
+            },
+            toBlockHTML: function (d) { return buildCombo(d); }
+          });
+
+          /* ---- 2. 段落对齐 ---- */
+          safeReg({
+            id: 'wb-align-html', label: '段落对齐（居中/左/右）', icon: 'format_align_center',
+            pattern: /<div[^>]*data-wb-align[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'align', label: '对齐', widget: 'select', default: 'center', options: ALIGNS }
+            ],
+            toBlock: function (d) { return buildAlign(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildAlign(d).outerHTML; },
+            htmlSelector: 'div[data-wb-align]',
+            fromBlockHTML: function (n) {
+              return { align: styleVal(n, 'text-align') || 'center', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildAlign(d); }
+          });
+
+          /* ---- 3. 彩色文字 ---- */
+          safeReg({
+            id: 'wb-color-html', label: '彩色文字', icon: 'format_color_text',
+            pattern: /<span[^>]*data-wb-color[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#e60000', options: COLORS }
+            ],
+            toBlock: function (d) { return buildColor(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildColor(d).outerHTML; },
+            htmlSelector: 'span[data-wb-color]',
+            fromBlockHTML: function (n) {
+              return { color: styleVal(n, 'color') || '#e60000', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildColor(d); }
+          });
+
+          /* ---- 4. 字号（class 兜底，修好"调了没反应"）---- */
+          safeReg({
+            id: 'wb-size-html', label: '字号（大/小）', icon: 'format_size',
+            pattern: /<span[^>]*data-wb-size[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '文字内容', widget: 'string' },
+              { name: 'size', label: '字号', widget: 'select', default: '20px', options: SIZES }
+            ],
+            toBlock: function (d) { return buildSize(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildSize(d).outerHTML; },
+            htmlSelector: 'span[data-wb-size]',
+            fromBlockHTML: function (n) {
+              return { size: styleVal(n, 'font-size') || sizeFromClass(n) || '20px', text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildSize(d); }
+          });
+
+          /* ---- 5. 提示卡片（提示/注意/重点/警告/折叠/金句）---- */
+          safeReg({
+            id: 'wb-callout-html', label: '💡 提示卡片（提示/注意/重点/警告/折叠/金句）', icon: 'lightbulb',
+            pattern: /<blockquote[^>]*data-wb-callout[^>]*>[\s\S]*?<\/blockquote>/,
+            fields: [
+              { name: 'type', label: '卡片类型', widget: 'select', default: '提示', options: [
+                { label: '💡 提示', value: '提示' }, { label: '⚠️ 注意', value: '注意' },
+                { label: '📌 重点', value: '重点' }, { label: '🚫 警告', value: '警告' },
+                { label: '💬 金句', value: '金句' }
+              ] },
+              { name: 'content', label: '内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return buildCallout(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCallout(d).outerHTML; },
+            htmlSelector: 'blockquote[data-wb-callout]',
+            fromBlockHTML: function (n) {
+              // 只取正文，别把开头的「💡 提示：」标记也当成正文存回去
+              return { type: n.getAttribute('data-wb-callout') || '提示', content: wbStripCalloutMark(n.innerHTML) };
+            },
+            toBlockHTML: function (d) { return buildCallout(d); }
+          });
+
+          /* ---- 6. 按钮链接 ---- */
+          safeReg({
+            id: 'wb-button-html', label: '🔘 按钮链接（圆角大按钮）', icon: 'smart_button',
+            pattern: /<a[^>]*data-wb-button[^>]*>[\s\S]*?<\/a>/,
+            fields: [
+              { name: 'text', label: '按钮文字', widget: 'string', default: '点这里' },
+              { name: 'url', label: '链接网址', widget: 'string', default: 'https://' }
+            ],
+            toBlock: function (d) { return buildButton(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildButton(d).outerHTML; },
+            htmlSelector: 'a[data-wb-button]',
+            fromBlockHTML: function (n) {
+              return { text: n.innerHTML || '', url: n.getAttribute('href') || 'https://' };
+            },
+            toBlockHTML: function (d) { return buildButton(d); }
+          });
+
+          /* ---- 7. 图注 ---- */
+          safeReg({
+            id: 'wb-caption-html', label: '🖼 图注（图片下方小字）', icon: 'image',
+            pattern: /<em[^>]*data-wb-caption[^>]*>[\s\S]*?<\/em>/,
+            fields: [ { name: 'text', label: '图注文字', widget: 'string' } ],
+            toBlock: function (d) { return buildCaption(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildCaption(d).outerHTML; },
+            htmlSelector: 'em[data-wb-caption]',
+            fromBlockHTML: function (n) { return { text: n.innerHTML || '' }; },
+            toBlockHTML: function (d) { return buildCaption(d); }
+          });
+
+          /* ---- 7.5 图片排版：大小 + 位置 + 文字环绕 ----
+             前台 wb-post.js 认图片地址里的 ?w= / ?f=，这里把用户填的
+             宽度和排版写进地址，并留 data-wb-w / data-wb-f 方便点开再改。 */
+          safeReg({
+            id: 'wb-image-html',
+            label: '🖼 图片排版（大小 / 居中 / 左右环绕）',
+            icon: 'image',
+            pattern: /<img[^>]*data-wb-img[^>]*>/,
+            fields: [
+              { name: 'src', label: '图片（点图标上传/选图；可进入 files 文件夹选已上传的文件）', widget: 'image', media_folder: '/source', public_folder: '/', required: false },
+              { name: 'srcText', label: '或手填图片地址（可留空）', widget: 'string', required: false },
+              { name: 'width', label: '显示宽度（50%、25%、400px 都行；留空＝100%）', widget: 'string', default: '100%' },
+              { name: 'float', label: '位置 / 文字环绕', widget: 'select', default: 'c', options: [
+                { label: '居中 —— 图片独占一行，文字在上下', value: 'c' },
+                { label: '左对齐 —— 图片在左，文字环绕在右', value: 'l' },
+                { label: '右对齐 —— 图片在右，文字环绕在左', value: 'r' },
+                { label: '自动 —— 窄图左环绕，大图居中', value: 'auto' }
+              ] },
+              { name: 'alt', label: '图片说明（替代文字，可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildImg(d).outerHTML; },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              var n = tmp.firstElementChild;
+              return n ? imgFrom(n) : {};
+            },
+            toPreview: function (d) { return buildImg(d, true).outerHTML; },
+            htmlSelector: 'img[data-wb-img]',
+            fromBlockHTML: imgFrom,
+            toBlockHTML: function (d) { return buildImg(d); }
+          });
+
+          /* ---- 7.6 写文章常用组件（折叠/双栏/标签/跳转/时间线/视频/金句/进度条）----
+             每个组件都产出带 data-wb-* 标记的 HTML，前台样式在 butterfly 注入。
+             折叠块、金句直接复用已有的 .wb-fold / .wb-quote 样式，不重复造。 */
+          var LINK_OPTS = [
+            { label: '普通视频（B站/抖音/YouTube 分享链接）', value: 'embed' },
+            { label: '本地视频（媒体库上传的 mp4/webm）', value: 'local' }
+          ];
+          var BAR_COLORS = [
+            { label: '蓝色', value: '#2563eb' }, { label: '青色', value: '#06b6d4' },
+            { label: '绿色', value: '#16a34a' }, { label: '橙色', value: '#ea580c' },
+            { label: '紫色', value: '#7c3aed' }, { label: '红色', value: '#dc2626' }
+          ];
+
+          // ① 折叠块（复用前台已有的 details.wb-fold）
+          safeReg({
+            id: 'wb-fold-html', label: '📂 折叠块（点开看更多）', icon: 'unfold_more',
+            pattern: /<details[^>]*data-wb-fold[^>]*>[\s\S]*?<\/details>/,
+            fields: [
+              { name: 'title', label: '标题（折叠前显示）', widget: 'string', default: '点开看更多' },
+              { name: 'content', label: '折叠内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return buildFold(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'details'); },
+            toPreview: function (d) { return buildFold(d).outerHTML; },
+            htmlSelector: 'details[data-wb-fold]',
+            fromBlockHTML: function (n) {
+              var s = n.querySelector('summary');
+              var b = n.querySelector('.wb-fold-body');
+              return { title: s ? s.innerHTML : '', content: b ? b.innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return buildFold(d); }
+          });
+
+          // ② 双栏卡片
+          safeReg({
+            id: 'wb-2col-html', label: '▥ 双栏卡片（左右并排）', icon: 'view_column',
+            pattern: /<div[^>]*data-wb-2col[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'left', label: '左栏内容', widget: 'string' },
+              { name: 'right', label: '右栏内容', widget: 'string' }
+            ],
+            toBlock: function (d) { return build2Col(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return build2Col(d).outerHTML; },
+            htmlSelector: 'div[data-wb-2col]',
+            fromBlockHTML: function (n) {
+              var cs = n.children;
+              return { left: cs[0] ? cs[0].innerHTML : '', right: cs[1] ? cs[1].innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return build2Col(d); }
+          });
+
+          // ③ 彩色标签徽章
+          safeReg({
+            id: 'wb-tag-html', label: '🏷 彩色标签徽章', icon: 'sell',
+            pattern: /<span[^>]*data-wb-tag[^>]*>[\s\S]*?<\/span>/,
+            fields: [
+              { name: 'text', label: '标签文字', widget: 'string', default: '标签' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#2563eb', options: BAR_COLORS }
+            ],
+            toBlock: function (d) { return buildTag(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'span'); },
+            toPreview: function (d) { return buildTag(d).outerHTML; },
+            htmlSelector: 'span[data-wb-tag]',
+            fromBlockHTML: function (n) { return { text: n.innerHTML || '', color: styleVal(n, 'color') || n.getAttribute('data-wb-tag') || '#2563eb' }; },
+            toBlockHTML: function (d) { return buildTag(d); }
+          });
+
+          // ④ 文章内跳转目录
+          safeReg({
+            id: 'wb-jump-html', label: '🔖 文章内跳转目录（锚点按钮）', icon: 'bookmark',
+            pattern: /<div[^>]*data-wb-jump[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'items', label: '跳转项：留空或填 AUTO＝自动把正文所有标题列成按钮（推荐）；也可手动每行「显示名 => #锚点」', widget: 'string', default: '' }
+            ],
+            toBlock: function (d) { return buildJump(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildJump(d).outerHTML; },
+            htmlSelector: 'div[data-wb-jump]',
+            fromBlockHTML: function (n) {
+              var links = n.querySelectorAll('a');
+              var lines = [];
+              for (var i = 0; i < links.length; i++) {
+                lines.push(links[i].textContent + ' => ' + (links[i].getAttribute('href') || ''));
+              }
+              return { items: lines.join('\n') };
+            },
+            toBlockHTML: function (d) { return buildJump(d); }
+          });
+
+          // ⑤ 时间线
+          safeReg({
+            id: 'wb-tl-html', label: '🕒 时间线（一条记录）', icon: 'timeline',
+            pattern: /<div[^>]*data-wb-tl[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'time', label: '时间', widget: 'string', default: '2026-01' },
+              { name: 'title', label: '标题', widget: 'string', default: '事件标题' },
+              { name: 'content', label: '内容', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildTl(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildTl(d).outerHTML; },
+            htmlSelector: 'div[data-wb-tl]',
+            fromBlockHTML: function (n) {
+              function find(c) { var e = n.querySelector(c); return e ? e.innerHTML : ''; }
+              return { time: find('.wb-tl-time'), title: find('.wb-tl-h'), content: find('.wb-tl-c') };
+            },
+            toBlockHTML: function (d) { return buildTl(d); }
+          });
+
+          // ⑥ 视频卡片
+          safeReg({
+            id: 'wb-video-html', label: '🎬 视频卡片（B站/本地 mp4）', icon: 'play_circle',
+            pattern: /<div[^>]*data-wb-video[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'kind', label: '视频类型', widget: 'select', default: 'embed', options: LINK_OPTS },
+              { name: 'src', label: '网络视频链接（B站/YouTube 分享链接；用本地视频时留空）', widget: 'string', required: false },
+              { name: 'localFile', label: '本地视频（点图标上传或从资源库选；选了它就用它，忽略上面的链接）', widget: 'file', media_folder: '/source/files', public_folder: '/files', required: false },
+              { name: 'caption', label: '视频下方说明（可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildVideo(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildVideo(d).outerHTML; },
+            htmlSelector: 'div[data-wb-video]',
+            fromBlockHTML: function (n) {
+              var f = n.querySelector('iframe'), v = n.querySelector('video');
+              var cap = n.querySelector('.wb-video-cap');
+              var raw = f ? (f.getAttribute('src') || '') : (v ? (v.getAttribute('src') || '') : '');
+              // 把播放器地址还原成原始分享链接，方便点开再改
+              var bv = raw.match(/bvid=(BV[0-9A-Za-z]{10})/);
+              if (bv) raw = 'https://www.bilibili.com/video/' + bv[1];
+              var av = raw.match(/[?&]aid=(\d+)/);
+              if (av) raw = 'https://www.bilibili.com/video/av' + av[1];
+              var yt = raw.match(/youtube\.com\/embed\/([\w-]{11})/);
+              if (yt) raw = 'https://www.youtube.com/watch?v=' + yt[1];
+              // 本地视频回填到 localFile 字段；网络链接回填到 src
+              if (v) return { kind: 'local', src: '', localFile: raw, caption: cap ? cap.innerHTML : '' };
+              return { kind: 'embed', src: raw, localFile: '', caption: cap ? cap.innerHTML : '' };
+            },
+            toBlockHTML: function (d) { return buildVideo(d); }
+          });
+
+          // ⑦ 金句大卡片（复用前台 blockquote.wb-quote）
+          safeReg({
+            id: 'wb-quote2-html', label: '💬 金句大卡片（醒目引文）', icon: 'format_quote',
+            pattern: /<blockquote[^>]*data-wb-quote2[^>]*>[\s\S]*?<\/blockquote>/,
+            fields: [
+              { name: 'text', label: '金句内容', widget: 'string' },
+              { name: 'by', label: '出处（可不填）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildQuote2(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'blockquote'); },
+            toPreview: function (d) { return buildQuote2(d).outerHTML; },
+            htmlSelector: 'blockquote[data-wb-quote2]',
+            fromBlockHTML: function (n) {
+              var p = n.querySelector('p'), by = n.querySelector('cite');
+              return { text: p ? p.innerHTML : n.innerHTML, by: by ? by.textContent : '' };
+            },
+            toBlockHTML: function (d) { return buildQuote2(d); }
+          });
+
+          // ⑧ 进度条 / 技能条
+          safeReg({
+            id: 'wb-prog-html', label: '📊 进度条 / 技能条', icon: 'linear_scale',
+            pattern: /<div[^>]*data-wb-prog[^>]*>[\s\S]*?<\/div>/,
+            fields: [
+              { name: 'label', label: '名称', widget: 'string', default: '熟练度' },
+              { name: 'value', label: '百分比（0-100）', widget: 'string', default: '80' },
+              { name: 'color', label: '颜色', widget: 'select', default: '#2563eb', options: BAR_COLORS }
+            ],
+            toBlock: function (d) { return buildProg(d).outerHTML; },
+            fromBlock: function (m) { return htmlToData(m, 'div'); },
+            toPreview: function (d) { return buildProg(d).outerHTML; },
+            htmlSelector: 'div[data-wb-prog]',
+            fromBlockHTML: function (n) {
+              var lab = n.querySelector('.wb-prog-h'), bar = n.querySelector('.wb-prog-t i');
+              var name = '', val = '80';
+              if (lab) {
+                var spans = lab.querySelectorAll('span');
+                name = spans[0] ? spans[0].textContent : '';
+                if (spans[1]) val = String(spans[1].textContent).replace('%', '');
+              }
+              var col = bar ? (bar.getAttribute('data-wb-color') || '') : '';
+              if (!col && bar) { var cm = (bar.getAttribute('class') || '').match(/wb-bar-([0-9a-f]{6})/i); if (cm) col = '#' + cm[1]; }
+              return { label: name, value: val, color: col || '#2563eb' };
+            },
+            toBlockHTML: function (d) { return buildProg(d); }
+          });
+
+          /* ---- 8. 分割线 ---- */
+          safeReg({
+            id: 'wb-hr-html', label: '➖ 分割线', icon: 'remove',
+            pattern: /<hr[^>]*data-wb-hr[^>]*>/,
+            fields: [ { name: 'note', label: '备注（可不填）', widget: 'string', required: false } ],
+            toBlock: function () { return '<hr data-wb-hr="1">'; },
+            fromBlock: function () { return { note: '' }; },
+            toPreview: function () { return '<hr>'; },
+            htmlSelector: 'hr[data-wb-hr]',
+            fromBlockHTML: function () { return { note: '' }; },
+            toBlockHTML: function () { return el('hr', { 'data-wb-hr': '1' }); }
+          });
+
+          /* ---- 9. 表格 ---- */
+          safeReg({
+            id: 'wb-table-html', label: '📊 表格（填行列自动生成）', icon: 'grid_on',
+            pattern: /<table[^>]*data-wb-table[^>]*>[\s\S]*?<\/table>/,
+            fields: [
+              { name: 'cols', label: '列数（2-6）', widget: 'select', default: '3', options: [
+                { label: '2 列', value: '2' }, { label: '3 列', value: '3' }, { label: '4 列', value: '4' },
+                { label: '5 列', value: '5' }, { label: '6 列', value: '6' }
+              ] },
+              { name: 'rows', label: '数据行数（1-10）', widget: 'select', default: '2', options: [
+                { label: '1 行', value: '1' }, { label: '2 行', value: '2' }, { label: '3 行', value: '3' },
+                { label: '4 行', value: '4' }, { label: '5 行', value: '5' }
+              ] }
+            ],
+            toBlock: function (d) { return buildTable(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildTable(d).outerHTML; },
+            htmlSelector: 'table[data-wb-table]',
+            fromBlockHTML: function (n) {
+              return { cols: n.getAttribute('data-wb-cols') || '3', rows: n.getAttribute('data-wb-rows') || '2' };
+            },
+            toBlockHTML: function (d) { return buildTable(d); }
+          });
+
+          /* ---- 10. 站内文章链接 ---- */
+          safeReg({
+            id: 'wb-postlink-html', label: '🔗 插入站内文章链接', icon: 'link',
+            pattern: /<a[^>]*data-wb-postlink[^>]*>[\s\S]*?<\/a>/,
+            fields: [
+              { name: 'post', label: '选择文章', widget: 'select', default: POSTS[0].value, options: POSTS },
+              { name: 'text', label: '显示文字（留空＝文章标题）', widget: 'string', required: false }
+            ],
+            toBlock: function (d) { return buildPostLink(d).outerHTML; },
+            fromBlock: function () { return {}; },
+            toPreview: function (d) { return buildPostLink(d).outerHTML; },
+            htmlSelector: 'a[data-wb-postlink]',
+            fromBlockHTML: function (n) {
+              return { post: n.getAttribute('href') || POSTS[0].value, text: n.innerHTML || '' };
+            },
+            toBlockHTML: function (d) { return buildPostLink(d); }
+          });
+
+          /* ---- 11+. 彩色文字 / 文字大小：和强调文字一样，插入弹面板，点击已插入的文字再弹面板改 ----
+             旧版本是 11 个固定值按钮，插入后变原子节点就没法再改。
+             现在合并成两个通用组件：onInsert 弹对应面板，onEdit 同样弹面板原地更新。
+             旧文章里的 data-wb-ic="color-xxx" / "size-xxx" 仍能被 pattern 命中并回读。 */
+          function inlineKey(kind, value) {
+            return kind + '-' + String(value || '').replace(/[^0-9a-zA-Z]/g, '');
+          }
+          function inlineHtml(kind, d) {
+            d = d || {};
+            var color = kind === 'color' ? (d.color || '#e60000') : (d.color || '');
+            var size = kind === 'size' ? (d.size || '20px') : (d.size || '');
+            var key = inlineKey(kind, kind === 'color' ? color : size);
+            var style = (color ? 'color:' + color + ';' : '') + (size ? 'font-size:' + size + ';' : '');
+            var cls = 'wb-inline' + (size ? ' ' + sizeClass(size) : '');
+            var span = el('span', { 'data-wb-ic': key, 'class': cls, 'style': style });
+            // 内容优先用存下来的富文本（带 <em>/<strong> 等），没有才退回纯文字
+            var fallback = d.text == null || d.text === '' ? (kind === 'color' ? '彩色文字' : '示例文字') : d.text;
+            setHtml(span, (d.html != null && d.html !== '') ? d.html : esc(fallback));
+            return span.outerHTML;
+          }
+          function inlineFrom(node) {
+            return {
+              text: node.textContent || '',
+              html: node.innerHTML || '',
+              color: styleVal(node, 'color') || '',
+              size: styleVal(node, 'font-size') || sizeFromClass(node) || ''
+            };
+          }
+          function regInlineSmart(kind, label, icon) {
+            var pattern = wbSpanRe('data-wb-ic="' + kind + '-[^"]*"');
+            function make(d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = inlineHtml(kind, d);
+              return tmp.firstChild;
+            }
+            function pick(current, text, editing) {
+              return pickStyle(current, text, kind).then(function (p) {
+                if (!p) return null;
+                // 恢复默认：插入时返回空值让 Sveltia 换成纯文本；编辑时主动派发 insertText
+                if (p.clear) { if (editing) clearFormatEditingComponent(); return null; }
+                var out = {
+                  text: text || (kind === 'color' ? '彩色文字' : '示例文字'),
+                  color: (current && current.color) || '',
+                  size: (current && current.size) || '',
+                  html: p.html
+                };
+                if (kind === 'color') out.color = p.color; else out.size = p.size;
+                return out;
+              });
+            }
+            safeReg({
+              id: 'wb-ic-' + kind,
+              label: label,
+              icon: icon,
+              pattern: pattern,
+              fields: [
+                { name: 'text', label: '文字', widget: 'string' },
+                { name: 'color', label: '颜色', widget: 'string' },
+                { name: 'size', label: '字号', widget: 'string' }
+              ],
+              toBlock: function (d) { return inlineHtml(kind, d); },
+              fromBlock: function (m) {
+                var str = m && (m[0] || String(m));
+                var tmp = document.createElement('div');
+                tmp.innerHTML = str;
+                return tmp.firstElementChild ? inlineFrom(tmp.firstElementChild) : {};
+              },
+              toPreview: function (d) { return inlineHtml(kind, d); },
+              inlinePattern: {
+                onInsert: function (ctx) {
+                  var text = (ctx && ctx.selectedText) || '';
+                  // 插入前先把选区里已有的加粗、斜体抓下来，组件里一并保留
+                  var rich = wbCaptureRichHtml(text);
+                  return pick({ html: rich }, text, false);
+                },
+                onEdit: function (ctx) {
+                  var data = (ctx && ctx.data) || {};
+                  markEditingComponent();
+                  return pick(data, data.text, true);
+                }
+              },
+              htmlSelector: 'span[data-wb-ic^="' + kind + '-"]',
+              fromBlockHTML: inlineFrom,
+              toBlockHTML: make
+            });
+          }
+          regInlineSmart('color', '🖍 彩色文字（点已插入的文字可改颜色）', 'format_color_text');
+          regInlineSmart('size', '🔤 文字大小（点已插入的文字可改字号）', 'format_size');
+
+          /* ---- 12. 强调文字：颜色+字号一次设好，点一下还能再改 ----
+             为什么可行：Sveltia 对 inline 组件的 onInsert / onEdit 都是 await 调用的，
+             插入时弹面板等选择；已插入的组件点击会走 onEdit，返回新数据即原地更新。
+             这样不用"先变色→再选中→再变字号"，也不会卡在原子节点选不中。 */
+          safeReg({
+            id: 'wb-em-html',
+            label: '🎯 强调文字（一次设颜色+字号，点它能改）',
+            icon: 'format_color_text',
+            pattern: wbSpanRe('data-wb-em'),
+            fields: [
+              { name: 'text', label: '文字', widget: 'string' }
+            ],
+            toBlock: function (d) { return emHtml(d); },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              var n = tmp.firstElementChild;
+              return n ? emFrom(n) : {};
+            },
+            toPreview: function (d) { return emHtml(d); },
+            htmlSelector: 'span[data-wb-em]',
+            fromBlockHTML: function (n) { return emFrom(n); },
+            toBlockHTML: function (d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = emHtml(d);
+              return tmp.firstChild;
+            },
+            inlinePattern: {
+              onInsert: function (ctx) {
+                var text = (ctx && ctx.selectedText) || '';
+                // 插入前先把选区里已有的加粗、斜体抓下来，组件里一并保留
+                var rich = wbCaptureRichHtml(text);
+                return pickStyle({ html: rich }, text).then(function (p) {
+                  if (!p) return null;
+                  if (p.clear) return null; // Sveltia 会把选区替换成纯文本
+                  return { text: text || '强调文字', color: p.color, size: p.size, html: p.html };
+                });
+              },
+              onEdit: function (ctx) {
+                var data = (ctx && ctx.data) || {};
+                markEditingComponent();
+                return pickStyle(data, data.text).then(function (p) {
+                  if (!p) return null;
+                  if (p.clear) { clearFormatEditingComponent(); return null; }
+                  return { text: data.text || '强调文字', color: p.color, size: p.size, html: p.html };
+                });
+              }
+            }
+          });
+
+          /* ---- 13. 清除格式 ----
+             Sveltia 源码里 inlinePattern.onInsert 若没有返回对象，
+             会直接把临时组件节点替换成「纯文本节点」。所以这里故意返回 null：
+             选中任何带颜色/字号/加粗的文字，点它就会变回普通文字，可继续编辑。 */
+          safeReg({
+            id: 'wb-clear-html',
+            label: '🧹 清除格式（选中文字后点这里，恢复普通文字）',
+            icon: 'format_clear',
+            pattern: /<span[^>]*data-wb-clear[^>]*>[\s\S]*?<\/span>/,
+            fields: [{ name: 'text', label: '文字', widget: 'string' }],
+            toBlock: function (d) { return clearHtml(d); },
+            fromBlock: function (m) {
+              var str = m && (m[0] || String(m));
+              var tmp = document.createElement('div');
+              tmp.innerHTML = str;
+              return { text: tmp.textContent || '' };
+            },
+            toPreview: function (d) { return clearHtml(d); },
+            htmlSelector: 'span[data-wb-clear]',
+            fromBlockHTML: function (n) { return { text: n.textContent || '' }; },
+            toBlockHTML: function (d) {
+              var tmp = document.createElement('div');
+              tmp.innerHTML = clearHtml(d);
+              return tmp.firstChild;
+            },
+            inlinePattern: {
+              onInsert: function () { return null; }
+            }
+          });
+
+          window.__wbHtmlComboReady = true;
+          return true;
+        } catch (e) {
+          window.__wbHtmlComboError = String(e && e.message || e);
+          console.error('[组件注册总入口失败]', e);
+          return false;
+        }
+      }
+
+      /* ---------- 各组件的 DOM 构造（inline + class 双写） ---------- */
+      function clearHtml(d) {
+        d = d || {};
+        var e = el('span', { 'data-wb-clear': '1' }, esc(d.text || '普通文字'));
+        return e.outerHTML;
+      }
+      function buildCombo(d) {
+        d = d || {};
+        var align = d.align || 'center', color = d.color || '#e60000', size = d.size || '20px';
+        var e = el('div', {
+          'data-wb-combo': '1',
+          'class': sizeClass(size),
+          'style': 'text-align:' + align + ';color:' + color + ';font-size:' + size + (d.bold ? ';font-weight:bold' : '') + ';'
+        });
+        return setHtml(e, d.text || '要排版的文字');
+      }
+      function buildAlign(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-align': '1', 'style': 'text-align:' + (d.align || 'center') + ';' });
+        return setHtml(e, d.text || '居中文字');
+      }
+      function buildColor(d) {
+        d = d || {};
+        var e = el('span', { 'data-wb-color': '1', 'style': 'color:' + (d.color || '#e60000') + ';' });
+        return setHtml(e, d.text || '彩色文字');
+      }
+      function buildSize(d) {
+        d = d || {};
+        var s = d.size || '20px';
+        var e = el('span', { 'data-wb-size': '1', 'class': sizeClass(s), 'style': 'font-size:' + s + ';' });
+        return setHtml(e, d.text || '不同字号的文字');
+      }
+      // 提示卡片的标记（如「💡 提示：」）是拼在正文前面的，
+      // 以前导入时把整段 innerHTML（含标记）当成正文存下来，
+      // 下次导出又套一层标记，于是每保存一次就多重复一遍
+      // （线上那篇「测试」已经叠了 4 层）。
+      // 这里把开头重复的标记全部剥掉，只留真正的正文。
+      var WB_CALLOUT_MARKS = ['💡 提示：', '⚠️ 注意：', '📌 重点：', '🚫 警告：', '💬 金句：', '💬 ',
+        '提示：', '注意：', '重点：', '警告：', '金句：', '💡 ', '⚠️ ', '📌 ', '🚫 '];
+      function wbStripCalloutMark(inner) {
+        var h = String(inner == null ? '' : inner);
+        var changed = true;
+        while (changed) {
+          changed = false;
+          for (var i = 0; i < WB_CALLOUT_MARKS.length; i++) {
+            var m = WB_CALLOUT_MARKS[i];
+            if (h.indexOf(m) === 0) { h = h.slice(m.length); changed = true; break; }
+          }
+        }
+        return h.replace(/^[ \t\r\n]+/, '');
+      }
+      function buildCallout(d) {
+        d = d || {};
+        var type = d.type || '提示';
+        var mark = { '提示': '💡 提示：', '注意': '⚠️ 注意：', '重点': '📌 重点：', '警告': '🚫 警告：', '金句': '💬 ' }[type] || '提示：';
+        var e = el('blockquote', { 'data-wb-callout': type, 'class': 'wb-callout-hl' });
+        return setHtml(e, esc(mark) + (d.content || ''));
+      }
+      function buildButton(d) {
+        d = d || {};
+        return el('a', { 'data-wb-button': '1', 'class': 'wb-btn-hl', 'href': d.url || 'https://', 'target': '_blank', 'rel': 'noopener noreferrer' }, esc(d.text || '点这里'));
+      }
+      function buildCaption(d) {
+        d = d || {};
+        return el('em', { 'data-wb-caption': '1', 'class': 'wb-cap-hl' }, esc(d.text || '图注说明'));
+      }
+      // 图片排版：剥掉旧的地址参数，得到干净原图地址（避免重复编辑越堆越长）
+      function imgBaseSrc(src) {
+        return String(src || '')
+          .replace(/([?#&])w=[^&#]*/gi, '$1')
+          .replace(/([?#&])f=[^&#]*/gi, '$1')
+          .replace(/[?&#]+$/, '');
+      }
+      function imgFrom(n) {
+        var src = n.getAttribute('src') || '';
+        var w = n.getAttribute('data-wb-w') || '';
+        var f = n.getAttribute('data-wb-f') || '';
+        // data 属性若被编辑器擦掉，退回从地址参数解析，保证点开还能改
+        if (!w) { var mw = src.match(/[?#&]w=([0-9]{1,4}(?:\.[0-9]+)?)(%25|%|px)?/i); if (mw) w = mw[1] + (mw[2] === 'px' ? 'px' : '%'); }
+        if (!f) { var mf = src.match(/[?#&]f=([a-z]+)/i); if (mf) f = mf[1]; }
+        var clean = imgBaseSrc(src);
+        return { src: clean, srcText: clean, width: w, float: f || 'c', alt: n.getAttribute('alt') || '' };
+      }
+      function buildImg(d, forPreview) {
+        d = d || {};
+        // src 来自 image widget（上传/图库），srcText 是手填兜底；两者取其一
+        var raw = d.src || d.srcText || '';
+        // 【v12】尺寸用 URL 片段（#）传递：能穿过编辑器清洗，又不触发重新下载。
+        var base = imgBaseSrc(raw) || '/img/example.png';
+        var w = String(d.width || '').trim();
+        var f = d.float || 'c';
+        // 【v12 关键】尺寸写进 URL 片段（#w=5%25&f=c）：
+        // 片段是 src 的一部分，能穿过 Sveltia 的 DOMPurify 清洗到达右侧预览图；
+        // 浏览器不会把片段发给服务器，改尺寸零下载 → 既准又快。
+        var extra = [];
+        if (w) extra.push('w=' + encodeURIComponent(w));
+        if (f && f !== 'auto') extra.push('f=' + f);
+        var src = base + (extra.length ? '#' + extra.join('&') : '');
+        var attrs = {
+          'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
+          'src': src, 'alt': d.alt || ''
+        };
+        // 宽度写进 inline style（Sveltia DOMPurify 白名单保留 width），这样右侧整篇预览
+        // 和正文都能立即看到 50%/25%；对齐靠 class + 预览脚本/前台脚本兜底。
+        var st = [];
+        if (w) st.push('width:' + w, 'max-width:100%', 'height:auto');
+        if (st.length) attrs['style'] = st.join(';');
+        attrs['class'] = 'wb-img-prev wb-img-prev-' + (f === 'l' ? 'l' : f === 'r' ? 'r' : f === 'c' ? 'c' : 'auto');
+        return el('img', attrs);
+      }
+      // 新组件通用的 fromBlock：从匹配串里取第一个元素的 data-* 属性
+      function htmlToData(m, tag) {
+        var str = m && (m[0] || String(m));
+        var tmp = document.createElement('div');
+        tmp.innerHTML = str;
+        var n = tmp.firstElementChild;
+        if (!n) return {};
+        var d = {};
+        for (var i = 0; i < n.attributes.length; i++) {
+          var a = n.attributes[i];
+          if (a.name.indexOf('data-wb-') === 0) d[a.name.slice(8).replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); })] = a.value;
+        }
+        return d;
+      }
+      function buildFold(d) {
+        d = d || {};
+        var e = el('details', { 'data-wb-fold': '1', 'class': 'wb-fold' });
+        e.appendChild(el('summary', {}, esc(d.title || '点开看更多')));
+        var body = el('div', { 'class': 'wb-fold-body' });
+        setHtml(body, d.content || '<p>折叠内容</p>');
+        e.appendChild(body);
+        return e;
+      }
+      function build2Col(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-2col': '1', 'class': 'wb-2col' });
+        var l = el('div', { 'class': 'wb-2col-c' }); setHtml(l, d.left || '左栏内容');
+        var r = el('div', { 'class': 'wb-2col-c' }); setHtml(r, d.right || '右栏内容');
+        e.appendChild(l); e.appendChild(r);
+        return e;
+      }
+      function buildTag(d) {
+        d = d || {};
+        var color = d.color || '#2563eb';
+        return el('span', { 'data-wb-tag': color, 'class': 'wb-tag', 'style': 'color:' + color + ';border:1px solid ' + color }, esc(d.text || '标签'));
+      }
+      // 标题文本 -> 锚点 id（与前台 wb-post.js 的 wbHeadingId 规则一致）
+      function wbHeadingId(text) {
+        return 'wb-h-' + String(text || '').replace(/[^\w\u4e00-\u9fa5-]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+      }
+      // 从正文编辑器读取所有标题，供跳转目录自动选题
+      function wbCollectHeadings() {
+        var ed = wbSel.editor && wbSel.editor.isConnected ? wbSel.editor
+          : document.querySelector('[data-lexical-editor]');
+        if (!ed) return [];
+        var out = [], seen = {};
+        var hs = ed.querySelectorAll('h1,h2,h3,h4,h5,h6');
+        for (var i = 0; i < hs.length; i++) {
+          var txt = (hs[i].textContent || '').trim();
+          if (!txt || seen[txt]) continue;
+          seen[txt] = 1;
+          out.push(txt);
+        }
+        return out;
+      }
+      function buildJump(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-jump': '1', 'class': 'wb-jump' });
+        var items = String(d.items || '').trim();
+        var lines;
+        // AUTO = 自动把正文里所有标题列成跳转按钮，不用手找 id
+        if (!items || /^auto$/i.test(items)) {
+          lines = wbCollectHeadings().map(function (t) { return t + ' => #' + wbHeadingId(t); });
+          if (!lines.length) lines = ['（插入前先在正文写好标题）=> #'];
+        } else {
+          lines = items.split(/\r?\n/);
+        }
+        lines.forEach(function (line) {
+          var parts = line.split(/\s*=>\s*/);
+          var label = parts[0].trim(); if (!label) return;
+          var href = (parts[1] || '#' + wbHeadingId(label)).trim();
+          e.appendChild(el('a', { 'href': href }, esc(label)));
+        });
+        if (!e.children.length) e.appendChild(el('a', { 'href': '#' }, '示例'));
+        return e;
+      }
+      function buildTl(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-tl': '1', 'class': 'wb-tl' });
+        e.appendChild(el('div', { 'class': 'wb-tl-time' }, esc(d.time || '')));
+        e.appendChild(el('div', { 'class': 'wb-tl-h' }, esc(d.title || '事件标题')));
+        if (d.content) { var c = el('div', { 'class': 'wb-tl-c' }); setHtml(c, d.content); e.appendChild(c); }
+        return e;
+      }
+      function buildVideo(d) {
+        d = d || {};
+        var e = el('div', { 'data-wb-video': '1', 'class': 'wb-video' });
+        var local = String(d.localFile || '').trim();
+        var src = String(d.src || '').trim();
+        // 选了本地文件就用它（不管 kind）；否则按 kind 处理网络链接
+        if (local || d.kind === 'local') {
+          e.appendChild(el('video', { 'src': local || src || '/files/demo.mp4', 'controls': 'controls', 'style': 'width:100%;border-radius:10px' }));
+        } else {
+          var embed = wbVideoEmbed(src);
+          e.appendChild(el('div', { 'class': 'wb-video-box' }, embed));
+        }
+        if (d.caption) e.appendChild(el('div', { 'class': 'wb-video-cap' }, esc(d.caption)));
+        return e;
+      }
+      // 把 B站/YouTube 分享链接转成可直接嵌播放器的地址
+      function wbVideoEmbed(url) {
+        var u = String(url || '').trim();
+        if (!u) u = 'https://www.bilibili.com/video/BV1xx411c7mD';
+        var bv = u.match(/(BV[0-9A-Za-z]{10})/);
+        if (bv) return '<iframe src="//player.bilibili.com/player.html?bvid=' + bv[1] + '&page=1&high_quality=1" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+        var av = u.match(/av(\d+)/i);
+        if (av) return '<iframe src="//player.bilibili.com/player.html?aid=' + av[1] + '&page=1" scrolling="no" frameborder="0" allowfullscreen="true"></iframe>';
+        var yt = u.match(/(?:v=|youtu\.be\/|embed\/)([\w-]{11})/);
+        if (yt) return '<iframe src="//www.youtube.com/embed/' + yt[1] + '" frameborder="0" allowfullscreen="true"></iframe>';
+        return '<iframe src="' + esc(u) + '" frameborder="0" allowfullscreen="true"></iframe>';
+      }
+      function buildQuote2(d) {
+        d = d || {};
+        var e = el('blockquote', { 'data-wb-quote2': '1', 'class': 'wb-quote wb-quote2' });
+        e.appendChild(el('p', {}, esc(d.text || '一句值得记住的话')));
+        if (d.by) e.appendChild(el('cite', {}, '—— ' + d.by));
+        return e;
+      }
+      function buildProg(d) {
+        d = d || {};
+        var val = Math.max(0, Math.min(100, parseInt(d.value, 10) || 0));
+        var color = d.color || '#2563eb';
+        var e = el('div', { 'data-wb-prog': '1', 'class': 'wb-prog' });
+        var h = el('div', { 'class': 'wb-prog-h' });
+        h.appendChild(el('span', {}, esc(d.label || '进度')));
+        h.appendChild(el('span', {}, val + '%'));
+        e.appendChild(h);
+        var t = el('div', { 'class': 'wb-prog-t' });
+        var colorCls = 'wb-bar-' + String(color).replace(/^#/, '');
+        t.appendChild(el('i', { 'data-wb-color': color, 'class': colorCls, 'style': 'width:' + val + '%;background:' + color }));
+        e.appendChild(t);
+        return e;
+      }
+      function buildTable(d) {
+        d = d || {};
+        var cols = Math.max(2, Math.min(6, parseInt(d.cols, 10) || 3));
+        var rows = Math.max(1, Math.min(5, parseInt(d.rows, 10) || 2));
+        var t = el('table', { 'data-wb-table': '1', 'class': 'wb-table-hl', 'data-wb-cols': String(cols), 'data-wb-rows': String(rows) });
+        var thead = document.createElement('thead'), hr = document.createElement('tr');
+        var tbody = document.createElement('tbody');
+        for (var c = 1; c <= cols; c++) {
+          var th = document.createElement('th'); th.textContent = '列' + c; hr.appendChild(th);
+        }
+        thead.appendChild(hr); t.appendChild(thead);
+        for (var r = 0; r < rows; r++) {
+          var tr = document.createElement('tr');
+          for (var k = 0; k < cols; k++) { var td = document.createElement('td'); td.textContent = ' '; tr.appendChild(td); }
+          tbody.appendChild(tr);
+        }
+        t.appendChild(tbody);
+        return t;
+      }
+      function buildPostLink(d) {
+        d = d || {};
+        var url = d.post || POSTS[0].value, label = d.text || '';
+        if (!label) {
+          for (var i = 0; i < POSTS.length; i++) if (POSTS[i].value === url) { label = POSTS[i].label; break; }
+          if (!label) label = url;
+        }
+        return el('a', { 'data-wb-postlink': '1', 'href': url }, esc(label));
+      }
+
+      // CMS 可能是先占位后赋值，用 setter 钩住，赋值那一刻立刻注册
+      var _cms = window.CMS;
+      if (!registerAll()) {
+        Object.defineProperty(window, 'CMS', {
+          configurable: true,
+          get: function () { return _cms; },
+          set: function (v) {
+            _cms = v;
+            try { if (v) registerAll(); } catch (e) {}
+          }
+        });
+      }
+
+      /* ---------- 正文「插入」菜单顺序 ----------
+         顺序保存在 site.yml 的 editor_components，构建时由 scripts/admin-gate.js
+         内联成 window.__WB_EDITOR_ORDER__。这里在 CMS 读取 config.yml 时临时
+         注入 field_defaults.richtext.editor_components，Sveltia 会按这个顺序
+         排「插入」菜单。因为顺序文件在 Git 里，改一次所有设备同步。 */
+      function applyToolbarOrder() {
+        if (window.__wbConfigFetchPatched) return;
+        window.__wbConfigFetchPatched = true;
+        var order = window.__WB_EDITOR_ORDER__;
+        if (!Array.isArray(order) || !order.length || typeof window.fetch !== 'function') return;
+        var origFetch = window.fetch;
+        window.fetch = function (input, init) {
+          // Sveltia 0.270 用 fetch(new URL(...)) 加载 config.yml，传进来的是 URL 对象：
+          // 它只有 href、没有 url 属性。以前只认字符串/Request(.url)，于是
+          // config.yml 请求被原样放行，field_defaults 顺序注入从未生效，
+          // 「插入」菜单一直按组件注册顺序排，站点设置里排的顺序不起作用。
+          var url = typeof input === 'string' ? input
+            : (input && (input.url || input.href)) || '';
+          if (!/\/config\.yml(?:\?|$)/.test(url) || /\/(cms|cms-html|tina)\//.test(url)) {
+            return origFetch.apply(window, arguments);
+          }
+          return origFetch.call(window, input, init).then(function (res) {
+            return res.text().then(function (body) {
+              // 已显式配置过就尊重原配置，不重复注入
+              if (/^field_defaults\s*:/m.test(body)) return res;
+              var lines = ['field_defaults:', '  richtext:', '    editor_components:'];
+              order.forEach(function (id) { lines.push('      - ' + JSON.stringify(String(id))); });
+              var opts = { status: res.status, statusText: res.statusText, headers: res.headers };
+              return new Response(lines.join('\n') + '\n' + body, opts);
+            });
+          });
+        };
+        window.__wbToolbarOrderApplied = order.slice();
+      }
+
+      // 真正启动 CMS。密码门验证通过后才会调用它（没设密码则立即调用）。
+      window.__wbStartCMS = function () {
+        if (window.__wbCMSStarted) return;
+        if (typeof window.CMS === 'undefined' || typeof window.CMS.init !== 'function') {
+          // 主脚本 2.6MB，可能还没下载完：等它就绪再启动，而不是直接失败
+          if (!window.__wbStartTimer) {
+            window.__wbStartTimer = setInterval(function () {
+              if (typeof window.CMS !== 'undefined' && typeof window.CMS.init === 'function') {
+                clearInterval(window.__wbStartTimer);
+                window.__wbStartTimer = null;
+                window.__wbStartCMS();
+              }
+            }, 150);
+          }
+          return;
+        }
+        try {
+          applyToolbarOrder();
+          window.CMS.init();
+          window.__wbCMSStarted = true;
+          window.__wbHtmlDemoReady = true;
+        } catch (e) {
+          console.error('[CMS 启动失败]', e);
+          window.__wbHtmlDemoReady = false;
+        }
+      };
+      window.__wbHtmlComboLoaded = LOADED;
+
+      /* ---------- 撤销/恢复悬浮按钮 ----------
+         Lexical（Sveltia 富文本内核）原生支持 historyUndo / historyRedo，
+         但必须通过 beforeinput 事件触发（合成 KeyboardEvent 不会生效）。
+         这里在正文编辑器上派发这两个 inputType，等价于 Ctrl+Z / Ctrl+Y。 */
+      (function () {
+        var undoBtn = document.getElementById('wb-history-undo');
+        var redoBtn = document.getElementById('wb-history-redo');
+        function findEditor() {
+          var a = document.activeElement;
+          if (a && a.matches && a.matches('.lexical-root[contenteditable="true"]')) return a;
+          var list = document.querySelectorAll('.lexical-root[contenteditable="true"]');
+          for (var i = 0; i < list.length; i++) {
+            if (list[i].getClientRects && list[i].getClientRects().length) return list[i];
+          }
+          return null;
+        }
+        function fire(type) {
+          var ed = findEditor();
+          if (!ed) { console.warn('[撤销/恢复] 未找到正文编辑器，请先点一下正文'); return false; }
+          try { ed.focus({ preventScroll: true }); } catch (e) { try { ed.focus(); } catch (e2) {} }
+          var ev;
+          try {
+            ev = new InputEvent('beforeinput', {
+              inputType: type, bubbles: true, cancelable: true, composed: true, data: null
+            });
+          } catch (e) {
+            ev = document.createEvent('Event');
+            ev.initEvent('beforeinput', true, true);
+            try { Object.defineProperty(ev, 'inputType', { value: type }); } catch (e2) {}
+          }
+          return ed.dispatchEvent(ev);
+        }
+        if (undoBtn) {
+          undoBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+          undoBtn.addEventListener('click', function () { fire('historyUndo'); });
+        }
+        if (redoBtn) {
+          redoBtn.addEventListener('mousedown', function (e) { e.preventDefault(); });
+          redoBtn.addEventListener('click', function () { fire('historyRedo'); });
+        }
+        window.__wbFireHistory = fire; // 便于自动化验证
+        window.__wbHistoryReady = true;
+      })();
+    })();
+  </script>
+
+  <!-- 网站访问密码门：验证通过后才调用 __wbStartCMS 启动写作后台 -->
+  <script>
+    (function () {
+      var hash = String(window.__WB_ADMIN_HASH__ || '').toLowerCase();
+      var gate = document.getElementById('wb-admin-gate');
+      // 提前声明，避免「无密码直接放行」时 unlock() 里 PREFIX 还是 undefined 导致锁定按钮不出现
+      var PREFIX = hash.slice(0, 12);
+      var KEY = 'wb_admin_unlock_' + PREFIX;
+      var SAVE = 'wb_admin_pw_' + PREFIX;
+
+      function unlock() {
+        if (gate && gate.parentNode) gate.parentNode.removeChild(gate);
+        // 已放行：右下角留一个「锁定后台」按钮，点它清掉记住的密码并刷新，回到输密码状态
+        if (PREFIX) showLockBtn();
+        // CMS 脚本（2.6MB）可能还没加载完，__wbStartCMS 尚未定义，
+        // 这里轮询等它就绪，避免空密码时被跳过导致后台起不来。
+        var tries = 0;
+        var timer = setInterval(function () {
+          if (typeof window.__wbStartCMS === 'function') {
+            clearInterval(timer);
+            window.__wbStartCMS();
+          } else if (++tries > 120) {
+            clearInterval(timer); // 超时 12 秒，交给页面自带的报错提示处理
+          }
+        }, 100);
+      }
+
+      // 解锁后右下角的「锁定后台」按钮：清掉记住的密码并刷新，回到未输入状态
+      function showLockBtn() {
+        if (document.getElementById('wb-lock-float')) return;
+        var b = document.createElement('button');
+        b.id = 'wb-lock-float';
+        b.className = 'wb-lock-float';
+        b.type = 'button';
+        b.textContent = '🔒 锁定后台';
+        b.title = '清除记住的密码，回到输密码状态';
+        b.onclick = function () {
+          try {
+            localStorage.removeItem(SAVE);
+            localStorage.removeItem(KEY);
+            sessionStorage.removeItem(KEY);
+          } catch (e) {}
+          location.reload();
+        };
+        (document.body || document.documentElement).appendChild(b);
+      }
+
+      // 没设密码：直接放行
+      if (!hash) { unlock(); return; }
+
+      // 本次会话已解锁，或之前勾了「记住密码」且验证通过：直接放行
+      try {
+        if (sessionStorage.getItem(KEY) === '1' || localStorage.getItem(KEY) === '1') { unlock(); return; }
+      } catch (e) {}
+
+      // 需要密码：显示门
+      if (gate) gate.style.display = 'flex';
+      var form = document.getElementById('wb-gate-form');
+      var input = document.getElementById('wb-gate-pw');
+      var msg = document.getElementById('wb-gate-msg');
+      var btn = document.getElementById('wb-gate-go');
+      var remember = document.getElementById('wb-gate-remember');
+      if (!form) return;
+
+      // 之前勾过「记住密码」：把密码带回来，并自动勾上
+      try {
+        var saved = localStorage.getItem(SAVE);
+        if (saved && remember) { input.value = saved; remember.checked = true; }
+      } catch (e) {}
+
+      function hex(buf) {
+        var a = new Uint8Array(buf), s = '';
+        for (var i = 0; i < a.length; i++) s += ('0' + a[i].toString(16)).slice(-2);
+        return s;
+      }
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var val = input.value;
+        if (!val) { msg.textContent = '请输入密码'; return; }
+        if (!(window.crypto && crypto.subtle)) { msg.textContent = '浏览器太旧，换一个再试'; return; }
+        btn.disabled = true; msg.textContent = '校验中…';
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(val)).then(function (buf) {
+          if (hex(buf) === hash) {
+            try {
+              if (remember && remember.checked) {
+                localStorage.setItem(KEY, '1');
+                localStorage.setItem(SAVE, val);
+              } else {
+                sessionStorage.setItem(KEY, '1');
+                localStorage.removeItem(KEY);
+                localStorage.removeItem(SAVE);
+              }
+            } catch (e) {}
+            msg.textContent = '';
+            unlock();
+          } else {
+            msg.textContent = '密码不对，再试一次';
+            input.value = ''; input.focus(); btn.disabled = false;
+          }
+        }).catch(function () { msg.textContent = '校验出错，刷新页面重试'; btn.disabled = false; });
+      });
+      if (input) input.focus();
+    })();
+  </script>
+
+
+
+  <script>
+    setTimeout(function () {
+      // 用真实的启动标记判断，不再靠猜 DOM class（会误报"界面没起来"）
+      if (window.__wbCMSStarted) return;
+      var tip = document.getElementById('fallback');
+      if (tip) {
+        var h = tip.querySelector('h1');
+        var sub = tip.querySelector('.wb-load-sub');
+        if (h) h.textContent = '脚本已加载，但界面没起来';
+        if (sub) sub.innerHTML =
+          '多半是配置写错了，按 F12 看控制台红色报错，或者把报错发我。';
+      }
+    }, 15000);
+  </script>
+</body>
+</html>
