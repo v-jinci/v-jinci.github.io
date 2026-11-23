@@ -134,28 +134,22 @@
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>
-    /* 图片排版预览 v10：CSS 规则 + 事件驱动。
-       Sveltia 改字段后会重渲染组件预览，并把 inline style 清洗掉——所以只改 DOM 内联样式
-       会被冲掉（v9「已应用 1 张但图不变」就是这个问题）。
-       根本解法：把「按图片文件名匹配」的宽度规则写进 <head> 的 <style>，重渲染也冲不掉。 */
+    /* 图片排版预览 v11：跨 Shadow DOM / iframe 通吃。
+       v10「命中1张但现宽0」说明主文档命中的是隐藏图，用户看到的大图在 shadow DOM 里
+       （Sveltia 基于 Lit，组件预览常渲染在 shadow root）。本版遍历主文档 + 所有 shadow root
+       + 同源 iframe，每个上下文都注入 CSS 规则 + 直接改 inline style。 */
     (function () {
-      var VER = 'v10';
+      var VER = 'v11';
       var baseCss =
         'img.wb-img-prev{box-sizing:border-box!important;min-width:0!important;max-width:100%!important;height:auto!important}' +
         'img.wb-img-prev-c{display:block!important;float:none!important;margin:10px auto!important}' +
         'img.wb-img-prev-l{display:block!important;float:left!important;margin:6px 18px 14px 0!important}' +
         'img.wb-img-prev-r{display:block!important;float:right!important;margin:6px 0 14px 18px!important}';
-      var styleEl = document.createElement('style');
-      styleEl.id = 'wb-img-force-style';
-      (document.head || document.documentElement).appendChild(styleEl);
-      styleEl.appendChild(document.createTextNode(baseCss));
-      var dynNode = document.createTextNode('');
-      styleEl.appendChild(dynNode);
 
       var badge = document.createElement('div');
       badge.id = 'wb-img-preview-badge';
       badge.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:2147483647;padding:7px 11px;border-radius:7px;background:#1d4ed8;color:#fff;font:12px/1.4 sans-serif;box-shadow:0 2px 10px #0005;pointer-events:none;display:block';
-      badge.textContent = '🖼 图片预览脚本 ' + VER + ' 已加载（等待组件…）';
+      badge.textContent = '🖼 图片预览 ' + VER + ' 已加载（等待组件…）';
       (document.body || document.documentElement).appendChild(badge);
 
       function validW(w) { w = String(w == null ? '' : w).trim(); return /^\d{1,4}(?:\.\d+)?(?:%|px)$/.test(w) ? w : ''; }
@@ -170,6 +164,55 @@
         return 'width:' + w + '!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important;height:auto!important;' +
           'display:block!important;float:' + (f === 'l' ? 'left' : f === 'r' ? 'right' : 'none') + '!important;' +
           'margin:' + (f === 'c' ? '10px auto' : f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px') + '!important;';
+      }
+
+      // 收集所有渲染上下文：主文档 + 每个 shadow root + 同源 iframe
+      function contexts() {
+        var out = [];
+        function walk(doc, root, tag, depth) {
+          if (depth > 8) return;
+          out.push({ d: doc, r: root, tag: tag });
+          var nodes;
+          try { nodes = root.querySelectorAll('*'); } catch (e) { return; }
+          var i, el;
+          for (i = 0; i < nodes.length; i++) {
+            el = nodes[i];
+            if (el.shadowRoot) walk(doc, el.shadowRoot, tag + '>s', depth + 1);
+          }
+          var frames;
+          try { frames = root.querySelectorAll('iframe'); } catch (e) { frames = []; }
+          for (i = 0; i < frames.length; i++) {
+            try {
+              var fd = frames[i].contentDocument;
+              if (fd && fd.body) walk(fd, fd, tag + '>i', depth + 1);
+            } catch (e) {}
+          }
+        }
+        try { walk(document, document, 'M', 0); } catch (e) { out.push({ d: document, r: document, tag: 'M' }); }
+        return out;
+      }
+      function ensureStyle(ctx, css) {
+        var host = ctx.r.head || ctx.r.documentElement || ctx.r;
+        var s = null;
+        try { s = host.querySelector('#wb-img-force-style-v11'); } catch (e) {}
+        if (!s) {
+          try { s = ctx.d.createElement('style'); s.id = 'wb-img-force-style-v11'; host.appendChild(s); } catch (e) { return; }
+        }
+        try { if (s.textContent !== css) s.textContent = css; } catch (e) {}
+      }
+      function styleImg(im, live) {
+        try {
+          var st = im.style;
+          st.setProperty('width', live.w, 'important');
+          st.setProperty('min-width', '0', 'important');
+          st.setProperty('max-width', '100%', 'important');
+          st.setProperty('box-sizing', 'border-box', 'important');
+          st.setProperty('height', 'auto', 'important');
+          st.setProperty('display', 'block', 'important');
+          st.setProperty('float', live.f === 'l' ? 'left' : live.f === 'r' ? 'right' : 'none', 'important');
+          st.setProperty('margin', live.f === 'c' ? '10px auto' : live.f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+          return true;
+        } catch (e) { return false; }
       }
 
       function cardOf(el) {
@@ -188,24 +231,21 @@
           if (!w && /显示宽度/.test(txt)) w = validW(inp.value);
           if (!f && /位置|环绕/.test(txt) && ['c', 'l', 'r', 'auto'].indexOf(inp.value) >= 0) f = inp.value;
         });
-        // 优先取带图片排版标记的图（buildImg 生成），避免取到字段旁的小缩略图
         var th = card.querySelector('img[data-wb-img]') || card.querySelector('img.wb-img-prev') || card.querySelector('img[src]');
-        var key = th ? keyOf(th.getAttribute('src')) : '';
-        return w ? { w: w, f: f || 'c', key: key } : null;
+        return w ? { w: w, f: f || 'c', key: th ? keyOf(th.getAttribute('src')) : '' } : null;
       }
       function curCard() {
-        var card = activeCard && activeCard.isConnected ? activeCard : null;
-        if (!card && document.activeElement) card = cardOf(document.activeElement);
-        if (!card) {
+        var c = activeCard && activeCard.isConnected ? activeCard : null;
+        if (!c && document.activeElement) c = cardOf(document.activeElement);
+        if (!c) {
           var cards = [].slice.call(document.querySelectorAll('[data-component-name]'))
-            .filter(function (c) { return /显示宽度/.test(c.textContent || ''); });
-          card = cards[cards.length - 1] || null;
+            .filter(function (x) { return /显示宽度/.test(x.textContent || ''); });
+          c = cards[cards.length - 1] || null;
         }
-        return card;
+        return c;
       }
 
       var badgeText = '', lastSig = '';
-      function ensureBadge() { if (document.body && badge.parentNode !== document.body) document.body.appendChild(badge); }
       function setBadge(t) {
         if (t === badgeText) return;
         badgeText = t;
@@ -214,56 +254,74 @@
       }
 
       function apply() {
-        ensureBadge();
         var card = curCard();
         var live = card ? readCard(card) : null;
         if (!live || !live.w) {
-          setBadge('🖼 预览宽度 ' + VER + '｜未读到宽度字段（点一下图片组件）');
+          setBadge('🖼 ' + VER + '｜未读到宽度字段（点一下图片组件）');
           return;
         }
-        // 核心：CSS 规则写进 <head>，按当前图片文件名匹配，Sveltia 重渲染也冲不掉
         var rule = live.key ? ('img[src*="' + esc(live.key) + '"]{' + decl(live.w, live.f) + '}') : '';
-        if (rule !== dynNode.nodeValue) dynNode.nodeValue = rule;
-        // 诊断：规则实际命中几张图、当前渲染宽度是多少（帮判断是规则没命中还是被覆盖）
-        var hit = 0, firstW = '';
-        if (live.key) {
-          document.querySelectorAll('img[src*="' + esc(live.key) + '"]').forEach(function (im) {
-            hit++;
-            if (!firstW) firstW = (window.getComputedStyle ? getComputedStyle(im).width : (im.style.width || ''));
+        var css = baseCss + rule;
+        var ctxs = contexts();
+        ctxs.forEach(function (c) { ensureStyle(c, css); });
+
+        var hitMain = 0, hitShadow = 0, hitIframe = 0, visible = 0, firstW = '', changed = 0;
+        ctxs.forEach(function (c) {
+          var imgs = [];
+          try { c.r.querySelectorAll('img[src]').forEach(function (im) { imgs.push(im); }); } catch (e) {}
+          imgs.forEach(function (im) {
+            if (!live.key || keyOf(im.getAttribute('src')).indexOf(live.key) < 0 && live.key.indexOf(keyOf(im.getAttribute('src'))) < 0) return;
+            if (c.tag.indexOf('s') >= 0 && c.tag.indexOf('>') >= 0) hitShadow++;
+            else if (c.tag.indexOf('>i') >= 0) hitIframe++;
+            else hitMain++;
+            var rect = null;
+            try { rect = im.getBoundingClientRect(); } catch (e) {}
+            var vis = rect && rect.width > 30 && rect.height > 30;
+            if (vis) {
+              visible++;
+              if (!firstW) { try { firstW = c.d.defaultView.getComputedStyle(im).width; } catch (e) {} }
+            }
+            if (styleImg(im, live)) changed++;
           });
-        }
+        });
         window.__wbImgPreview = live;
-        setBadge('🖼 ' + VER + '｜字段 ' + live.w + '｜命中 ' + hit + ' 张｜现宽 ' + (firstW || '?') + (live.key ? '｜' + live.key.slice(0, 14) : ''));
+        setBadge('🖼 ' + VER + '｜' + live.w + '｜命中 主' + hitMain + '/影' + hitShadow + '/框' + hitIframe +
+          '｜可见 ' + visible + '｜现宽 ' + (firstW || '-') + (live.key ? '｜' + live.key.slice(0, 12) : ''));
         lastSig = live.w + '|' + live.f + '|' + live.key;
       }
 
-      // 事件驱动 + 防抖：用户改字段才算一次，不高频轮询
-      var raf = 0, debounce = 0;
+      var raf = 0, deb = 0;
       function schedule() {
         if (raf) cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(function () {
-          raf = 0;
-          if (debounce) clearTimeout(debounce);
-          debounce = setTimeout(apply, 24);
-        });
+        raf = requestAnimationFrame(function () { raf = 0; if (deb) clearTimeout(deb); deb = setTimeout(apply, 24); });
       }
       ['input', 'change', 'focusin', 'click'].forEach(function (ev) {
-        document.addEventListener(ev, function (e) {
-          var c = cardOf(e.target);
-          if (c) activeCard = c;
-          schedule();
-        }, true);
+        document.addEventListener(ev, function (e) { var c = cardOf(e.target); if (c) activeCard = c; schedule(); }, true);
       });
-      // 极轻兜底：签名变化才写 DOM（CSS 规则节点），绝大多数 tick 空转
+      // 极轻兜底：签名变化才 apply；另外每 700ms 检查可见命中图的现宽是否等于目标，不等则补
       setInterval(function () {
-        var card = curCard();
-        if (!card) return;
-        var live = readCard(card);
+        var c = curCard();
+        if (!c) return;
+        var live = readCard(c);
         if (!live || !live.w) return;
         var sig = live.w + '|' + live.f + '|' + live.key;
-        if (sig !== lastSig) apply();
+        if (sig !== lastSig) { apply(); return; }
+        var need = false;
+        contexts().forEach(function (cx) {
+          try {
+            cx.r.querySelectorAll('img[src]').forEach(function (im) {
+              if (!live.key) return;
+              var k = keyOf(im.getAttribute('src'));
+              if (k.indexOf(live.key) < 0 && live.key.indexOf(k) < 0) return;
+              var rect = null; try { rect = im.getBoundingClientRect(); } catch (e) {}
+              if (rect && rect.width > 30 && (im.style.getPropertyValue('width') || '') !== live.w) need = true;
+            });
+          } catch (e) {}
+        });
+        if (need) apply();
       }, 700);
       document.addEventListener('DOMContentLoaded', apply);
+      setTimeout(apply, 300);
       apply();
     })();
   </script>
