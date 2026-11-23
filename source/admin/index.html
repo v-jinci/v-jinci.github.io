@@ -134,11 +134,12 @@
   <link rel="preconnect" href="/libs/">
   <link rel="preload" as="script" href="/libs/sveltia-270/sveltia-cms.js">
   <script>
-    /* 图片排版预览 v8：事件驱动 + 防抖。
+    /* 图片排版预览 v9：事件驱动 + 防抖。
        改尺寸即时生效；不再每 120ms 全量扫描整页 img（那是卡顿/慢半拍的主因）。
-       只认「当前正在编辑」的图片组件，绝不猜其它组件的百分比。 */
+       关键：图片组件的预览图就在 [data-component-name] 卡片内，必须直接改它；
+       只认「当前正在编辑」的组件，绝不猜其它组件的百分比。 */
     (function () {
-      var VER = 'v8';
+      var VER = 'v9';
       var styleEl = document.createElement('style');
       styleEl.id = 'wb-img-force-style';
       // 通用对齐规则用 class 固化；宽度由 img 自带 inline style / 本脚本按字段写入
@@ -203,6 +204,19 @@
         else badge.textContent = t;
       }
 
+      function styleImg(img, live) {
+        try {
+          img.style.setProperty('width', live.w, 'important');
+          img.style.setProperty('min-width', '0', 'important');
+          img.style.setProperty('max-width', '100%', 'important');
+          img.style.setProperty('box-sizing', 'border-box', 'important');
+          img.style.setProperty('height', 'auto', 'important');
+          img.style.setProperty('display', 'block', 'important');
+          img.style.setProperty('float', live.f === 'l' ? 'left' : live.f === 'r' ? 'right' : 'none', 'important');
+          img.style.setProperty('margin', live.f === 'c' ? '10px auto' : live.f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
+          return true;
+        } catch (e) { return false; }
+      }
       function apply() {
         ensureBadge();
         var card = curCard();
@@ -213,23 +227,27 @@
         }
         var sig = live.w + '|' + live.f + '|' + live.key;
         applied = 0;
-        document.querySelectorAll('img').forEach(function (img) {
-          // 组件卡片里的缩略图会被写回正文，绝不改它
-          if (img.closest('[data-component-name], [data-component-path]')) return;
-          var key = keyOf(img.getAttribute('src'));
-          if (live.key && key !== live.key) return; // 只应用当前这张，避免误改别的图
-          try {
-            img.style.setProperty('width', live.w, 'important');
-            img.style.setProperty('min-width', '0', 'important');
-            img.style.setProperty('max-width', '100%', 'important');
-            img.style.setProperty('box-sizing', 'border-box', 'important');
-            img.style.setProperty('height', 'auto', 'important');
-            img.style.setProperty('display', 'block', 'important');
-            img.style.setProperty('float', live.f === 'l' ? 'left' : live.f === 'r' ? 'right' : 'none', 'important');
-            img.style.setProperty('margin', live.f === 'c' ? '10px auto' : live.f === 'l' ? '6px 18px 14px 0' : '6px 0 14px 18px', 'important');
-            applied++;
-          } catch (e) {}
-        });
+
+        // ① 首选：当前组件卡片内的预览图（toPreview 渲染结果就在这里）——用户看到的大图就是它
+        if (card) {
+          var inCard = [].slice.call(card.querySelectorAll('img[src]'));
+          // 优先带图片排版标记的；其次排除明显的小图标（宽度<40px 的跳过）
+          var marked = inCard.filter(function (im) { return im.hasAttribute('data-wb-img') || /wb-img-prev/.test(String(im.className || '')); });
+          var targets = marked.length ? marked : inCard.filter(function (im) {
+            var w = im.naturalWidth || parseInt(im.getAttribute('width'), 10) || 0;
+            return w === 0 || w >= 40; // 未加载完(w=0)也纳入，避免漏掉
+          });
+          targets.forEach(function (img) { if (styleImg(img, live)) applied++; });
+        }
+
+        // ② 兜底：正文编辑区里文件名相同的图（有的版本组件预览渲染在卡片外）
+        if (!applied) {
+          document.querySelectorAll('img').forEach(function (img) {
+            if (img.closest('[data-component-name], [data-component-path]')) return;
+            var key = keyOf(img.getAttribute('src'));
+            if (live.key && key === live.key && styleImg(img, live)) applied++;
+          });
+        }
         window.__wbImgPreview = live;
         setBadge('🖼 预览宽度 ' + VER + '｜字段 ' + live.w + '｜已应用 ' + applied + ' 张' + (live.key ? '｜' + live.key.slice(0, 18) : ''));
         lastSig = sig;
@@ -252,15 +270,23 @@
           schedule();
         }, true);
       });
-      // 极轻兜底：只有签名变化才写 DOM，绝大多数 tick 空转，不造成卡顿
+      // 极轻兜底：Sveltia 在字段变化后会异步重渲染预览图、覆盖我们写的样式。
+      // 这里只做「读」检测（签名变化 或 卡片内图当前宽度不对），命中才 apply，
+      // 绝大多数 tick 不写 DOM，不会造成之前的卡顿。
       setInterval(function () {
         var card = curCard();
         if (!card) return;
         var live = readCard(card);
         if (!live || !live.w) return;
         var sig = live.w + '|' + live.f + '|' + live.key;
-        if (sig !== lastSig) apply();
-      }, 1200);
+        if (sig !== lastSig) { apply(); return; }
+        // 签名没变，但预览图被重渲染成全宽 → 补回
+        var need = false;
+        card.querySelectorAll('img[data-wb-img], img.wb-img-prev').forEach(function (im) {
+          if ((im.style.getPropertyValue('width') || '') !== live.w) need = true;
+        });
+        if (need) apply();
+      }, 700);
       document.addEventListener('DOMContentLoaded', apply);
       apply();
     })();
