@@ -1536,16 +1536,15 @@
           'data-wb-img': '1', 'data-wb-w': w, 'data-wb-f': f,
           'src': src, 'alt': d.alt || ''
         };
-        // 预览专用：把宽度/对齐写进 inline style 和 class，让编辑器里就能看到效果。
-        // Sveltia 预览会清洗 style，白名单含 width/max-width/height（不含 float/margin/display），
+        // 宽度/对齐写进 inline style + class。Sveltia 整篇预览（右侧「预览」）渲染的是
+        // toBlock 保存的 HTML，不走前台脚本；只有 HTML 自带 width 才能在预览里看到 50%/25%。
+        // style 白名单含 width/max-width/height（不含 float/margin/display），
         // 所以宽度靠 inline style、对齐靠 class + 后台预览 CSS 兜底。
-        // 保存到正文时（forPreview=false）不写这些，交给前台 wb-post.js 完整处理，避免丢 float/margin。
-        if (forPreview) {
-          var st = [];
-          if (w) st.push('width:' + w, 'max-width:100%', 'height:auto');
-          if (st.length) attrs['style'] = st.join(';');
-          attrs['class'] = 'wb-img-prev wb-img-prev-' + (f === 'l' ? 'l' : f === 'r' ? 'r' : f === 'c' ? 'c' : 'auto');
-        }
+        // 保存到正文后，前台 wb-post.js 会补齐环绕声明（已改为逐条补齐，不会因已有 width 而漏掉）。
+        var st = [];
+        if (w) st.push('width:' + w, 'max-width:100%', 'height:auto');
+        if (st.length) attrs['style'] = st.join(';');
+        attrs['class'] = 'wb-img-prev wb-img-prev-' + (f === 'l' ? 'l' : f === 'r' ? 'r' : f === 'c' ? 'c' : 'auto');
         return el('img', attrs);
       }
       // 新组件通用的 fromBlock：从匹配串里取第一个元素的 data-* 属性

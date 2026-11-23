@@ -105,9 +105,15 @@ function applyImgLayout(html, defaultWidth, defaultFloat) {
     decls.push('max-width:100%', 'height:auto');
 
     let out = tag;
-    if (!(/style=("|')([^"']*)\1/i.test(out) && /width\s*:/i.test(out.match(/style=("|')([^"']*)\1/i)[2]))) {
-      out = addStyle(out, decls.join(';') + ';');
-    }
+    // 逐条补齐：后台组件已在 style 里写了 width，但可能缺 float/margin/display。
+    // 不能因为有 width 就整段跳过，否则环绕排版会丢失。
+    const sm = out.match(/style=("|')([^"']*)\1/i);
+    const have = sm ? sm[2] : '';
+    const missing = decls.filter(d => {
+      const prop = d.split(':')[0].trim();
+      return !new RegExp('(?:^|;)\\s*' + prop + '\\s*:', 'i').test(have);
+    });
+    if (missing.length) out = addStyle(out, missing.join(';') + ';');
     return addClass(out, cls);
   });
 }

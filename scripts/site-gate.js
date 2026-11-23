@@ -179,11 +179,13 @@ hexo.extend.filter.register('after_render:html', function (str, data) {
   const head = STYLE.replace('KEYVAL', JSON.stringify(key)).replace('HASHVAL', JSON.stringify(hash));
   if (str.indexOf('</head>') !== -1) str = str.replace('</head>', head + '</head>');
 
-  // 首页没有 #article-container，改用 Butterfly 的 #content-inner
-  const marker = key === 'index'
-    ? '<main class="layout" id="content-inner">'
-    : '<div class="container" id="article-container">';
-  if (str.indexOf(marker) !== -1) {
+  // 密码卡片必须放在 #content-inner 之外：锁定时 content-inner 会被 display:none，
+  // 若卡片插在它内部（旧代码对内页插到 #article-container 前）会连密码框一起藏掉，整页空白。
+  // 统一插到 #content-inner 前面，锁定时卡片可见、正文隐藏；解锁后 reveal() 会移除卡片。
+  const outer = '<main class="layout" id="content-inner">';
+  const inner = '<div class="container" id="article-container">';
+  const marker = str.indexOf(outer) !== -1 ? outer : (str.indexOf(inner) !== -1 ? inner : '');
+  if (marker) {
     str = str.replace(marker, GATE_HTML + marker);
     if (str.indexOf('</body>') !== -1) str = str.replace('</body>', GATE_JS + '</body>');
   }
