@@ -1927,6 +1927,62 @@
   </script>
 
   <script>
+    /* 图片排版预览宽度兜底：
+       Sveltia 的预览有多层清洗（qm/$oe），组件预览和「中间整篇预览」渲染链路不同，
+       且工具栏改宽度时整篇预览读的是正文旧 HTML。这里直接监听最终 DOM，
+       用 data-wb-w / data-wb-f 这两个一定会被保留的属性强制应用宽度与对齐，
+       覆盖组件弹窗预览、中间预览栏、编辑器内所有出现的位置。 */
+    (function () {
+      function applyImg(img) {
+        try {
+          // 编辑器主区（会被序列化回正文）不碰，避免把预览样式写进文章数据
+          if (img.closest('[data-lexical-editor]')) return;
+          var w = (img.getAttribute('data-wb-w') || '').trim();
+          var f = (img.getAttribute('data-wb-f') || 'c').trim();
+          if (!w) {
+            // 兜底：从 src 的 ?w= 参数里读
+            var m = (img.getAttribute('src') || '').match(/[?#&]w=([0-9.]+)(%25|%|px)?/i);
+            if (m) w = m[1] + ((m[2] || '').toLowerCase() === 'px' ? 'px' : '%');
+          }
+          if (w) {
+            img.style.setProperty('width', w, 'important');
+            img.style.setProperty('max-width', '100%', 'important');
+            img.style.setProperty('height', 'auto', 'important');
+          }
+          if (f === 'c') {
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('margin', '10px auto', 'important');
+            img.style.setProperty('float', 'none', 'important');
+          } else if (f === 'l') {
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('float', 'left', 'important');
+            img.style.setProperty('margin', '6px 18px 14px 0', 'important');
+          } else if (f === 'r') {
+            img.style.setProperty('display', 'block', 'important');
+            img.style.setProperty('float', 'right', 'important');
+            img.style.setProperty('margin', '6px 0 14px 18px', 'important');
+          }
+          img.setAttribute('data-wb-preview-applied', '1');
+        } catch (e) {}
+      }
+      function scan() {
+        document.querySelectorAll('img[data-wb-img]:not([data-wb-preview-applied])').forEach(applyImg);
+      }
+      // 字段/预览变化时 data-wb-w 会更新，需要重新应用：清除标记后重扫
+      function rescan() {
+        document.querySelectorAll('img[data-wb-img]').forEach(function (img) {
+          var want = (img.getAttribute('data-wb-w') || '').trim();
+          var applied = img.getAttribute('data-wb-applied-w');
+          if (want !== applied) { img.removeAttribute('data-wb-preview-applied'); applyImg(img); img.setAttribute('data-wb-applied-w', want); }
+        });
+      }
+      var mo = new MutationObserver(function () { scan(); rescan(); });
+      mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-wb-w', 'data-wb-f', 'src'] });
+      setInterval(rescan, 400);
+    })();
+  </script>
+
+  <script>
     setTimeout(function () {
       // 用真实的启动标记判断，不再靠猜 DOM class（会误报"界面没起来"）
       if (window.__wbCMSStarted) return;
