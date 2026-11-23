@@ -278,8 +278,8 @@
   <!-- 性能优化：注册 Service Worker，把 CMS 脚本缓存到本机，第二次进后台秒开 -->
   <script>
     if ('serviceWorker' in navigator) {
-      (function registerSW() {
-        // 先注销旧版 /admin/sw.js（作用域太小，拦不到 /libs/），再注册根目录新版
+      window.addEventListener('load', function () {
+        // 放到 load 之后再缓存：避免和 CMS 主脚本抢带宽，拖慢首次进入后台
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           return Promise.all(regs.map(function (r) {
             try {
@@ -291,7 +291,7 @@
         }).catch(function () {}).then(function () {
           return navigator.serviceWorker.register('/sw.js');
         }).catch(function () {});
-      })();
+      });
     }
   </script>
   <!-- 访问密码 hash（构建时由 scripts/admin-gate.js 内联填入；空＝无密码） -->
